@@ -62,6 +62,25 @@ class ApiClient {
     ),
   );
 
+  /// `PATCH` é a operação de **correção** do backend — reescreve o valor desde o
+  /// início, ao contrário do `POST` de reajuste, que preserva os meses
+  /// anteriores. Ver `/incomes/:id/amount` e `/expenses/:id/amount`.
+  Future<dynamic> patch(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+    Options? options,
+  }) => _request<Response>(
+    () => _dio.patch(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+      cancelToken: cancelToken,
+    ),
+  );
+
   Future<dynamic> delete(
     String path, {
     CancelToken? cancelToken,

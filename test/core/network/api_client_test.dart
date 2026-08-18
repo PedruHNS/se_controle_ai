@@ -84,6 +84,22 @@ void main() {
       ]);
     });
 
+    test('patch envia o corpo e devolve o Response', () async {
+      final (client: client, adapter: adapter) = clientThatReturns(
+        (_) async => _json({'id': 'x', 'amountCents': 550000}, 200),
+      );
+
+      final response = await client.patch(
+        '/incomes/x/amount',
+        data: {'amountCents': 550000},
+      );
+
+      expect(adapter.lastRequest!.method, 'PATCH');
+      expect(adapter.lastRequest!.data, {'amountCents': 550000});
+      expect(response, isA<Response<dynamic>>());
+      expect(response.data['amountCents'], 550000);
+    });
+
     test('204 sem corpo não estoura — devolve vazio', () async {
       final (client: client, adapter: _) = clientThatReturns(
         (_) async => _json(null, 204),
