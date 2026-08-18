@@ -115,7 +115,11 @@ abstract final class Month {
   /// projeção e seletor de mês.
   static List<String> range(String month, int count) {
     if (count <= 0) return const [];
-    return List.generate(count, (index) => offset(month, index), growable: false);
+    return List.generate(
+      count,
+      (index) => offset(month, index),
+      growable: false,
+    );
   }
 
   /// Negativo se [a] vem antes de [b], zero se iguais, positivo se depois.

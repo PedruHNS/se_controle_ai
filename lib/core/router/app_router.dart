@@ -41,10 +41,8 @@ final GoRouter appRouter = GoRouter(
 
   /// Cai aqui em URL que não existe — digitada, deep link antigo, typo em
   /// `goNamed`. Sem isto o go_router mostra uma tela de erro crua.
-  errorBuilder: (context, state) => _RouteErrorPage(
-    location: state.uri.toString(),
-    error: state.error,
-  ),
+  errorBuilder: (context, state) =>
+      _RouteErrorPage(location: state.uri.toString(), error: state.error),
 
   /// Ponto de entrada para regra de acesso, quando houver login. Hoje o backend
   /// não tem autenticação (veja ROADMAP.md), então nada é redirecionado.

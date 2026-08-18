@@ -28,9 +28,12 @@ void main() {
       expect(Money.format(-4550, showSymbol: false), '-45,50');
     });
 
-    test('teto do INTEGER do Postgres, que é o máximo que o backend aceita', () {
-      expect(Money.format(2147483647), 'R\$ 21.474.836,47');
-    });
+    test(
+      'teto do INTEGER do Postgres, que é o máximo que o backend aceita',
+      () {
+        expect(Money.format(2147483647), 'R\$ 21.474.836,47');
+      },
+    );
   });
 
   group('Money.formatSigned', () {
