@@ -8,7 +8,7 @@ import 'line_item_tile.dart';
 class CreditCardInvoiceCard extends StatelessWidget {
   const CreditCardInvoiceCard({required this.invoice, super.key});
 
-  final CreditCardInvoice invoice;
+  final CreditCardInvoiceModel invoice;
 
   @override
   Widget build(BuildContext context) {

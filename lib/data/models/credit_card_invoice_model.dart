@@ -1,8 +1,8 @@
 import 'package:se_controle_ai/data/models/summary_line_item_model.dart';
 
 /// A fatura de um cartão no mês consultado.
-class CreditCardInvoice {
-  const CreditCardInvoice({
+class CreditCardInvoiceModel {
+  const CreditCardInvoiceModel({
     required this.cardId,
     required this.name,
     required this.label,
@@ -33,8 +33,8 @@ class CreditCardInvoice {
     return totalCents / limit;
   }
 
-  factory CreditCardInvoice.fromJson(Map<String, dynamic> json) =>
-      CreditCardInvoice(
+  factory CreditCardInvoiceModel.fromJson(Map<String, dynamic> json) =>
+      CreditCardInvoiceModel(
         cardId: json['cardId'] as String,
         name: json['name'] as String,
         label: json['label'] as String,

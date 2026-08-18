@@ -1,5 +1,5 @@
 /// Um mês de `GET /summary/projection`.
-class MonthProjection {
+class MonthProjectionModel {
   final String month;
   final int incomeCents;
   final int expenseCents;
@@ -8,7 +8,7 @@ class MonthProjection {
   /// Soma dos saldos até este mês — é o que responde "quanto vou ter juntado".
   final int cumulativeBalanceCents;
 
-  const MonthProjection({
+  const MonthProjectionModel({
     required this.month,
     required this.incomeCents,
     required this.expenseCents,
@@ -16,8 +16,8 @@ class MonthProjection {
     required this.cumulativeBalanceCents,
   });
 
-  factory MonthProjection.fromJson(Map<String, dynamic> json) =>
-      MonthProjection(
+  factory MonthProjectionModel.fromJson(Map<String, dynamic> json) =>
+      MonthProjectionModel(
         month: json['month'] as String,
         incomeCents: json['incomeCents'] as int,
         expenseCents: json['expenseCents'] as int,

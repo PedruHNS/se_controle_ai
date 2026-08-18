@@ -19,8 +19,8 @@ class MonthlySummaryModel {
   final double? committedPercent;
 
   final List<SummaryLineItemModel> incomes;
-  final DebitGroup debit;
-  final List<CreditCardInvoice> creditCards;
+  final DebitGroupModel debit;
+  final List<CreditCardInvoiceModel> creditCards;
 
   bool get isNegative => balanceCents < 0;
   const MonthlySummaryModel({
@@ -45,13 +45,10 @@ class MonthlySummaryModel {
             .cast<Map<String, dynamic>>()
             .map(SummaryLineItemModel.fromJson)
             .toList(growable: false),
-        debit: DebitGroup.fromJson(json['debit'] as Map<String, dynamic>),
+        debit: DebitGroupModel.fromJson(json['debit'] as Map<String, dynamic>),
         creditCards: (json['creditCards'] as List<dynamic>)
             .cast<Map<String, dynamic>>()
-            .map(CreditCardInvoice.fromJson)
+            .map(CreditCardInvoiceModel.fromJson)
             .toList(growable: false),
       );
 }
-
-
-

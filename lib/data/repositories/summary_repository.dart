@@ -13,7 +13,7 @@ abstract interface class SummaryRepository {
   Future<Result<MonthlySummaryModel, Failure>> getMonthly({String? month});
 
   /// Projeção de saldo a partir de [from], por [months] meses (1 a 60).
-  Future<Result<List<MonthProjection>, Failure>> getProjection({
+  Future<Result<List<MonthProjectionModel>, Failure>> getProjection({
     String? from,
     int months = 12,
   });
@@ -44,7 +44,7 @@ class SummaryRepositoryImpl implements SummaryRepository {
   }
 
   @override
-  Future<Result<List<MonthProjection>, Failure>> getProjection({
+  Future<Result<List<MonthProjectionModel>, Failure>> getProjection({
     String? from,
     int months = 12,
   }) async {
@@ -53,7 +53,9 @@ class SummaryRepositoryImpl implements SummaryRepository {
         '/summary/projection',
         queryParameters: {'from': from, 'months': months},
       );
-      return Success(Decode.listOf(response.data, MonthProjection.fromJson));
+      return Success(
+        Decode.listOf(response.data, MonthProjectionModel.fromJson),
+      );
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {

@@ -32,7 +32,7 @@ class FakeSummaryRepository implements SummaryRepository {
   }
 
   @override
-  Future<Result<List<MonthProjection>, Failure>> getProjection({
+  Future<Result<List<MonthProjectionModel>, Failure>> getProjection({
     String? from,
     int months = 12,
   }) async => const Success([]);

@@ -77,7 +77,7 @@ void main() {
     });
   });
 
-  group('CreditCardInvoice.limitUsage', () {
+  group('CreditCardInvoiceModel.limitUsage', () {
     test('proporção entre fatura e limite', () {
       final invoice = MonthlySummaryModel.fromJson(
         summaryJson,
@@ -97,7 +97,7 @@ void main() {
     });
 
     test('nulo quando o cartão não tem limite cadastrado', () {
-      final invoice = CreditCardInvoice.fromJson({
+      final invoice = CreditCardInvoiceModel.fromJson({
         'cardId': 'c1',
         'name': 'Sem limite',
         'label': 'Sem limite',
@@ -111,7 +111,7 @@ void main() {
     });
 
     test('nulo com limite zero, em vez de dividir por zero', () {
-      final invoice = CreditCardInvoice.fromJson({
+      final invoice = CreditCardInvoiceModel.fromJson({
         'cardId': 'c1',
         'name': 'Limite zero',
         'label': 'Limite zero',
@@ -125,9 +125,9 @@ void main() {
     });
   });
 
-  group('MonthProjection.fromJson', () {
+  group('MonthProjectionModel.fromJson', () {
     test('lê saldo do mês e acumulado', () {
-      final projection = MonthProjection.fromJson({
+      final projection = MonthProjectionModel.fromJson({
         'month': '2026-09',
         'incomeCents': 500000,
         'expenseCents': 245590,
