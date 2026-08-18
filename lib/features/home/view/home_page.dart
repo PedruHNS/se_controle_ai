@@ -19,9 +19,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // StatefulWidget e não um controller global: é o que dá um ponto de dispose
-  // para os signals. O registro no get_it é factory, então cada página tem a
-  // própria instância.
+  // O controller é um lazySingleton do get_it, e é o get_it que o libera pelo
+  // `dispose:` do registro — por isso não há `dispose` aqui. Consequência
+  // desejada: o mês selecionado continua o mesmo ao sair da home e voltar.
   final _controller = getIt<HomeController>();
 
   @override

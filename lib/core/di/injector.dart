@@ -31,10 +31,14 @@ void setupInjector() {
     () => SummaryRepositoryImpl(getIt<ApiClient>()),
   );
 
-  // Controller usa registerFactory, não singleton: cada tela precisa da própria
-  // instância. Como singleton, dois pushes da mesma rota compartilhariam estado
-  // — e o `dispose` do primeiro deixaria o segundo com signal morto.
-
+  // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
+  // get_it — a página não chama `dispose` no controller. O dono da instância é o
+  // container, não a tela: sair da home e voltar reaproveita o mesmo controller,
+  // então o mês selecionado sobrevive à navegação em vez de recomeçar no atual.
+  //
+  // A contrapartida é que o estado é único por app. Se algum dia a mesma rota
+  // puder ser empilhada duas vezes com meses diferentes, aqui vira
+  // `registerFactory` e o `dispose` passa a ser do `State` da página.
   getIt.registerLazySingleton<HomeController>(
     () => HomeController(getIt<SummaryRepository>()),
     dispose: (e) => e.dispose(),
