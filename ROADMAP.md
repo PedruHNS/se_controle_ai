@@ -10,8 +10,11 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 e 1 concluídas** · a home lê e
 apresenta o resumo do mês, e já foi validada contra dados reais do backend.
 
-`flutter analyze` sem issue · **93 testes, todos passando** · `/summary` e
+`flutter analyze` sem issue · **94 testes, todos passando** · `/summary` e
 `/summary/projection` reconferidos contra o backend real em Docker.
+
+Sem pendência de encanamento: o `ApiClient` tem `get`, `post`, `patch` e
+`delete`, e a Fase 2 pode começar.
 
 As seis libs estão em uso:
 
@@ -44,32 +47,31 @@ quebrado mais tempo ainda, porque o fake do teste não passa pelo `ApiClient`.
 Quem guarda essa fronteira é o grupo `devolve o Response do Dio` em
 `api_client_test.dart`.
 
-### Pendências abertas
+### Duas convenções, agora fechadas
 
-Duas inconsistências que não quebram nada hoje, mas ficam caras depois que uma
-segunda feature copiar o padrão.
+Estavam pela metade e foram alinhadas em 18/08, antes de abrir a Fase 2 — cada
+feature nova copia essas duas escolhas, então valia resolver com uma feature só
+no repositório.
 
-1. **O sufixo `Model` está pela metade.** `MonthlySummaryModel` e
-   `SummaryLineItemModel` têm; `DebitGroup`, `CreditCardInvoice` e
-   `MonthProjection` não, apesar de morarem em arquivos `*_model.dart`. Decidir
-   antes da Fase 2, senão cada feature nova herda a dúvida.
-2. **`HomeController` é `registerLazySingleton` em produção e `registerFactory`
-   no teste** (`injector.dart` vs `test/fixtures/test_injector.dart`). Os
-   comentários nos dois arquivos e em `home_page.dart` afirmam "factory, cada
-   página tem a própria instância" — o código de produção faz o contrário. Como
-   singleton, dois pushes da mesma rota compartilham estado, e o `dispose` do
-   primeiro deixaria o segundo com signal morto. Hoje não explode porque a
-   `HomePage` nunca chama `dispose` no controller, então o `dispose:` do get_it
-   só rodaria num `unregister`/`reset` — o que também significa que os signals
-   nunca são liberados.
+**Todo model termina em `Model`.** `MonthlySummaryModel`, `SummaryLineItemModel`,
+`DebitGroupModel`, `CreditCardInvoiceModel`, `MonthProjectionModel` — um por
+arquivo `*_model.dart`. O sufixo também separa o model do widget de mesmo assunto:
+`CreditCardInvoiceModel` é o dado, `CreditCardInvoiceCard` é a tela.
 
-Falta também `ApiClient.patch`: só existem `get`, `post` e `delete`, e a Fase 2
-precisa de `PATCH /incomes/:id/amount`.
+**Controller é `registerLazySingleton`, e quem libera é o get_it.** O dono da
+instância é o container, não a tela: a página só faz `getIt<XController>()` e
+**não** chama `dispose` — quem libera os signals é o `dispose:` do registro.
+Consequência desejada: sair da home e voltar reaproveita o mesmo controller, e o
+mês selecionado sobrevive à navegação em vez de recomeçar no atual.
 
-Além disso, `dart format` reescreve quatro arquivos que nunca passaram por
-formatação: `core/router/app_router.dart`, `core/utils/month.dart`,
-`data/models/monthly_summary_model.dart` (linhas em branco sobrando no fim) e
-`test/core/utils/money_test.dart`.
+A contrapartida é que o estado é único por app. Se algum dia a mesma rota puder
+ser empilhada duas vezes com estados diferentes, o registro vira `registerFactory`
+e o `dispose` passa para o `State` da página — factory não aceita o `dispose:`,
+porque o get_it não guarda a instância.
+
+Um detalhe que o `test_injector.dart` deixa de fora: lá o `HomeController` é
+`registerFactory`, para cada teste começar limpo. É divergência de propósito, mas
+significa que o caminho de `dispose` de produção não é exercitado por teste.
 
 ### O que já existe em `lib/`
 
@@ -92,9 +94,9 @@ formatação: `core/router/app_router.dart`, `core/utils/month.dart`,
 | `core/utils/month.dart` | Competência `YYYY-MM`: label, aritmética, limites do backend |
 | `data/models/monthly_summary_model.dart` | `MonthlySummaryModel` — a resposta de `/summary` inteira |
 | `data/models/summary_line_item_model.dart` | `SummaryLineItemModel` — a linha usada em ganho, débito e fatura |
-| `data/models/debit_group_model.dart` | `DebitGroup` — total + itens do débito |
-| `data/models/credit_card_invoice_model.dart` | `CreditCardInvoice` — fatura do mês, com `limitUsage` |
-| `data/models/month_projection_model.dart` | `MonthProjection` — um mês de `/summary/projection` |
+| `data/models/debit_group_model.dart` | `DebitGroupModel` — total + itens do débito |
+| `data/models/credit_card_invoice_model.dart` | `CreditCardInvoiceModel` — fatura do mês, com `limitUsage` |
+| `data/models/month_projection_model.dart` | `MonthProjectionModel` — um mês de `/summary/projection` |
 | `data/repositories/summary_repository.dart` | Interface + impl de `/summary` e `/summary/projection` |
 | `features/home/controller/home_controller.dart` | Estado do resumo com signals — **é o molde a copiar** |
 | `features/home/view/home_page.dart` | A tela: navegação de mês, `switch` no `ViewState`, pull-to-refresh |
@@ -102,7 +104,7 @@ formatação: `core/router/app_router.dart`, `core/utils/month.dart`,
 
 **Um model por arquivo, sem barrel.** Cada consumidor importa o arquivo da classe
 que usa. Não existe `models/monthly_summary.dart` reexportando o resto — quem
-precisa de `CreditCardInvoice` importa `credit_card_invoice_model.dart`.
+precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 
 ### O que já existe em `test/`
 
@@ -233,18 +235,13 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 1 — Resumo mensal: **concluída** |
 | ░░░░░░░░░░ | Fases 2 a 8 — não iniciadas |
 
-**Próximo passo: fechar as [pendências abertas](#pendências-abertas) antes de
-abrir a Fase 2.** São três mexidas pequenas, e as três ficam mais caras depois de
-existir uma segunda feature copiando o padrão:
+**Próximo passo: Fase 2 — Ganhos.** O encanamento está fechado: `ApiClient.patch`
+entrou, e as duas convenções que estavam pela metade (sufixo `Model` e registro do
+controller) foram alinhadas.
 
-1. Decidir o sufixo `Model` e aplicar nos cinco models de uma vez.
-2. Alinhar o registro do `HomeController` com o que os comentários prometem.
-3. `ApiClient.patch`, com caso no grupo `devolve o Response do Dio` — Ganhos
-   precisa de `PATCH /incomes/:id/amount`.
-
-Depois disso, Fase 2 (Ganhos), o primeiro CRUD. O padrão a copiar está na
-Fase 1 — model, repositório com `try/catch`, controller com signals, view com
-`SignalBuilder` e `switch` no `ViewState`. O que ela tem de novo: formulário com
+Fase 2 (Ganhos) é o primeiro CRUD. O padrão a copiar está na Fase 1 — model,
+repositório com `try/catch`, controller com signals, view com `SignalBuilder` e
+`switch` no `ViewState`. O que ela tem de novo: formulário com
 `issues[].path` do 400 ligado ao campo (o `ValidationFailure.messageFor` já
 existe esperando por isso) e reajuste vs. correção como duas ações distintas.
 
@@ -270,14 +267,14 @@ por go_router e uma chamada de teste ao `/health` do backend volta `Success`.
 (`R$ 5.000,00` / `R$ 2.455,90` / `+R$ 2.544,10`), 404 real virou `NotFoundFailure`
 e 400 real virou `ValidationFailure` com as issues do zod.
 
-**Testes que já cobrem a fase** (34 no total, todos passando):
+**Testes que já cobrem a fase** (35 no total, todos passando):
 `test/core/utils/money_test.dart` (17 casos: formatação, parse, round-trip),
-`test/core/network/api_client_test.dart` (13 casos: 200/204, remoção de query
-nula, 400 com issues, 404, 409, 422, 500, corpo HTML de proxy, timeout,
-cancelamento, decode quebrado), `test/core/router/app_router_test.dart` (4 casos:
+`test/core/network/api_client_test.dart` (14 casos: 200/204, patch com corpo,
+remoção de query nula, 400 com issues, 404, 409, 422, 500, corpo HTML de proxy,
+timeout, cancelamento, decode quebrado), `test/core/router/app_router_test.dart` (4 casos:
 rota inicial, `goNamed`, 404, botão de voltar).
 
-Os 3 casos do grupo `devolve o Response do Dio` são a única coisa que segura o
+Os 4 casos do grupo `devolve o Response do Dio` são a única coisa que segura o
 contrato do `ApiClient` — os outros 10 do arquivo só olham o que é lançado, não o
 que é devolvido. Método novo no client entra com caso novo nesse grupo.
 
@@ -304,7 +301,7 @@ não pega. Mudança na camada de rede tem que ser reconferida contra o Docker.
 
 **Testes da fase** (59 no total, todos passando): `month_test.dart` (16 casos),
 `monthly_summary_test.dart` (12 casos: parse do JSON real capturado do backend,
-incluindo mês vazio e mês no vermelho, `limitUsage` e `MonthProjection`),
+incluindo mês vazio e mês no vermelho, `limitUsage` e `MonthProjectionModel`),
 `home_controller_test.dart` (16 casos: navegação, limites, corrida entre
 respostas), `home_page_test.dart` (14 casos de widget), `widget_test.dart`
 (1 caso: o app sobe e cai na home).
