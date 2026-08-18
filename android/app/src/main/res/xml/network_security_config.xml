@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Política de rede do app.
+
+  Existe porque o Android bloqueia HTTP sem TLS desde a API 28, e o backend de
+  desenvolvimento roda em `http://` na rede local. Sem isto a requisição falha
+  antes de sair do aparelho, e o app mostra "Sem conexão" com a Wi-Fi
+  funcionando.
+
+  Diferença em relação a `android:usesCleartextTraffic="true"`, que era o que
+  havia antes: aquilo libera HTTP para **qualquer** endereço, e valia só no build
+  de debug. Isto libera apenas os hosts do backend local, e vale em debug,
+  profile e release — que é o que permite instalar um APK e usar.
+
+  Quando existir backend hospedado, ele será `https://` e cai no base-config,
+  sem precisar de exceção.
+-->
+<network-security-config>
+    <!-- Regra geral: HTTPS obrigatório. -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Exceções: só o backend local. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Aparelho físico via `adb reverse tcp:3333 tcp:3333`, e desktop. -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+
+        <!-- Apelido do emulador Android para a máquina host. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+
+        <!-- Máquina de desenvolvimento na rede local. Se o IP mudar (é DHCP),
+             atualize aqui e em AppConfig. -->
+        <domain includeSubdomains="false">192.168.1.9</domain>
+    </domain-config>
+</network-security-config>
