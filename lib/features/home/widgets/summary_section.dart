@@ -44,9 +44,7 @@ class SummarySection extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(title, style: theme.textTheme.titleSmall),
-                ),
+                Expanded(child: Text(title, style: theme.textTheme.titleSmall)),
                 Text(
                   Money.format(totalCents),
                   style: theme.textTheme.titleSmall?.copyWith(

@@ -23,7 +23,9 @@ class FakeSummaryRepository implements SummaryRepository {
   Duration? delay;
 
   @override
-  Future<Result<MonthlySummaryModel, Failure>> getMonthly({String? month}) async {
+  Future<Result<MonthlySummaryModel, Failure>> getMonthly({
+    String? month,
+  }) async {
     requestedMonths.add(month);
     if (delay != null) await Future<void>.delayed(delay!);
     return response;

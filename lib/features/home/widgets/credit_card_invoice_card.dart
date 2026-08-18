@@ -59,10 +59,7 @@ class CreditCardInvoiceCard extends StatelessWidget {
           if (usage != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: _LimitUsage(
-                usage: usage,
-                limitCents: invoice.limitCents!,
-              ),
+              child: _LimitUsage(usage: usage, limitCents: invoice.limitCents!),
             ),
           if (invoice.items.isNotEmpty) ...[
             const Divider(height: 1),
@@ -118,7 +115,9 @@ class _LimitUsage extends StatelessWidget {
               ? 'Acima do limite de ${Money.format(limitCents)}'
               : '${(usage * 100).toStringAsFixed(0)}% do limite de ${Money.format(limitCents)}',
           style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
+            color: overLimit
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],

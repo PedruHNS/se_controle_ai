@@ -61,15 +61,16 @@ void main() {
     });
 
     test('falha vira Failed com o Failure', () async {
-      repository.response = const Error(
-        NetworkFailure(message: 'Sem conexão'),
-      );
+      repository.response = const Error(NetworkFailure(message: 'Sem conexão'));
 
       await controller.load();
 
       final state = controller.state.value;
       expect(state, isA<Failed<MonthlySummaryModel>>());
-      expect((state as Failed<MonthlySummaryModel>).failure, isA<NetworkFailure>());
+      expect(
+        (state as Failed<MonthlySummaryModel>).failure,
+        isA<NetworkFailure>(),
+      );
     });
 
     test('load silencioso não volta para Loading', () async {

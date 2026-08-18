@@ -113,7 +113,9 @@ void main() {
     testWidgets('mostra estado vazio em vez de seções em branco', (
       tester,
     ) async {
-      repository.response = Success(MonthlySummaryModel.fromJson(emptySummaryJson));
+      repository.response = Success(
+        MonthlySummaryModel.fromJson(emptySummaryJson),
+      );
 
       await pumpHome(tester);
 

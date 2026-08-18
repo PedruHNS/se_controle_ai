@@ -21,10 +21,7 @@ void main() {
     test('saldo bate com ganho menos gasto', () {
       final summary = MonthlySummaryModel.fromJson(summaryJson);
 
-      expect(
-        summary.balanceCents,
-        summary.incomeCents - summary.expenseCents,
-      );
+      expect(summary.balanceCents, summary.incomeCents - summary.expenseCents);
     });
 
     test('lê ganhos e débito', () {
@@ -55,7 +52,9 @@ void main() {
     });
 
     test('total da fatura é a soma dos itens', () {
-      final invoice = MonthlySummaryModel.fromJson(summaryJson).creditCards.single;
+      final invoice = MonthlySummaryModel.fromJson(
+        summaryJson,
+      ).creditCards.single;
       final sum = invoice.items.fold(0, (acc, item) => acc + item.amountCents);
 
       expect(invoice.totalCents, sum);
@@ -80,15 +79,18 @@ void main() {
 
   group('CreditCardInvoice.limitUsage', () {
     test('proporção entre fatura e limite', () {
-      final invoice = MonthlySummaryModel.fromJson(summaryJson).creditCards.single;
+      final invoice = MonthlySummaryModel.fromJson(
+        summaryJson,
+      ).creditCards.single;
 
       // 65590 de 800000.
       expect(invoice.limitUsage, closeTo(0.0819, 0.0001));
     });
 
     test('passa de 1 quando a fatura estoura o limite', () {
-      final invoice =
-          MonthlySummaryModel.fromJson(negativeSummaryJson).creditCards.single;
+      final invoice = MonthlySummaryModel.fromJson(
+        negativeSummaryJson,
+      ).creditCards.single;
 
       // 450000 de 400000.
       expect(invoice.limitUsage, closeTo(1.125, 0.0001));

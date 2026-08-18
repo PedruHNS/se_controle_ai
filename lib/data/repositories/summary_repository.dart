@@ -29,12 +29,12 @@ class SummaryRepositoryImpl implements SummaryRepository {
     String? month,
   }) async {
     try {
-      final json = await _api.get(
+      final response = await _api.get(
         '/summary',
         queryParameters: {'month': month},
       );
       return Success(
-        MonthlySummaryModel.fromJson(json as Map<String, dynamic>),
+        MonthlySummaryModel.fromJson(Decode.object(response.data)),
       );
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
@@ -49,11 +49,11 @@ class SummaryRepositoryImpl implements SummaryRepository {
     int months = 12,
   }) async {
     try {
-      final json = await _api.get(
+      final response = await _api.get(
         '/summary/projection',
         queryParameters: {'from': from, 'months': months},
       );
-      return Success(Decode.listOf(json, MonthProjection.fromJson));
+      return Success(Decode.listOf(response.data, MonthProjection.fromJson));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {

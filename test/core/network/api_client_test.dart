@@ -50,19 +50,20 @@ ResponseBody _json(Object? body, int status) => ResponseBody.fromString(
 }
 
 void main() {
-  group('devolve o JSON cru, sem decodificar', () {
-    test('objeto vem como Map', () async {
+  group('devolve o Response do Dio, sem decodificar o corpo', () {
+    test('objeto vem como Response<dynamic>', () async {
       final (client: client, adapter: _) = clientThatReturns(
         (_) async => _json({'status': 'ok'}, 200),
       );
 
       final json = await client.get('/health');
 
-      expect(json, isA<Map<String, dynamic>>());
-      expect(json['status'], 'ok');
+      expect(json, isA<Response<dynamic>>());
+      expect(json.data, isA<Map<String, dynamic>>());
+      expect(json.data['status'], 'ok');
     });
 
-    test('lista vem como List', () async {
+    test('corpo de lista vem como List no data', () async {
       final (client: client, adapter: _) = clientThatReturns(
         (_) async => _json([
           {'id': 'a'},
@@ -72,10 +73,15 @@ void main() {
 
       final json = await client.get('/incomes');
 
-      expect(json, isA<List<dynamic>>());
-      expect(json, hasLength(2));
-      // O cast para model é trabalho do repositório, e Decode ajuda nele.
-      expect(Decode.listOf(json, (item) => item['id'] as String), ['a', 'b']);
+      expect(json, isA<Response<dynamic>>());
+      expect(json.data, isA<List<dynamic>>());
+      expect(json.data, hasLength(2));
+      // O cast para model é trabalho do repositório, e Decode ajuda nele — mas
+      // recebendo o `data`, não o `Response`.
+      expect(Decode.listOf(json.data, (item) => item['id'] as String), [
+        'a',
+        'b',
+      ]);
     });
 
     test('204 sem corpo não estoura — devolve vazio', () async {
@@ -85,7 +91,8 @@ void main() {
 
       final json = await client.delete('/incomes/x');
 
-      expect(json, anyOf(isNull, isEmpty));
+      expect(json, isA<Response<dynamic>>());
+      expect(json.data, anyOf(isNull, isEmpty));
     });
   });
 

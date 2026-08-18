@@ -3,21 +3,27 @@ import 'package:dio/dio.dart';
 import '../errors/app_exception.dart';
 import 'exception_mapper.dart';
 
-/// Fachada sobre o Dio. Devolve o JSON cru (`Map`, `List` ou `null` no 204) e
-/// **lança** [AppException] quando algo dá errado.
+/// Fachada sobre o Dio. Devolve o `Response` da requisição — o corpo já
+/// desserializado fica em `response.data`, como `Map`, `List` ou `null` no 204 —
+/// e **lança** [AppException] quando algo dá errado.
 ///
 /// Sem `Result` aqui de propósito: quem transforma erro em valor é o
 /// repositório, que é também quem sabe decodificar o JSON no model. Esta classe
 /// tem uma responsabilidade só — falar HTTP.
 ///
 /// O que ela garante: `DioException` **nunca** sai daqui. Quem chama lida com
-/// [AppException], então o repositório não precisa conhecer o Dio.
+/// [AppException], e nunca com o erro do Dio.
 ///
 /// ```dart
 /// // no repositório:
-/// final json = await _api.get('/summary', query: {'month': month});
-/// return MonthlySummary.fromJson(json as Map<String, dynamic>);
+/// final response = await _api.get('/summary', queryParameters: {'month': month});
+/// return MonthlySummaryModel.fromJson(Decode.object(response.data));
 /// ```
+///
+/// **O `.data` não é opcional.** O retorno é `dynamic`, então esquecê-lo passa
+/// pelo `flutter analyze` e só aparece como `TypeError` em runtime. É o que
+/// aconteceu uma vez — ver o grupo `devolve o Response do Dio` em
+/// `test/core/network/api_client_test.dart`, que é o teste que guarda isso.
 class ApiClient {
   ApiClient(this._dio);
 
@@ -85,6 +91,8 @@ class ApiClient {
 }
 
 /// Ajudantes de decodificação, para o repositório não repetir cast.
+///
+/// Recebem o **corpo** (`response.data`), não o `Response`.
 abstract final class Decode {
   static Map<String, dynamic> object(dynamic json) =>
       json as Map<String, dynamic>;
