@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/credit_card_invoice_model.dart';
 import 'line_item_tile.dart';
@@ -39,7 +40,7 @@ class CreditCardInvoiceCard extends StatelessWidget {
                       Text(invoice.label, style: theme.textTheme.titleSmall),
                       const SizedBox(height: 2),
                       Text(
-                        'Vence em ${_formatDueDate(invoice.dueDate)}',
+                        'Vence em ${IsoDate.label(invoice.dueDate)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -69,13 +70,6 @@ class CreditCardInvoiceCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// `2026-08-17` → `17/08`. Formatado por corte de string, sem `DateTime`, pela
-  /// mesma razão da competência: nada de fuso no caminho.
-  static String _formatDueDate(String isoDate) {
-    if (isoDate.length != 10) return isoDate;
-    return '${isoDate.substring(8, 10)}/${isoDate.substring(5, 7)}';
   }
 }
 
