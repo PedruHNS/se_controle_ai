@@ -40,7 +40,7 @@ class ApiClient {
   }) => _request<Response>(
     () => _dio.get(
       path,
-      queryParameters: queryParameters,
+      queryParameters: _query(queryParameters),
       options: options,
       cancelToken: cancelToken,
     ),
@@ -56,7 +56,7 @@ class ApiClient {
     () => _dio.post(
       path,
       data: data,
-      queryParameters: queryParameters,
+      queryParameters: _query(queryParameters),
       options: options,
       cancelToken: cancelToken,
     ),
@@ -75,7 +75,7 @@ class ApiClient {
     () => _dio.patch(
       path,
       data: data,
-      queryParameters: queryParameters,
+      queryParameters: _query(queryParameters),
       options: options,
       cancelToken: cancelToken,
     ),
@@ -91,11 +91,33 @@ class ApiClient {
     () => _dio.delete(
       path,
       data: data,
-      queryParameters: queryParameters,
+      queryParameters: _query(queryParameters),
       options: options,
       cancelToken: cancelToken,
     ),
   );
+
+  /// A query sem as chaves nulas.
+  ///
+  /// **O dio não remove parâmetro nulo** — ele serializa `{'month': null}` como
+  /// `?month`, chave pelada. O Express entrega isso ao zod como string vazia, e
+  /// os schemas do backend são `optional()`: aceitam a **ausência** do campo e
+  /// recusam o vazio. Resultado sem esta limpeza: `GET /incomes` sem mês volta
+  /// 400 em vez de listar tudo.
+  ///
+  /// Fica aqui, e não em cada repositório, porque a armadilha é do transporte —
+  /// todo método novo e todo repositório novo já nasce protegido. Devolver
+  /// `null` quando não sobra nada evita a `?` sozinha no fim da URL.
+  static Map<String, dynamic>? _query(Map<String, dynamic>? parameters) {
+    if (parameters == null) return null;
+
+    final clean = <String, dynamic>{
+      for (final entry in parameters.entries)
+        if (entry.value != null) entry.key: entry.value,
+    };
+
+    return clean.isEmpty ? null : clean;
+  }
 
   /// Executa uma chamada HTTP e impede que o Dio vaze para as camadas acima.
   Future<T> _request<T>(Future<T> Function() call) async {

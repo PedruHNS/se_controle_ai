@@ -96,7 +96,7 @@ void stubIncomeDetail(
 /// falham todas juntas (o teste de 422).
 void stubIncomeOperations(
   MockIncomeRepository mock, {
-  Result<Unit, Failure> result = const Success(unit),
+  Result<bool, Failure> result = const Success(true),
   Result<String, Failure> createResult = const Success('novo-id'),
   Duration? delay,
 }) {
@@ -138,7 +138,7 @@ void stubIncomeOperations(
 MockIncomeRepository incomeRepositoryMock({
   Result<List<IncomeModel>, Failure>? list,
   Result<IncomeModel, Failure>? detail,
-  Result<Unit, Failure> operations = const Success(unit),
+  Result<bool, Failure> operations = const Success(true),
   Result<String, Failure> create = const Success('novo-id'),
   Duration? delay,
 }) {

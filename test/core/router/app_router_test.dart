@@ -3,13 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
+import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 
 import '../../fixtures/test_injector.dart';
 
 void main() {
   // A HomePage resolve HomeController do get_it, então o router não pode ser
   // testado sem as dependências registradas.
-  setUp(setupTestInjector);
+  setUp(() {
+    setupTestInjector();
+    setupIncomeTestInjector();
+  });
 
   // O appRouter é global e guarda a pilha de navegação entre testes; sem isto,
   // o teste do 404 deixaria o router fora da home para o teste seguinte.
@@ -35,6 +39,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(HomePage), findsOneWidget);
+  });
+
+  testWidgets('botão Novo ganho da home abre o formulário', (tester) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Novo ganho'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(IncomeFormPage), findsOneWidget);
   });
 
   testWidgets('endereço inexistente cai no errorBuilder, não em tela crua', (

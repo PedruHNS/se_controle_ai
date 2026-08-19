@@ -7,14 +7,11 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 *Atualizado em 18/08/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 e 1 concluídas** · a home lê e
-apresenta o resumo do mês, e já foi validada contra dados reais do backend.
+Flutter 3.44.9 · Dart 3.12.2 · **Fases 0, 1 e 2 concluídas** · a home mostra o
+resumo do mês e ganhos tem CRUD completo, com reajuste, correção e encerramento.
 
-`flutter analyze` sem issue · **94 testes, todos passando** · `/summary` e
-`/summary/projection` reconferidos contra o backend real em Docker.
-
-Sem pendência de encanamento: o `ApiClient` tem `get`, `post`, `patch` e
-`delete`, e a Fase 2 pode começar.
+`flutter analyze` sem issue · **168 testes, todos passando** · fluxo de ganhos
+verificado contra o backend real em Docker, incluindo a recusa de 422.
 
 As seis libs estão em uso:
 
@@ -26,6 +23,8 @@ As seis libs estão em uso:
 | `go_router` | ^17.5.0 | Navegação declarativa por rota nomeada + deep link |
 | `signals` | ^7.1.0 | Estado reativo: `signal` no controller, `SignalBuilder` na view |
 | `pretty_dio_logger` | ^1.4.0 | Log de requisição/resposta em debug, só quando `AppConfig.logHttp` |
+| `reactive_forms` | 18.2.2 | Campos, validação e erro de formulário como estado, não como widget |
+| `mocktail` | ^1.0.5 | Dev: mocks dos repositórios e do `HttpClientAdapter` nos testes |
 
 ### O `ApiClient` devolve `Response`, não JSON cru
 
@@ -64,10 +63,23 @@ instância é o container, não a tela: a página só faz `getIt<XController>()`
 Consequência desejada: sair da home e voltar reaproveita o mesmo controller, e o
 mês selecionado sobrevive à navegação em vez de recomeçar no atual.
 
-A contrapartida é que o estado é único por app. Se algum dia a mesma rota puder
-ser empilhada duas vezes com estados diferentes, o registro vira `registerFactory`
-e o `dispose` passa para o `State` da página — factory não aceita o `dispose:`,
-porque o get_it não guarda a instância.
+A contrapartida é que o estado é único por app. Quando a mesma rota pode ser
+empilhada duas vezes com estados diferentes, o registro vira `registerFactory` e o
+`dispose` passa para o `State` da página — factory não aceita o `dispose:`,
+porque o get_it não guarda a instância. É o caso do formulário e do detalhe de
+ganho.
+
+**No construtor de um controller entram apenas dependências — repositório ou
+service. Nunca um valor.** Nem id, nem mês, nem filtro. O construtor é o ponto de
+injeção; misturar dado com dependência amarra a construção do controller a ter o
+valor em mãos, e obriga o registro a virar `registerFactoryParam` em vez do
+`registerFactory` que todos os outros usam.
+
+Dado de rota é entregue **pela view**, depois da construção: a página chama
+`controller.start(widget.id)` no `initState` e o controller guarda o valor. É como
+o `IncomeDetailController` funciona. A consequência aceita é que esse controller
+**não** busca no `onInit` — ali o valor ainda não chegou. `registerFactoryParam`
+não é usado em nenhum lugar do projeto.
 
 Um detalhe que o `test_injector.dart` deixa de fora: lá o `HomeController` é
 `registerFactory`, para cada teste começar limpo. É divergência de propósito, mas
@@ -89,6 +101,9 @@ significa que o caminho de `dispose` de produção não é exercitado por teste.
 | `core/router/app_router.dart` | Instância do GoRouter + tela de 404 |
 | `core/shared/view_state.dart` | `Loading` / `Loaded` / `Failed` para a view dar switch exaustivo |
 | `core/shared/widgets/failure_card_widget.dart` | Card de erro único, com ícone e título por tipo de `Failure` |
+| `core/shared/forms/money_value_accessor.dart` | Ponte entre `FormControl<int>` em centavos e o texto do campo |
+| `core/shared/widgets/money_field_widget.dart` | `ReactiveTextField<int>` de dinheiro, com as mensagens de erro do valor |
+| `core/shared/widgets/month_field_widget.dart` | `ReactiveFormField<String>`: competência por setas, com piso (`minMonth`) para travar o que a regra recusaria |
 | `core/utils/base_controller.dart` | Ciclo de vida do controller: `onInit`, `onReady`, `dispose`, com log |
 | `core/utils/money.dart` | Centavos ↔ real: `format`, `formatSigned`, `formatCompact`, `tryParse` |
 | `core/utils/month.dart` | Competência `YYYY-MM`: label, aritmética, limites do backend |
@@ -101,6 +116,11 @@ significa que o caminho de `dispose` de produção não é exercitado por teste.
 | `features/home/controller/home_controller.dart` | Estado do resumo com signals — **é o molde a copiar** |
 | `features/home/view/home_page.dart` | A tela: navegação de mês, `switch` no `ViewState`, pull-to-refresh |
 | `features/home/widgets/` | `BalanceCard`, `SummarySection`, `CreditCardInvoiceCard`, `LineItemTile` |
+| `data/models/income_model.dart` · `income_version_model.dart` | O ganho e suas vigências |
+| `data/repositories/income_repository.dart` | As sete rotas de `/incomes`, com reajuste e correção separados |
+| `features/incomes/controller/` | `IncomeListController`, `IncomeFormController`, `IncomeDetailController` |
+| `features/incomes/view/` | Lista, formulário e detalhe |
+| `features/incomes/widgets/` | `IncomeTile`, `IncomeHistoryCard`, e os diálogos de valor e encerramento |
 
 **Um model por arquivo, sem barrel.** Cada consumidor importa o arquivo da classe
 que usa. Não existe `models/monthly_summary.dart` reexportando o resto — quem
@@ -111,8 +131,9 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | Arquivo | O que faz |
 |---|---|
 | `fixtures/summary_fixture.dart` | JSON real capturado do backend: mês normal, vazio e no vermelho |
-| `fixtures/fake_summary_repository.dart` | Fake do repositório: resposta trocável, `delay` para corrida, `requestedMonths` |
-| `fixtures/test_injector.dart` | Registra as dependências da tela com o fake; idempotente entre testes |
+| `fixtures/test_injector.dart` | Registra as dependências das telas com os fakes; idempotente entre testes |
+| `fixtures/income_fixture.dart` | JSON de `/incomes`: salário, salário reajustado, 13º e o avulso por competência |
+| `fixtures/mocks.dart` | Os mocks de repositório e os stubs padrão (`stubMonthly`, `stubIncomeList`, `stubIncomeOperations`…) |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -233,17 +254,24 @@ primeira tela já valide a stack inteira antes de existir formulário.
 |---|---|
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 0 — Fundação: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 1 — Resumo mensal: **concluída** |
-| ░░░░░░░░░░ | Fases 2 a 8 — não iniciadas |
+| ▓▓▓▓▓▓▓▓▓▓ | Fase 2 — Ganhos: **concluída** |
+| ░░░░░░░░░░ | Fases 3 a 8 — não iniciadas |
 
-**Próximo passo: Fase 2 — Ganhos.** O encanamento está fechado: `ApiClient.patch`
-entrou, e as duas convenções que estavam pela metade (sufixo `Model` e registro do
-controller) foram alinhadas.
+**Próximo passo: Fase 3 — Cartões.** É o CRUD mais simples que sobrou, e o que
+destrava as Fases 4 e 5 — gasto no cartão exige `creditCardId`. O padrão de
+formulário agora existe e é para copiar da Fase 2: `MoneyFieldWidget`,
+`MonthFieldWidget`, controller com `errorFor(path)` e diálogo que mostra o erro
+sem fechar.
 
-Fase 2 (Ganhos) é o primeiro CRUD. O padrão a copiar está na Fase 1 — model,
-repositório com `try/catch`, controller com signals, view com `SignalBuilder` e
-`switch` no `ViewState`. O que ela tem de novo: formulário com
-`issues[].path` do 400 ligado ao campo (o `ValidationFailure.messageFor` já
-existe esperando por isso) e reajuste vs. correção como duas ações distintas.
+O que Cartões tem de próprio: `closingDay`/`dueDay` como dia de 1 a 31, limite
+opcional, e o `PATCH` em que **campo ausente não muda nada e `null` limpa**
+(CAR-08) — o formulário precisa distinguir "não mexi" de "apaguei", coisa que
+Ganhos não exigiu.
+
+Atenção a um nome: já existe `CreditCardInvoiceModel`, que é a **fatura** dentro
+de `/summary`. O CRUD precisa de um model diferente, o cartão em si —
+`CreditCardModel`, em `credit_card_model.dart`. Os campos não batem, não dá para
+reaproveitar.
 
 ### Fase 0 — Fundação · ▓▓▓▓▓▓▓▓▓▓ concluída
 Nenhuma tela. Só o encanamento que todas as fases seguintes usam.
@@ -267,16 +295,16 @@ por go_router e uma chamada de teste ao `/health` do backend volta `Success`.
 (`R$ 5.000,00` / `R$ 2.455,90` / `+R$ 2.544,10`), 404 real virou `NotFoundFailure`
 e 400 real virou `ValidationFailure` com as issues do zod.
 
-**Testes que já cobrem a fase** (35 no total, todos passando):
+**Testes que já cobrem a fase** (38 no total, todos passando):
 `test/core/utils/money_test.dart` (17 casos: formatação, parse, round-trip),
-`test/core/network/api_client_test.dart` (14 casos: 200/204, patch com corpo,
-remoção de query nula, 400 com issues, 404, 409, 422, 500, corpo HTML de proxy,
-timeout, cancelamento, decode quebrado), `test/core/router/app_router_test.dart` (4 casos:
+`test/core/network/api_client_test.dart` (17 casos: 200/204, patch com corpo,
+limpeza de query nula nos quatro métodos, 400 com issues, 404, 409, 422, 500,
+corpo HTML de proxy, timeout, cancelamento, decode quebrado), `test/core/router/app_router_test.dart` (4 casos:
 rota inicial, `goNamed`, 404, botão de voltar).
 
 Os 4 casos do grupo `devolve o Response do Dio` são a única coisa que segura o
-contrato do `ApiClient` — os outros 10 do arquivo só olham o que é lançado, não o
-que é devolvido. Método novo no client entra com caso novo nesse grupo.
+contrato do `ApiClient`, e os 4 de `query string` a única coisa que segura a URL
+que sai — o resto do arquivo só olha o que é lançado. Método novo no client entra com caso novo nesse grupo.
 
 ### Fase 1 — Resumo mensal (home) · ▓▓▓▓▓▓▓▓▓▓ concluída
 Só leitura. É a fase que prova a stack de ponta a ponta com o menor risco.
@@ -306,18 +334,81 @@ incluindo mês vazio e mês no vermelho, `limitUsage` e `MonthProjectionModel`),
 respostas), `home_page_test.dart` (14 casos de widget), `widget_test.dart`
 (1 caso: o app sobe e cai na home).
 
-### Fase 2 — Ganhos · ░░░░░░░░░░ não iniciada
-Primeiro CRUD, e o mais simples — é onde o padrão de formulário nasce.
+### Fase 2 — Ganhos · ▓▓▓▓▓▓▓▓▓▓ concluída
+Primeiro CRUD, e o mais simples — é onde o padrão de formulário nasceu.
 
-- Listar, criar, encerrar, excluir
-- **Reajuste** e **correção** como ações distintas
-- Histórico de vigências visível
-- `issues[].path` do 400 ligado aos campos
+- [x] Listar, criar, encerrar, excluir
+- [x] **Reajuste** e **correção** como ações distintas
+- [x] Histórico de vigências visível
+- [x] `issues[].path` do 400 ligado aos campos
+- [x] Campos reutilizáveis: `MoneyFieldWidget` e `MonthFieldWidget`
 
 **Pronto quando:** dá para cadastrar um salário, aplicar um aumento a partir de
 um mês, e o resumo dos meses anteriores continua com o valor antigo.
+→ **Atendido.** Verificado contra o Docker: ganho de 3.000 desde 2026-01,
+reajustado para 4.000 a partir de 2026-08. `/summary?month=2026-05` ficou em
+800.000 centavos, `/summary?month=2026-08` foi para 900.000. Reajuste retroativo
+para 2026-01 voltou 422 com a mensagem pronta do backend.
 
-### Fase 3 — Cartões · ░░░░░░░░░░ não iniciada
+**Três decisões desta fase**, que as próximas copiam:
+
+**Reajuste e correção são métodos separados no repositório**, e dois caminhos
+distintos na tela — não um "editar valor" com um `bool`. É a diferença que o
+usuário precisa entender, e esconder atrás de um parâmetro seria escondê-la dele
+também. O diálogo dos dois é o mesmo widget porque a única diferença de
+formulário é o mês de vigência; o texto explicativo é que muda.
+
+**As operações de ação devolvem `Failure?` em vez de guardá-la em signal.** Elas
+são disparadas de dentro de um diálogo, e é lá que o erro precisa aparecer — o
+422 de "reajuste retroativo" chega com a mensagem pronta em português. A tela de
+trás continua mostrando o ganho: quem falhou foi a ação, não a busca.
+
+**"Tem fim marcado" e "já acabou" são perguntas diferentes.** Ganho avulso —
+venda, presente, 13º — nasce com `endMonth` preenchido, porque o backend fecha a
+vigência na hora (GAN-02). Usar isso para marcar "Encerrado" na lista dizia que a
+venda de agosto tinha acabado **em agosto**, com o dinheiro entrando. O model
+separa as três perguntas: `isClosed` (aceita reajuste?), `isSingleMonth` (entra
+uma vez só?) e `endedBefore(mês)` (ainda entra?). E o total da lista usa
+`amountCentsIn(mês)`, lido do histórico, para bater exatamente com o número que a
+home mostra — somar `amountCents` daria outro valor sempre que houver reajuste
+agendado para o futuro.
+
+**O formulário é estado, não widget.** O `FormGroup` mora no controller, com os
+campos e as regras declarados uma vez (`Validators.required`, `Validators.min(1)`);
+a view só faz o `bind` pelo nome do campo. Duas consequências que valem para toda
+feature nova:
+
+- **Dinheiro é `FormControl<int>` em centavos**, com o `MoneyValueAccessor`
+  traduzindo para o texto do campo. `double` não aparece em nenhum ponto do
+  caminho. O `reactive_forms` só devolve valor ao campo quando a mudança **não**
+  veio dele, então digitar não é interrompido por reformatação — mas um
+  `updateValue` feito em código chega formatado, e é assim que o diálogo de
+  correção nasce preenchido.
+- **`issues[].path` de um 400 vira `setErrors({'backend': mensagem})`** no control
+  de mesmo nome. A mensagem se limpa sozinha na validação seguinte, ou seja,
+  assim que a pessoa corrige o campo. `path` que não corresponde a campo nenhum
+  sobe como falha geral — sem isso a tela recusaria sem dizer nada.
+
+**A competência é seletor de setas, nunca campo de texto.** `MonthFieldWidget`
+nasce válido por construção, e o `minMonth` trava no que a regra do backend
+permite — no reajuste, o mês seguinte ao início da vigência atual (GAN-03/GAN-05).
+Requisição que voltaria 422 nem sai.
+
+**Testes da fase** (66 no total, todos passando): `income_model_test.dart`
+(11 casos: parse com a resposta real do backend na fixture, valor por
+competência, e a diferença entre "tem fim marcado" e "já acabou"),
+`income_list_controller_test.dart` (6: busca, falha, refresh silencioso, corrida),
+`income_form_controller_test.dart` (8: validação local, 400 campo a campo, falha
+geral, `saving`), `income_detail_controller_test.dart` (8: reajuste vs. correção,
+encerramento, recarga após 204, 422 devolvido ao diálogo),
+`income_pages_test.dart` (14 de widget: lista com avulso, ganho já terminado,
+vazio, erro, ações escondidas em ganho encerrado, histórico, diálogos),
+`income_form_page_test.dart` (8 de widget: mensagens do submit vazio, centavos
+digitados chegando inteiros, competência pela seta, 400 no campo e rede em
+snackbar), `money_value_accessor_test.dart` (6), mais 3 casos novos em
+`month_test.dart` para o `periodLabel`.
+
+### Fase 3 — Cartões · ░░░░░░░░░░ não iniciada · **próxima**
 Vem antes de gastos porque gasto no cartão exige `creditCardId`.
 
 - CRUD completo; `closingDay`/`dueDay` com seletor de dia
@@ -397,6 +488,18 @@ Descobertas já na pele, implementando a Fase 0:
 
 Descobertas depois, mexendo na infra e nos models:
 
+- **O dio não remove parâmetro de query nulo.** `{'month': null}` sai como
+  `?month` — chave pelada, sem `=`. O Express entrega isso ao zod como string
+  vazia, e os schemas do backend são `optional()`: aceitam a **ausência** e
+  recusam o vazio. Logo, `GET /incomes` sem mês voltava 400. A limpeza mora no
+  `ApiClient` e não nos repositórios, porque a armadilha é do transporte.
+- **Teste cujo nome descreve a intenção e a asserção não a verifica é pior que
+  teste nenhum.** O caso "parâmetro nulo é removido" existia desde a Fase 0 e
+  passava — ele procurava `month=&` e `month=1`, e a URI real era `?month&…`.
+  Ficou verde por dois dias afirmando um comportamento que nunca existiu, e o
+  bug só apareceu no dispositivo, na primeira tela que passava nulo de verdade.
+  Asserção sobre URL agora é sobre `uri.queryParameters` e `uri.hasQuery`, não
+  sobre pedaço de string.
 - **Retorno `dynamic` esconde erro do analyzer.** `ApiClient.get` devolve
   `Future<dynamic>`, então esquecer o `.data` passa batido no `flutter analyze` e
   só aparece como `TypeError` em runtime — ou no teste, que foi o que aconteceu.
@@ -421,6 +524,52 @@ Descobertas depois, mexendo na infra e nos models:
 - **`dart format` reclama depois de rename por `sed`.** Nome mais longo estoura
   as 80 colunas e o formatter reescreve o arquivo. Rodar `dart format` nos
   arquivos tocados evita diff de formatação misturado com diff de conteúdo.
+Descobertas implementando a Fase 2:
+
+- **No go_router, rota fixa vem antes de rota com parâmetro.** `form` declarado
+  depois de `:id` vira um detalhe com id `"form"` — o casamento é por ordem, e
+  `:id` aceita qualquer coisa.
+- **`Month.label` capitaliza**, e no meio de uma frase isso lê como erro de
+  digitação: "Janeiro 2026 a Outubro 2026". Por isso existe `Month.periodLabel`,
+  que põe o segundo mês em minúscula e trata os três casos (aberto, fechado, mês
+  único) num lugar só.
+- **`registerFactoryParam` é o registro de quem precisa de argumento.** O
+  controller de detalhe não existe sem o id do ganho; `getIt<T>(param1: id)` é
+  como a página pede.
+- **Ícone repetido quebra `find.byIcon`.** O chevron novo no cabeçalho da seção
+  de ganhos deixou dois `chevron_right` na home, e o teste de navegação de mês
+  passou a achar dois. `find.descendant(of: find.byType(AppBar), ...)` é mais
+  preciso do que era antes — o teste melhorou junto.
+- **Teste escrito depois do código confirma o bug em vez de achá-lo.** A primeira
+  versão da lista marcava todo ganho avulso como "Encerrado", e o teste que eu
+  escrevi afirmava exatamente isso — com uma fixture de dezembro, cujo resultado
+  ainda por cima dependia do mês em que o teste rodasse. Fixture de tempo agora é
+  função (`singleMonthIncomeJson(month:)`), com o mês relativo ao corrente.
+- **Fake que só devolve resposta não testa ganhos.** Reajuste e correção
+  produzem o mesmo `Success`; o que os distingue é **o que foi enviado** — daí o
+  `verify(() => repository.adjust('income-1', amountCents: 550000,
+  effectiveFrom: '2026-11'))`, que é a asserção que os separa.
+- **Mock em vez de fake escrito à mão** (mocktail, desde 18/08). O que mudou na
+  prática: `repository.adjustments.single` virou `verify(...)` com os argumentos
+  nomeados no lugar, e a asserção passou a dizer qual chamada era esperada em vez
+  de comparar um `Map`. Três detalhes que custam tempo:
+  `verify` **consome** o que foi gravado — chamar duas vezes no mesmo teste
+  devolve vazio na segunda; `clearInteractions(mock)` é o que zera o histórico
+  antes de um `verifyNever`, no lugar do antigo `.clear()` numa lista; e `any()`
+  de tipo não nulo exige `registerFallbackValue` num `setUpAll` — é o caso do
+  `RequestOptions` no teste do `ApiClient`.
+- **`ControlValueAccessor` avisa o campo por stream.** Testar que digitar não é
+  reformatado exige `await Future.delayed(Duration.zero)` depois do
+  `updateModel` — sem isso a lista de avisos está vazia por atraso, e o teste
+  passa sem provar nada.
+- **`Validators.required` do reactive_forms já recusa string em branco**, então
+  não precisa de validador próprio para `'   '`. O `trim()` no envio continua,
+  porque espaço nas pontas de uma descrição válida ainda é sujeira.
+- **Stub padrão em um lugar só.** `mocks.dart` guarda `summaryRepositoryMock()` e
+  `incomeRepositoryMock()` já respondendo o caso feliz, e os `stubX(...)` para o
+  teste sobrescrever o que importa. Sem isso, cada teste repetiria cinco `when`
+  antes da primeira asserção.
+
 - **`BaseController` chama `onInit()` no construtor, e o `onInit` do
   `HomeController` é `async`.** Construir já dispara `load()`, e ninguém tem como
   aguardar essa primeira busca — o `await` de dentro não é observável de fora. O

@@ -14,19 +14,48 @@ void main() {
   late MockIncomeRepository repository;
   late IncomeDetailController controller;
 
-  setUp(() {
+  setUp(() async {
     repository = incomeRepositoryMock();
-    controller = IncomeDetailController(repository, 'income-1');
+    controller = IncomeDetailController(repository);
+    // O id vem da rota, então quem o entrega é a view. No teste, o `start`
+    // ocupa esse papel.
+    await controller.start('income-1');
   });
 
   tearDown(() => controller.dispose());
 
-  test('busca o ganho ao ser construído', () {
-    verify(() => repository.getById('income-1', month: null)).called(1);
-    expect(controller.state.value, isA<Loaded<IncomeModel>>());
-    expect(
-      (controller.state.value as Loaded<IncomeModel>).data.description,
-      'Salário',
+  group('start', () {
+    test('busca o ganho com o id que a view passou', () {
+      verify(() => repository.getById('income-1', month: null)).called(1);
+      expect(controller.state.value, isA<Loaded<IncomeModel>>());
+      expect(
+        (controller.state.value as Loaded<IncomeModel>).data.description,
+        'Salário',
+      );
+    });
+
+    test('construir não busca nada — sem id não há o que buscar', () {
+      final fresh = MockIncomeRepository();
+      stubIncomeDetail(fresh);
+      addTearDown(IncomeDetailController(fresh).dispose);
+
+      verifyNever(() => fresh.getById(any(), month: any(named: 'month')));
+    });
+
+    test(
+      'o id do start é o usado por load, refresh e pelas operações',
+      () async {
+        await controller.refresh();
+        await controller.correct(amountCents: 1000);
+
+        expect(controller.id, 'income-1');
+        verify(
+          () => repository.getById('income-1', month: null),
+        ).called(greaterThan(1));
+        verify(
+          () => repository.correct('income-1', amountCents: 1000),
+        ).called(1);
+      },
     );
   });
 

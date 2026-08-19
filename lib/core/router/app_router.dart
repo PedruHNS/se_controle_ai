@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/home/view/home_page.dart';
+import '../../features/incomes/view/income_detail_page.dart';
+import '../../features/incomes/view/income_form_page.dart';
+import '../../features/incomes/view/income_list_page.dart';
 import 'app_routes.dart';
 
 /// Configuração de navegação do app.
@@ -26,16 +29,27 @@ final GoRouter appRouter = GoRouter(
       // Telas filhas entram como `routes:` daqui quando cada fase chegar. Rota
       // aninhada mantém o "voltar" coerente: de /expenses/:id o pop volta para
       // /expenses, não para a home.
-      //
-      // routes: [
-      //   GoRoute(
-      //     path: AppRoutes.expenseDetailPath,   // ':id', relativo — sem '/'
-      //     name: AppRoutes.expenseDetail,
-      //     builder: (context, state) => ExpenseDetailPage(
-      //       id: state.pathParameters[RouteParams.id]!,
-      //     ),
-      //   ),
-      // ],
+    ),
+
+    GoRoute(
+      path: AppRoutes.incomesPath,
+      name: AppRoutes.incomes,
+      builder: (context, state) => const IncomeListPage(),
+      routes: [
+        // `form` **antes** de `:id`: o go_router casa na ordem, e invertido a
+        // rota de formulário viraria um detalhe com id "form".
+        GoRoute(
+          path: AppRoutes.incomeFormPath,
+          name: AppRoutes.incomeForm,
+          builder: (context, state) => const IncomeFormPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.incomeDetailPath, // ':id', relativo — sem '/'
+          name: AppRoutes.incomeDetail,
+          builder: (context, state) =>
+              IncomeDetailPage(id: state.pathParameters[RouteParams.id]!),
+        ),
+      ],
     ),
   ],
 

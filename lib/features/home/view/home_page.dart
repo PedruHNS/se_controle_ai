@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
+import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../data/models/monthly_summary_model.dart';
@@ -98,11 +100,6 @@ class _SummaryContent extends StatelessWidget {
   final MonthlySummaryModel summary;
   final Future<void> Function() onRefresh;
 
-  bool get _isEmpty =>
-      summary.incomes.isEmpty &&
-      summary.debit.isEmpty &&
-      summary.creditCards.isEmpty;
-
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -114,63 +111,29 @@ class _SummaryContent extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           BalanceCard(summary: summary),
-          if (_isEmpty)
-            const _EmptyMonth()
-          else ...[
+          const SizedBox(height: 16),
+          SummarySection(
+            title: 'Ganhos',
+            icon: Icons.trending_up,
+            items: summary.incomes,
+            totalCents: summary.incomeCents,
+            emptyMessage: 'Nenhum ganho cadastrado. Toque para adicionar um.',
+            onTap: () => context.pushNamed(AppRoutes.incomes),
+          ),
+          if (summary.debit.items.isNotEmpty) ...[
             const SizedBox(height: 16),
             SummarySection(
-              title: 'Ganhos',
-              icon: Icons.trending_up,
-              items: summary.incomes,
-              totalCents: summary.incomeCents,
+              title: 'Débito e dinheiro',
+              icon: Icons.payments_outlined,
+              items: summary.debit.items,
+              totalCents: summary.debit.totalCents,
             ),
-            if (summary.debit.items.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              SummarySection(
-                title: 'Débito e dinheiro',
-                icon: Icons.payments_outlined,
-                items: summary.debit.items,
-                totalCents: summary.debit.totalCents,
-              ),
-            ],
-            for (final invoice in summary.creditCards) ...[
-              const SizedBox(height: 16),
-              CreditCardInvoiceCard(invoice: invoice),
-            ],
+          ],
+          for (final invoice in summary.creditCards) ...[
+            const SizedBox(height: 16),
+            CreditCardInvoiceCard(invoice: invoice),
           ],
           const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyMonth extends StatelessWidget {
-  const _EmptyMonth();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 48),
-      child: Column(
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 48,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(height: 12),
-          Text('Nada lançado neste mês', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Cadastre um ganho ou um gasto para ver o resumo.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
     );

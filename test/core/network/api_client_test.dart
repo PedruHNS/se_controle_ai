@@ -109,24 +109,76 @@ void main() {
   });
 
   group('query string', () {
-    test(
-      'parâmetro nulo é removido, senão o zod recusa string vazia',
-      () async {
-        final (client: client, adapter: adapter) = clientThatReturns(
-          (_) async => _json({'month': '2026-08'}, 200),
-        );
+    // O dio serializa `{'month': null}` como `?month` — chave pelada, sem `=`.
+    // O Express entrega isso ao zod como string vazia, e os schemas do backend
+    // são `optional()`: aceitam ausência e recusam vazio. Por isso a asserção
+    // é sobre a **URI inteira**: procurar por `month=` deixaria passar `?month`,
+    // que foi exatamente o que aconteceu.
+    test('parâmetro nulo desaparece da URL, senão o zod recusa', () async {
+      final (client: client, adapter: adapter) = clientThatReturns(
+        (_) async => _json({'month': '2026-08'}, 200),
+      );
 
-        await client.get(
-          '/summary',
-          queryParameters: {'month': null, 'months': 12},
-        );
+      await client.get(
+        '/summary',
+        queryParameters: {'month': null, 'months': 12},
+      );
 
-        final uri = lastRequestOf(adapter).uri.toString();
-        expect(uri, contains('months=12'));
-        expect(uri, isNot(contains('month=&')));
-        expect(uri, isNot(contains('month=1')));
-      },
-    );
+      final uri = lastRequestOf(adapter).uri;
+      expect(uri.queryParameters, {'months': '12'});
+      expect(uri.query, 'months=12');
+      expect(uri.toString(), isNot(contains('month&')));
+    });
+
+    test('query só de nulos não deixa nem a interrogação', () async {
+      final (client: client, adapter: adapter) = clientThatReturns(
+        (_) async => _json([], 200),
+      );
+
+      // É a chamada da tela de ganhos: listar tudo, sem recorte de mês.
+      await client.get('/incomes', queryParameters: {'month': null});
+
+      final uri = lastRequestOf(adapter).uri;
+      expect(uri.hasQuery, isFalse);
+      expect(uri.path, '/incomes');
+      expect(uri.toString(), endsWith('/incomes'));
+    });
+
+    test('valor válido continua indo, inclusive não-string', () async {
+      final (client: client, adapter: adapter) = clientThatReturns(
+        (_) async => _json([], 200),
+      );
+
+      await client.get(
+        '/summary/projection',
+        queryParameters: {'from': '2026-08', 'months': 12},
+      );
+
+      expect(lastRequestOf(adapter).uri.queryParameters, {
+        'from': '2026-08',
+        'months': '12',
+      });
+    });
+
+    test('a limpeza vale para os quatro métodos, não só para o get', () async {
+      final (client: client, adapter: adapter) = clientThatReturns(
+        (_) async => _json({}, 200),
+      );
+
+      await client.post('/incomes', queryParameters: {'month': null});
+      await client.patch('/incomes/x/amount', queryParameters: {'month': null});
+      await client.delete('/incomes/x', queryParameters: {'month': null});
+
+      final uris = verify(
+        () => adapter.fetch(captureAny(), any(), any()),
+      ).captured.cast<RequestOptions>().map((request) => request.uri);
+
+      // Um método novo que esqueça o saneamento aparece aqui, e não em runtime
+      // no dispositivo.
+      for (final uri in uris) {
+        expect(uri.hasQuery, isFalse, reason: '$uri levou a chave nula');
+      }
+    });
   });
 
   group('lança AppException — DioException nunca escapa', () {

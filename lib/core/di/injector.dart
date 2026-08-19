@@ -1,8 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../data/repositories/income_repository.dart';
 import '../../data/repositories/summary_repository.dart';
 import '../../features/home/controller/home_controller.dart';
+import '../../features/incomes/controller/income_detail_controller.dart';
+import '../../features/incomes/controller/income_form_controller.dart';
+import '../../features/incomes/controller/income_list_controller.dart';
 import '../network/api_client.dart';
 import '../network/dio_factory.dart';
 
@@ -31,6 +35,10 @@ void setupInjector() {
     () => SummaryRepositoryImpl(getIt<ApiClient>()),
   );
 
+  getIt.registerLazySingleton<IncomeRepository>(
+    () => IncomeRepositoryImpl(getIt<ApiClient>()),
+  );
+
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
   // get_it — a página não chama `dispose` no controller. O dono da instância é o
   // container, não a tela: sair da home e voltar reaproveita o mesmo controller,
@@ -42,6 +50,29 @@ void setupInjector() {
   getIt.registerLazySingleton<HomeController>(
     () => HomeController(getIt<SummaryRepository>()),
     dispose: (e) => e.dispose(),
+  );
+
+  // A lista segue a regra do HomeController: uma tela só, estado que vale a
+  // pena preservar entre idas e vindas, get_it libera.
+  getIt.registerLazySingleton<IncomeListController>(
+    () => IncomeListController(getIt<IncomeRepository>()),
+    dispose: (e) => e.dispose(),
+  );
+
+  // Formulário e detalhe são o caso que a regra prevê como exceção: estado por
+  // instância, não por app. Um formulário reaberto precisa nascer limpo, e dois
+  // detalhes na pilha falam de ganhos diferentes. Por isso factory — e, como
+  // factory não aceita o `dispose:` do get_it, quem libera é o `dispose` da
+  // página.
+  //
+  // O detalhe recebe o id pelo `start`, e não pelo registro: id é dado de rota,
+  // e quem o conhece é a view.
+  getIt.registerFactory<IncomeFormController>(
+    () => IncomeFormController(getIt<IncomeRepository>()),
+  );
+
+  getIt.registerFactory<IncomeDetailController>(
+    () => IncomeDetailController(getIt<IncomeRepository>()),
   );
 }
 

@@ -65,8 +65,8 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
     ..registerFactory<IncomeFormController>(
       () => IncomeFormController(getIt<IncomeRepository>()),
     )
-    ..registerFactoryParam<IncomeDetailController, String, void>(
-      (id, _) => IncomeDetailController(getIt<IncomeRepository>(), id),
+    ..registerFactory<IncomeDetailController>(
+      () => IncomeDetailController(getIt<IncomeRepository>()),
     );
 
   return repository;

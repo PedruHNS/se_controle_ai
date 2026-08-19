@@ -113,7 +113,7 @@ void main() {
   });
 
   group('mês vazio', () {
-    testWidgets('mostra estado vazio em vez de seções em branco', (
+    testWidgets('mantém o acesso aos ganhos mesmo sem lançamentos', (
       tester,
     ) async {
       stubMonthly(
@@ -123,8 +123,11 @@ void main() {
 
       await pumpHome(tester);
 
-      expect(find.text('Nada lançado neste mês'), findsOneWidget);
-      expect(find.text('Ganhos'), findsNothing);
+      expect(find.text('Ganhos'), findsOneWidget);
+      expect(
+        find.text('Nenhum ganho cadastrado. Toque para adicionar um.'),
+        findsOneWidget,
+      );
       expect(find.text('Comprometido'), findsNothing);
     });
   });

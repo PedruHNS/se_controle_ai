@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -23,6 +24,36 @@ void main() {
     ),
   );
 
+  /// Preenche o formulário como a tela faria.
+  void fill({
+    String? description,
+    int? amountCents,
+    String? startMonth,
+    bool? recurring,
+  }) {
+    if (description != null) {
+      controller.control<String>(IncomeFormController.description).value =
+          description;
+    }
+    if (amountCents != null) {
+      controller.control<int>(IncomeFormController.amountCents).value =
+          amountCents;
+    }
+    if (startMonth != null) {
+      controller.control<String>(IncomeFormController.startMonth).value =
+          startMonth;
+    }
+    if (recurring != null) {
+      controller.control<bool>(IncomeFormController.recurring).value =
+          recurring;
+    }
+  }
+
+  String? errorOf(String field) {
+    final errors = controller.form.control(field).errors;
+    return errors[IncomeFormController.backendError] as String?;
+  }
+
   setUp(() {
     repository = incomeRepositoryMock();
     controller = IncomeFormController(repository);
@@ -31,42 +62,89 @@ void main() {
   tearDown(() => controller.dispose());
 
   group('estado inicial', () {
-    test('começa no mês corrente e recorrente', () {
-      expect(controller.startMonth.value, Month.current());
-      expect(controller.recurring.value, isTrue);
+    test('competência começa no mês corrente e recorrência ligada', () {
+      expect(
+        controller.control<String>(IncomeFormController.startMonth).value,
+        Month.current(),
+      );
+      expect(
+        controller.control<bool>(IncomeFormController.recurring).value,
+        isTrue,
+      );
       expect(controller.saving.value, isFalse);
-      expect(controller.failure.value, isNull);
+      expect(controller.generalFailure.value, isNull);
+    });
+
+    test('formulário nasce inválido — descrição e valor são obrigatórios', () {
+      expect(controller.form.invalid, isTrue);
+      expect(
+        controller.form
+            .control(IncomeFormController.description)
+            .hasError(ValidationMessage.required),
+        isTrue,
+      );
+      expect(
+        controller.form
+            .control(IncomeFormController.amountCents)
+            .hasError(ValidationMessage.required),
+        isTrue,
+      );
     });
   });
 
-  group('validação local', () {
-    test('descrição vazia não chega no repositório', () async {
-      final id = await controller.submit(description: '  ', amountCents: 5000);
+  group('validação declarada no FormGroup', () {
+    test('formulário inválido não chega no repositório', () async {
+      final id = await controller.submit();
 
       expect(id, isNull);
       verifyNoCreate();
-      expect(controller.errorFor('description'), 'Informe a descrição.');
     });
 
-    test('valor ausente e valor zero são recusados', () async {
-      await controller.submit(description: 'Salário', amountCents: null);
-      expect(controller.errorFor('amountCents'), 'Informe o valor.');
+    test(
+      'submit inválido marca tudo como tocado, para o erro aparecer',
+      () async {
+        // Sem isto, campo nunca tocado fica inválido e silencioso: a pessoa
+        // aperta Salvar e nada acontece, sem explicação.
+        expect(
+          controller.form.control(IncomeFormController.description).touched,
+          isFalse,
+        );
 
-      await controller.submit(description: 'Salário', amountCents: 0);
+        await controller.submit();
+
+        expect(
+          controller.form.control(IncomeFormController.description).touched,
+          isTrue,
+        );
+        expect(
+          controller.form.control(IncomeFormController.amountCents).touched,
+          isTrue,
+        );
+      },
+    );
+
+    test('valor zero é recusado pelo min, sem ida ao servidor', () async {
+      fill(description: 'Salário', amountCents: 0);
+
+      final id = await controller.submit();
+
+      expect(id, isNull);
       expect(
-        controller.errorFor('amountCents'),
-        'O valor precisa ser maior que zero.',
+        controller.form
+            .control(IncomeFormController.amountCents)
+            .hasError(ValidationMessage.min),
+        isTrue,
       );
-
       verifyNoCreate();
     });
 
-    test('erro local não vira erro geral — ele pertence ao campo', () async {
-      await controller.submit(description: '', amountCents: null);
+    test('descrição só de espaço não passa do required', () async {
+      fill(description: '   ', amountCents: 5000);
 
-      expect(controller.generalFailure, isNull);
-      expect(controller.errorFor('description'), isNotNull);
-      expect(controller.errorFor('amountCents'), isNotNull);
+      // O required do reactive_forms já recusa string em branco.
+      expect(controller.form.invalid, isTrue);
+      await controller.submit();
+      verifyNoCreate();
     });
   });
 
@@ -74,13 +152,14 @@ void main() {
     test(
       'manda o que foi preenchido, sem espaço sobrando na descrição',
       () async {
-        controller.setStartMonth('2026-03');
-        controller.setRecurring(false);
-
-        final id = await controller.submit(
+        fill(
           description: '  13º salário  ',
           amountCents: 500000,
+          startMonth: '2026-03',
+          recurring: false,
         );
+
+        final id = await controller.submit();
 
         expect(id, 'novo-id');
         verify(
@@ -94,7 +173,7 @@ void main() {
       },
     );
 
-    test('400 do backend cai no campo que o zod apontou', () async {
+    test('400 do backend desce para o campo que o zod apontou', () async {
       stubIncomeOperations(
         repository,
         createResult: Error(
@@ -108,17 +187,72 @@ void main() {
           ),
         ),
       );
+      fill(description: 'Salário', amountCents: 500000);
 
-      final id = await controller.submit(
-        description: 'Salário',
-        amountCents: 500000,
-      );
+      final id = await controller.submit();
 
       expect(id, isNull);
-      expect(controller.errorFor('startMonth'), 'Mês fora da faixa.');
+      expect(errorOf(IncomeFormController.startMonth), 'Mês fora da faixa.');
+      expect(
+        controller.form.control(IncomeFormController.startMonth).touched,
+        isTrue,
+      );
       // Erro de campo não vira snackbar: ele já está embaixo do campo.
-      expect(controller.generalFailure, isNull);
+      expect(controller.generalFailure.value, isNull);
     });
+
+    test('erro do backend some quando a pessoa corrige o campo', () async {
+      stubIncomeOperations(
+        repository,
+        createResult: Error(
+          Failure.fromException(
+            const BadRequestException(
+              message: 'Dados inválidos',
+              issues: [
+                FieldIssue(
+                  path: 'amountCents',
+                  message: 'Acima do teto do backend.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      fill(description: 'Salário', amountCents: 999999999);
+      await controller.submit();
+
+      expect(errorOf(IncomeFormController.amountCents), isNotNull);
+
+      // A validação roda de novo na mudança de valor e substitui os erros —
+      // é o que evita a mensagem velha grudada num campo já corrigido.
+      fill(amountCents: 500000);
+
+      expect(errorOf(IncomeFormController.amountCents), isNull);
+      expect(controller.form.valid, isTrue);
+    });
+
+    test(
+      '400 cujo path não é campo do formulário sobe como falha geral',
+      () async {
+        stubIncomeOperations(
+          repository,
+          createResult: Error(
+            Failure.fromException(
+              const BadRequestException(
+                message: 'Corpo inválido',
+                issues: [FieldIssue(path: 'body', message: 'JSON malformado.')],
+              ),
+            ),
+          ),
+        );
+        fill(description: 'Salário', amountCents: 500000);
+
+        await controller.submit();
+
+        // Sem isto a tela recusaria sem dizer nada: nenhum campo mostraria erro.
+        expect(controller.generalFailure.value, isA<ValidationFailure>());
+      },
+    );
 
     test('falha sem campo vira erro geral', () async {
       stubIncomeOperations(
@@ -127,24 +261,20 @@ void main() {
           Failure.fromException(const NetworkException(message: 'sem rede')),
         ),
       );
+      fill(description: 'Salário', amountCents: 500000);
 
-      final id = await controller.submit(
-        description: 'Salário',
-        amountCents: 500000,
-      );
+      final id = await controller.submit();
 
       expect(id, isNull);
-      expect(controller.generalFailure, isA<NetworkFailure>());
-      expect(controller.errorFor('description'), isNull);
+      expect(controller.generalFailure.value, isA<NetworkFailure>());
+      expect(errorOf(IncomeFormController.description), isNull);
     });
 
     test('saving liga durante o envio e desliga no fim', () async {
       stubIncomeOperations(repository, delay: const Duration(milliseconds: 50));
+      fill(description: 'Salário', amountCents: 500000);
 
-      final pending = controller.submit(
-        description: 'Salário',
-        amountCents: 500000,
-      );
+      final pending = controller.submit();
 
       expect(controller.saving.value, isTrue);
       await pending;

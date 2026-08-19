@@ -66,6 +66,19 @@ abstract final class Month {
     return '${_names[parsed.month - 1]} ${parsed.year}';
   }
 
+  /// Um intervalo de competências, para vigência e período de cadastro:
+  /// `('2026-01', '2026-10')` → `'Janeiro 2026 a outubro 2026'`,
+  /// `('2026-01', null)` → `'Desde janeiro 2026'`, e o mês sozinho quando os
+  /// dois são iguais.
+  ///
+  /// O segundo mês vem em minúscula porque está no meio da frase — `label`
+  /// capitaliza, e "a Outubro 2026" lê como erro de digitação.
+  static String periodLabel(String from, String? to) {
+    if (to == null) return 'Desde ${label(from).toLowerCase()}';
+    if (to == from) return label(from);
+    return '${label(from)} a ${label(to).toLowerCase()}';
+  }
+
   /// `'2026-08'` → `'ago/2026'`. Para espaço apertado: chip, eixo de gráfico.
   static String shortLabel(String month) {
     final parsed = _parse(month);
