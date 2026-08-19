@@ -4,6 +4,7 @@ import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
+import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 
 import '../../fixtures/test_injector.dart';
 
@@ -41,11 +42,21 @@ void main() {
     expect(find.byType(HomePage), findsOneWidget);
   });
 
-  testWidgets('botão Novo ganho da home abre o formulário', (tester) async {
+  // O formulário não é alcançável a partir da home em um toque: o caminho é
+  // seção "Ganhos" → lista → FAB. Este teste anda a corrente inteira, porque é
+  // ela que o usuário anda — e é onde um `pushNamed` errado apareceria.
+  testWidgets('da home até o formulário de ganho, pela lista', (tester) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Novo ganho'));
+    await tester.tap(find.text('Ganhos'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(IncomeListPage), findsOneWidget);
+
+    // Pelo tipo do botão, e não por `find.text`: o rótulo do FAB e o título do
+    // formulário são os dois "Novo ganho".
+    await tester.tap(find.widgetWithText(FloatingActionButton, 'Novo ganho'));
     await tester.pumpAndSettle();
 
     expect(find.byType(IncomeFormPage), findsOneWidget);
