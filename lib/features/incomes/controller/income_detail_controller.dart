@@ -33,6 +33,10 @@ class IncomeDetailController extends BaseController {
   final _state = signal<ViewState<IncomeModel>>(const Loading());
   final _working = signal<bool>(false);
 
+  /// Cresce a cada requisição, para descartar resposta atrasada — ver [load].
+  /// Mesmo contador do `HomeController` e do `IncomeListController`.
+  int _requestId = 0;
+
   ReadonlySignal<ViewState<IncomeModel>> get state => _state;
 
   /// Alguma operação em andamento — a view desabilita os botões para não
@@ -49,9 +53,16 @@ class IncomeDetailController extends BaseController {
   }
 
   Future<void> load({bool silent = false}) async {
+    final requestId = ++_requestId;
+
     if (!silent) _state.value = const Loading();
 
     final result = await _repository.getById(id);
+
+    // Cada ação termina numa recarga silenciosa, então duas ações em sequência
+    // rápida deixam duas buscas em voo. Sem esta guarda, a que voltar por último
+    // manda — e não é necessariamente a mais nova.
+    if (requestId != _requestId) return;
 
     result.when(
       (success) => _state.value = Loaded(success),

@@ -19,6 +19,10 @@ class IncomeListController extends BaseController {
 
   final _state = signal<ViewState<List<IncomeModel>>>(const Loading());
 
+  /// Cresce a cada requisição. Serve para descartar resposta atrasada — ver
+  /// [load]. Mesmo contador do `HomeController`.
+  int _requestId = 0;
+
   ReadonlySignal<ViewState<List<IncomeModel>>> get state => _state;
 
   @override
@@ -30,9 +34,16 @@ class IncomeListController extends BaseController {
   /// [silent] mantém a lista na tela durante a busca, para o pull-to-refresh
   /// não piscar e para a volta de uma ação não apagar o conteúdo.
   Future<void> load({bool silent = false}) async {
+    final requestId = ++_requestId;
+
     if (!silent) _state.value = const Loading();
 
     final result = await _repository.list();
+
+    // Duas buscas em voo podem voltar fora de ordem — um refresh depois de uma
+    // ação, disparado enquanto a busca anterior ainda não voltou, é o caso real.
+    // Sem esta guarda a resposta velha sobrescreveria a nova.
+    if (requestId != _requestId) return;
 
     result.when(
       (success) => _state.value = Loaded(success),
