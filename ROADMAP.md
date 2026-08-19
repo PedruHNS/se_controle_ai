@@ -5,13 +5,17 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 18/08/2026.*
+*Atualizado em 19/08/2026.*
 
 Flutter 3.44.9 · Dart 3.12.2 · **Fases 0, 1 e 2 concluídas** · a home mostra o
 resumo do mês e ganhos tem CRUD completo, com reajuste, correção e encerramento.
 
-`flutter analyze` sem issue · **168 testes, todos passando** · fluxo de ganhos
+`flutter analyze` sem issue · **175 testes, todos passando** · fluxo de ganhos
 verificado contra o backend real em Docker, incluindo a recusa de 422.
+
+Em 19/08, antes de abrir a Fase 3, foram fechadas duas dívidas que a fase nova
+ia copiar: a guarda de corrida existia só no `HomeController` (ver a convenção
+abaixo) e o `app_router_test` cobria um botão que a home não tem.
 
 As seis libs estão em uso:
 
@@ -85,6 +89,43 @@ Um detalhe que o `test_injector.dart` deixa de fora: lá o `HomeController` é
 `registerFactory`, para cada teste começar limpo. É divergência de propósito, mas
 significa que o caminho de `dispose` de produção não é exercitado por teste.
 
+**Controller consome `Result` com `.when`, nunca com `switch`.** Uma forma só em
+todo o projeto, para não haver duas maneiras de ler a mesma coisa:
+
+```dart
+final result = await _repository.getMonthly(month: _month.value);
+
+result.when(
+  (success) => _state.value = Loaded(success),
+  (err) => _state.value = Failed(err),
+);
+```
+
+Fechado em 19/08 — o `HomeController` era o único que ainda usava `switch` com
+os padrões `Success`/`Error`. Efeito colateral bem-vindo: o controller não
+importa mais `multiple_result`, porque `Success` e `Error` só aparecem no
+repositório. Quando o retorno interessa em vez do estado — as ações que devolvem
+`Failure?` do `IncomeDetailController` — é o mesmo `.when`, devolvendo valor
+pelos dois braços.
+
+**Todo controller que busca tem a guarda de `_requestId`.** Duas buscas em voo
+voltam fora de ordem, e sem o contador a resposta velha ganha da nova:
+
+```dart
+Future<void> load({bool silent = false}) async {
+  final requestId = ++_requestId;
+  ...
+  if (requestId != _requestId) return;   // resposta atrasada: descarta
+  result.when(...);
+}
+```
+
+Fechado em 19/08. Existia só no `HomeController`, onde o gatilho é óbvio (toque
+rápido em duas setas de mês); nos de ganho o gatilho é mais discreto — cada ação
+termina numa recarga silenciosa, então duas ações em sequência deixam duas buscas
+em voo. O teste que cobre isso na lista de ganhos **já existia e falhava** desde a
+Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
+
 ### O que já existe em `lib/`
 
 | Arquivo | O que faz |
@@ -107,6 +148,7 @@ significa que o caminho de `dispose` de produção não é exercitado por teste.
 | `core/utils/base_controller.dart` | Ciclo de vida do controller: `onInit`, `onReady`, `dispose`, com log |
 | `core/utils/money.dart` | Centavos ↔ real: `format`, `formatSigned`, `formatCompact`, `tryParse` |
 | `core/utils/month.dart` | Competência `YYYY-MM`: label, aritmética, limites do backend |
+| `core/utils/iso_date.dart` | Data `YYYY-MM-DD` → `17/08` ou `17/08/2026`, por corte de string |
 | `data/models/monthly_summary_model.dart` | `MonthlySummaryModel` — a resposta de `/summary` inteira |
 | `data/models/summary_line_item_model.dart` | `SummaryLineItemModel` — a linha usada em ganho, débito e fatura |
 | `data/models/debit_group_model.dart` | `DebitGroupModel` — total + itens do débito |
@@ -134,6 +176,7 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `fixtures/test_injector.dart` | Registra as dependências das telas com os fakes; idempotente entre testes |
 | `fixtures/income_fixture.dart` | JSON de `/incomes`: salário, salário reajustado, 13º e o avulso por competência |
 | `fixtures/mocks.dart` | Os mocks de repositório e os stubs padrão (`stubMonthly`, `stubIncomeList`, `stubIncomeOperations`…) |
+| `core/utils/iso_date_test.dart` | 6 casos do formato de data, incluindo entrada fora do formato |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -272,6 +315,10 @@ Atenção a um nome: já existe `CreditCardInvoiceModel`, que é a **fatura** de
 de `/summary`. O CRUD precisa de um model diferente, o cartão em si —
 `CreditCardModel`, em `credit_card_model.dart`. Os campos não batem, não dá para
 reaproveitar.
+
+O `dueDate` que vem com `?month=` já tem onde ser formatado: `IsoDate.label` /
+`IsoDate.fullLabel`, em `core/utils`. Era um `static` privado dentro do
+`CreditCardInvoiceCard` e subiu em 19/08 justamente para esta fase não duplicá-lo.
 
 ### Fase 0 — Fundação · ▓▓▓▓▓▓▓▓▓▓ concluída
 Nenhuma tela. Só o encanamento que todas as fases seguintes usam.
@@ -582,6 +629,9 @@ Descobertas implementando a Fase 2:
 
 1. **Autenticação e multi-usuário** — precisa existir? Muda o backend, não só o app.
 2. **Offline** — cache local (drift/sqflite) ou o app só funciona conectado?
-3. **`intl`** — entra para formatar moeda/data, ou formatador próprio para não
-   adicionar dependência?
+3. ~~**`intl`**~~ — **resolvido em 19/08: não entra.** Moeda já é `Money`, e data
+   passou a ser `IsoDate`, as duas por corte de string e sem `DateTime` no
+   caminho. É a mesma razão do `Month`: `DateTime` carrega fuso, e fuso é o que
+   faz uma data andar um dia para trás. Reabrir isso só se aparecer localização
+   de verdade — mais de um idioma na tela.
 4. **Onde o backend vai rodar** — só local em Docker, ou hospedado?
