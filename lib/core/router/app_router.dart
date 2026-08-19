@@ -8,6 +8,8 @@ import '../../features/home/view/home_page.dart';
 import '../../features/incomes/view/income_detail_page.dart';
 import '../../features/incomes/view/income_form_page.dart';
 import '../../features/incomes/view/income_list_page.dart';
+import '../../features/notifications/view/notification_list_page.dart';
+import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
 
 /// Configuração de navegação do app.
@@ -73,6 +75,21 @@ final GoRouter appRouter = GoRouter(
               CreditCardFormPage(id: state.pathParameters[RouteParams.id]!),
         ),
       ],
+    ),
+
+    // Sem filhas e sem backend: a tela é só o aviso de "em desenvolvimento". A
+    // rota entra agora para o menu ter um destino de verdade, em vez de um item
+    // que não faz nada ao ser tocado.
+    GoRoute(
+      path: AppRoutes.tagsPath,
+      name: AppRoutes.tags,
+      builder: (context, state) => const TagListPage(),
+    ),
+
+    GoRoute(
+      path: AppRoutes.notificationsPath,
+      name: AppRoutes.notifications,
+      builder: (context, state) => const NotificationListPage(),
     ),
   ],
 

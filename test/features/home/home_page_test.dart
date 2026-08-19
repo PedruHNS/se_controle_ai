@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
@@ -184,7 +185,7 @@ void main() {
     testWidgets('título mostra a competência em português', (tester) async {
       await pumpHome(tester);
 
-      expect(find.text(Month.label(Month.current())), findsOneWidget);
+      expect(find.text(Month.shortLabel(Month.current())), findsOneWidget);
     });
 
     testWidgets('seta avança o mês e refaz a busca', (tester) async {
@@ -201,7 +202,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(Month.label(Month.next(start))), findsOneWidget);
+      expect(find.text(Month.shortLabel(Month.next(start))), findsOneWidget);
       expect(capturedMonths(repository), [start, Month.next(start)]);
     });
 
@@ -224,7 +225,7 @@ void main() {
       await tester.tap(find.text('Voltar para o mês atual'));
       await tester.pumpAndSettle();
       expect(find.text('Voltar para o mês atual'), findsNothing);
-      expect(find.text(Month.label(Month.current())), findsOneWidget);
+      expect(find.text(Month.shortLabel(Month.current())), findsOneWidget);
     });
 
     // Regressão: o atalho morava no `bottom` do AppBar com
@@ -246,7 +247,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final label = find.text(Month.label(Month.next(Month.current())));
+      final label = find.text(Month.shortLabel(Month.next(Month.current())));
       expect(label, findsOneWidget);
 
       final appBar = tester.getRect(find.byType(AppBar));
@@ -264,6 +265,35 @@ void main() {
         tester.getRect(find.text('Voltar para o mês atual')).top,
         greaterThanOrEqualTo(appBar.bottom),
       );
+    });
+
+    // Regressão da largura, irmã da de cima: o rótulo cabia na barra até o botão
+    // do menu e o sino dividirem espaço com as duas setas. Por extenso ele era
+    // cortado em "Agost…", sem o ano — e como o texto seguia inteiro no widget
+    // tree, nenhum `find.text` reclamava. Hoje é abreviado e encolhe em vez de
+    // cortar; o teste mede a 360dp, largura de aparelho comum.
+    testWidgets('o rótulo do mês não é cortado em tela estreita', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await pumpHome(tester);
+
+      final label = find.text(Month.shortLabel(Month.current()));
+      final paragraph = tester.renderObject<RenderParagraph>(label);
+
+      expect(
+        paragraph.size.width,
+        greaterThanOrEqualTo(paragraph.getMaxIntrinsicWidth(double.infinity)),
+        reason: 'o rótulo do mês foi cortado por falta de espaço na barra',
+      );
+
+      final bar = tester.getRect(find.byType(AppBar));
+      final painted = tester.getRect(label);
+      expect(painted.left, greaterThanOrEqualTo(bar.left));
+      expect(painted.right, lessThanOrEqualTo(bar.right));
     });
   });
 }

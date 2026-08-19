@@ -5,6 +5,7 @@ import 'package:signals/signals_flutter.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/app_drawer.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../data/models/monthly_summary_model.dart';
 import '../controller/home_controller.dart';
@@ -29,29 +30,49 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: SignalBuilder(
-          builder: (context) => Text(_controller.monthLabel.value),
+          builder: (context) {
+            // `scaleDown` em vez de deixar a AppBar cortar: mesmo abreviado, o
+            // rótulo não cabe em tela estreita (176px de texto para 128px de
+            // espaço num aparelho de 360dp). Encolher a fonte mantém "ago/2026"
+            // inteiro e legível; o corte comia o ano.
+            return FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(_controller.monthLabel.value),
+            );
+          },
         ),
         centerTitle: true,
-        leading: SignalBuilder(
-          builder: (context) => IconButton(
-            tooltip: 'Mês anterior',
+        // O padrão reserva 16px de cada lado do título, e aqui eles são a
+        // diferença entre caber e não caber.
+        titleSpacing: 0,
+        // Sem `leading:` de propósito — o espaço é do botão do menu, que o
+        // Scaffold coloca ali sozinho por existir um `drawer:`. Preencher o
+        // `leading` aqui tomaria o lugar dele e deixaria o menu só no gesto de
+        // arrastar da borda.
+        //
+        // Por isso as duas setas de mês ficam juntas à direita, na ordem em que
+        // apontam, e o sino fecha a fila — o que é do mês perto do rótulo do
+        // mês, o que é do app na ponta.
+        actions: [
+          IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: _controller.canGoPrevious.value
                 ? _controller.goToPreviousMonth
                 : null,
           ),
-        ),
-        actions: [
-          SignalBuilder(
-            builder: (context) => IconButton(
-              tooltip: 'Próximo mês',
-              icon: const Icon(Icons.chevron_right),
-              onPressed: _controller.canGoNext.value
-                  ? _controller.goToNextMonth
-                  : null,
-            ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: _controller.canGoNext.value
+                ? _controller.goToNextMonth
+                : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            tooltip: 'Notificações',
+            onPressed: () => context.pushNamed(AppRoutes.notifications),
           ),
         ],
       ),
@@ -61,35 +82,47 @@ class _HomePageState extends State<HomePage> {
       // dava a impressão de que a navegação tinha trocado o mês por um botão.
       //
       // Aqui também fica visível nos três estados: navegar para um mês que falha
-      // ao carregar não pode tirar o caminho de volta.
-      body: Column(
-        children: [
-          SignalBuilder(
-            builder: (context) => _controller.isCurrentMonth.value
-                ? const SizedBox.shrink()
-                : _BackToCurrentMonth(onPressed: _controller.goToCurrentMonth),
-          ),
-          Expanded(
-            child: SignalBuilder(
+      // ao carregar não pode tirar o caminho de volta. Como `PinnedHeaderSliver`,
+      // ele gruda no topo do viewport e o conteúdo rola por baixo.
+      body: RefreshIndicator(
+        onRefresh: _controller.refresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SignalBuilder(
+              builder: (context) => PinnedHeaderSliver(
+                child: _controller.isCurrentMonth.value
+                    ? const SizedBox.shrink()
+                    : _BackToCurrentMonth(
+                        onPressed: _controller.goToCurrentMonth,
+                      ),
+              ),
+            ),
+            SignalBuilder(
               builder: (context) => switch (_controller.state.value) {
-                Loading() => const Center(child: CircularProgressIndicator()),
-                Failed(failure: final failure) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: FailureCardWidget(
-                      failure: failure,
-                      onRetry: _controller.load,
+                Loading() => const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                Failed(failure: final failure) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: FailureCardWidget(
+                        failure: failure,
+                        onRetry: _controller.load,
+                      ),
                     ),
                   ),
                 ),
                 Loaded(data: final summary) => _SummaryContent(
                   summary: summary,
-                  onRefresh: _controller.refresh,
                 ),
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -126,21 +159,18 @@ class _BackToCurrentMonth extends StatelessWidget {
   }
 }
 
+/// Conteúdo do mês carregado. É um sliver: vive dentro do [CustomScrollView] da
+/// [HomePage], que também carrega a faixa fixa e o pull-to-refresh.
 class _SummaryContent extends StatelessWidget {
-  const _SummaryContent({required this.summary, required this.onRefresh});
+  const _SummaryContent({required this.summary});
 
   final MonthlySummaryModel summary;
-  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        // AlwaysScrollable para o pull-to-refresh funcionar mesmo quando o
-        // conteúdo é curto e não haveria rolagem.
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList.list(
         children: [
           BalanceCard(summary: summary),
           const SizedBox(height: 16),

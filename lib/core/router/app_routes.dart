@@ -43,6 +43,16 @@ abstract final class AppRoutes {
   // Projeção — Fase 6
   static const projection = 'projection';
   static const projectionPath = '/projection';
+
+  /// Tags — sem fase no ROADMAP e sem endpoint no backend. A rota existe porque
+  /// a tela existe: um aviso de "em desenvolvimento" alcançável pelo menu.
+  static const tags = 'tags';
+  static const tagsPath = '/tags';
+
+  /// Notificações — mesma situação das tags: nada no backend, tela só com o
+  /// estado vazio. Fica na AppBar da home, não no menu.
+  static const notifications = 'notifications';
+  static const notificationsPath = '/notifications';
 }
 
 /// Nomes dos parâmetros de rota, para não repetir a string `'id'` em cada

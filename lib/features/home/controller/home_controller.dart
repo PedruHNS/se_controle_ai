@@ -31,9 +31,13 @@ class HomeController extends BaseController {
   ReadonlySignal<ViewState<MonthlySummaryModel>> get state => _state;
   ReadonlySignal<String> get month => _month;
 
-  /// `'Agosto 2026'`. Derivado de [month]: trocar o mês reformata sozinho.
+  /// `'ago/2026'`. Derivado de [month]: trocar o mês reformata sozinho.
+  ///
+  /// Abreviado e não `Month.label`: o título divide a AppBar com o botão do menu,
+  /// as duas setas de mês e o sino, e por extenso ("Agosto 2026") não cabe —
+  /// aparecia cortado em "Agost…", sem o ano.
   late final ReadonlySignal<String> monthLabel = computed(
-    () => Month.label(_month.value),
+    () => Month.shortLabel(_month.value),
   );
 
   /// A competência exibida é a de hoje? A UI usa para destacar o "hoje" e

@@ -46,7 +46,7 @@ void main() {
     });
 
     test('monthLabel é derivado do mês', () {
-      expect(controller.monthLabel.value, Month.label(Month.current()));
+      expect(controller.monthLabel.value, Month.shortLabel(Month.current()));
     });
   });
 
@@ -105,7 +105,7 @@ void main() {
 
       await controller.goToNextMonth();
 
-      expect(controller.monthLabel.value, Month.label(Month.next(start)));
+      expect(controller.monthLabel.value, Month.shortLabel(Month.next(start)));
     });
 
     test('goToCurrentMonth volta de qualquer lugar', () async {
