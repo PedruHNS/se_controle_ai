@@ -1,4 +1,3 @@
-import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/utils/base_controller.dart';
 import 'package:signals/signals.dart';
 
@@ -76,10 +75,10 @@ class HomeController extends BaseController {
     // mês que está na tela.
     if (requestId != _requestId) return;
 
-    _state.value = switch (result) {
-      Success(success: final summary) => Loaded(summary),
-      Error(error: final failure) => Failed(failure),
-    };
+    result.when(
+      (success) => _state.value = Loaded(success),
+      (err) => _state.value = Failed(err),
+    );
   }
 
   Future<void> goToPreviousMonth() async {
