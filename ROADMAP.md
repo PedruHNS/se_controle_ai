@@ -9,11 +9,17 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 3 concluídas** · a home mostra o
 resumo do mês, ganhos tem CRUD completo com reajuste, correção e encerramento, e
-cartões tem CRUD com a edição parcial do CAR-08.
+cartões tem CRUD com a edição parcial do CAR-08, e um menu lateral na home leva
+às telas de cadastro.
 
-`flutter analyze` sem issue · **244 testes, todos passando** · ganhos e cartões
+`flutter analyze` sem issue · **250 testes, 249 passando** · ganhos e cartões
 verificados contra o backend real em Docker, incluindo a recusa de 422 e as duas
 direções do `PATCH`.
+
+**O teste vermelho é conhecido e não é regressão:** `app_router_test` › "da home
+até o formulário de cartão, pela lista" rola a home procurando uma linha
+"Cartões" que nunca chegou a ser construída (veja a Fase 3). Esse caminho hoje
+existe pelo menu lateral, e o teste precisa ser reescrito para andar por ele.
 
 Em 19/08, antes de abrir a Fase 3, foram fechadas duas dívidas que a fase nova
 ia copiar: a guarda de corrida existia só no `HomeController` (ver a convenção
@@ -130,6 +136,40 @@ termina numa recarga silenciosa, então duas ações em sequência deixam duas b
 em voo. O teste que cobre isso na lista de ganhos **já existia e falhava** desde a
 Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
 
+### O menu lateral é a porta das telas de cadastro
+
+Entrou em 19/08. A home é a única tela que não foi empilhada por outra, então o
+`Drawer` mora só nela: das demais se sai pelo "voltar", e um menu repetido lá
+daria caminho de ida para onde já se está. Os itens navegam com `pushNamed` e não
+`go`, para o "voltar" da tela nova devolver para a home — e fecham o menu antes
+de navegar, senão o `Drawer` aberto fica no histórico local e o primeiro "voltar"
+só o fecharia.
+
+**O menu custou o `leading` da AppBar, e quem pagou a conta foi o rótulo do mês.**
+O hambúrguer só aparece sozinho quando o `leading` está livre, e ali estava a seta
+do mês anterior. As duas setas foram para a direita, ao lado do sino de
+notificações — e com quatro ícones dividindo a barra, "Agosto 2026" deixou de
+caber: era cortado em "Agost…", sem o ano, em qualquer tela abaixo de 411dp. O
+título passou a `Month.shortLabel` (`ago/2026`), a AppBar perdeu os 16px de
+`titleSpacing` padrão de cada lado, e o texto encolhe por `FittedBox` em vez de
+ser cortado. `home_page_test` mede isso a 360dp, no caso irmão do que já guardava
+o eixo vertical.
+
+**Tags e notificações são telas de aviso, não features.** Nenhuma das duas existe
+no backend. As telas entraram assim mesmo — "em desenvolvimento" numa, estado
+vazio explicado na outra — porque item de menu que não faz nada ao ser tocado é
+pior do que um que diz por quê. `/tags` e `/notifications` ficam sem fase no
+roadmap até haver endpoint — tags já tem spec do lado do backend
+(`docs/specs/06-tags.md`, Etapa 7, regras `TAG-01` a `TAG-13`), notificações não
+têm nem isso.
+
+**O corpo da home virou `CustomScrollView`.** A faixa de "voltar para o mês atual"
+é um `PinnedHeaderSliver`: fixa abaixo da AppBar e medida pela altura do próprio
+filho, sem o delegate de extents fixos que o `SliverPersistentHeader` exigiria.
+Efeito colateral desejado — o `RefreshIndicator` subiu para fora do conteúdo, e o
+pull-to-refresh passou a valer também nas telas de carregando e de erro, que
+antes não tinham como pedir os dados de novo a não ser pelo botão do card.
+
 ### O que já existe em `lib/`
 
 | Arquivo | O que faz |
@@ -146,6 +186,7 @@ Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
 | `core/router/app_router.dart` | Instância do GoRouter + tela de 404 |
 | `core/shared/view_state.dart` | `Loading` / `Loaded` / `Failed` para a view dar switch exaustivo |
 | `core/shared/patch.dart` | `Patch<T>`: os três estados de um campo de `PATCH` — `keep`, `clear`, `to` |
+| `core/shared/widgets/app_drawer.dart` | Menu lateral da home: ganhos, cartões e tags |
 | `core/shared/widgets/failure_card_widget.dart` | Card de erro único, com ícone e título por tipo de `Failure` |
 | `core/shared/forms/money_value_accessor.dart` | Ponte entre `FormControl<int>` em centavos e o texto do campo |
 | `core/shared/widgets/money_field_widget.dart` | `ReactiveTextField<int>` de dinheiro, com as mensagens de erro do valor |
@@ -162,7 +203,7 @@ Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
 | `data/models/month_projection_model.dart` | `MonthProjectionModel` — um mês de `/summary/projection` |
 | `data/repositories/summary_repository.dart` | Interface + impl de `/summary` e `/summary/projection` |
 | `features/home/controller/home_controller.dart` | Estado do resumo com signals — **é o molde a copiar** |
-| `features/home/view/home_page.dart` | A tela: navegação de mês, `switch` no `ViewState`, pull-to-refresh |
+| `features/home/view/home_page.dart` | A tela: `CustomScrollView` com a faixa fixa, navegação de mês, `switch` no `ViewState`, pull-to-refresh |
 | `features/home/widgets/` | `BalanceCard`, `SummarySection`, `CreditCardInvoiceCard`, `LineItemTile` |
 | `data/models/income_model.dart` · `income_version_model.dart` | O ganho e suas vigências |
 | `data/repositories/income_repository.dart` | As sete rotas de `/incomes`, com reajuste e correção separados |
@@ -174,6 +215,8 @@ Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
 | `features/credit_cards/controller/` | `CreditCardListController` (lista + exclusão), `CreditCardFormController` (cadastro + edição) |
 | `features/credit_cards/view/` | Lista e formulário; não há tela de detalhe |
 | `features/credit_cards/widgets/` | `CreditCardTile` |
+| `features/tags/view/tag_list_page.dart` | Só o aviso de "em desenvolvimento" — não há endpoint de tags |
+| `features/notifications/view/notification_list_page.dart` | Só o estado vazio — o servidor ainda não manda notificação |
 
 **Um model por arquivo, sem barrel.** Cada consumidor importa o arquivo da classe
 que usa. Não existe `models/monthly_summary.dart` reexportando o resto — quem
@@ -190,6 +233,7 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `core/utils/iso_date_test.dart` | 6 casos do formato de data, incluindo entrada fora do formato |
 | `fixtures/credit_card_fixture.dart` | JSON real de `/credit-cards`: cartão completo, cartão sem os opcionais, e sem competência |
 | `core/shared/patch_test.dart` | Os três estados do `Patch` e o `diff` que decide entre eles |
+| `features/home/home_navigation_test.dart` | O menu abre com os três destinos, cada um chega na tela certa, e o sino leva às notificações |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -478,7 +522,8 @@ Vem antes de gastos porque gasto no cartão exige `creditCardId`.
 - [x] Limite opcional, e limpável
 - [x] **Edição parcial do CAR-08**: campo ausente não muda nada, `null` limpa
 - [x] 409 do CAR-07 explicado dentro do diálogo de exclusão
-- [x] Linha "Cartões" na home — a única porta para o cadastro
+- [x] Porta para o cadastro — hoje o item "Cartões" do menu lateral. A linha na
+      home, planejada aqui, nunca chegou a existir
 
 **Pronto quando:** o cartão criado aparece como opção no formulário de gasto.
 → **Só fecha na Fase 4**, porque não existe formulário de gasto. O que dava para
@@ -537,7 +582,9 @@ do `PATCH`**, e as recusas do backend), `credit_card_pages_test.dart` (18 de
 widget: lista com e sem limite, vazia, erro, diálogo de exclusão com o 409,
 formulário nos dois modos, helper do CAR-03, e o "abrir e fechar não manda
 requisição"), mais 2 casos novos em `app_router_test.dart` — a corrente da home
-até o formulário, e a rota de edição.
+até o formulário, e a rota de edição. **O primeiro desses dois está vermelho**:
+ele rola a home atrás da linha "Cartões" que não foi construída. Reescrevê-lo
+para passar pelo menu lateral é a primeira dívida a pagar na Fase 4.
 
 **O que os testes da fase não cobrem:** o 409 do CAR-07 ao vivo (não há gasto para
 vincular) e o caminho de `dispose` do `CreditCardListController` em produção — no
@@ -568,7 +615,8 @@ outra quantidade não mexe nas parcelas passadas.
 
 ### Fase 7 — Acabamento · ░░░░░░░░░░ não iniciada
 Tema claro/escuro, máscara de moeda no input, estados vazios com ilustração,
-pull-to-refresh, animações de transição, tratamento de "backend offline".
+pull-to-refresh nas demais telas (o da home já entrou com o `CustomScrollView`),
+animações de transição, tratamento de "backend offline".
 
 ### Fase 8 — Qualidade · ░░░░░░░░░░ não iniciada
 Testes de model (parse do JSON real), de repositório (Dio mockado), de
