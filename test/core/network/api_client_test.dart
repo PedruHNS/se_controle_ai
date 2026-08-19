@@ -1,35 +1,15 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/network/api_client.dart';
 import 'package:se_controle_ai/core/network/dio_factory.dart';
 
-/// Adapter que responde o que o teste mandar, sem tocar a rede. Deixa os testes
-/// determinísticos e independentes do backend estar de pé.
-class _FakeAdapter implements HttpClientAdapter {
-  _FakeAdapter(this.responder);
-
-  final Future<ResponseBody> Function(RequestOptions options) responder;
-
-  /// Última requisição que passou por aqui — para conferir URL e corpo.
-  RequestOptions? lastRequest;
-
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) {
-    lastRequest = options;
-    return responder(options);
-  }
-
-  @override
-  void close({bool force = false}) {}
-}
+/// Adapter mockado: a rede nunca é tocada, e o teste manda o que ela responde.
+/// Deixa os testes determinísticos e independentes do backend estar de pé.
+class MockHttpClientAdapter extends Mock implements HttpClientAdapter {}
 
 ResponseBody _json(Object? body, int status) => ResponseBody.fromString(
   body == null ? '' : jsonEncode(body),
@@ -40,16 +20,31 @@ ResponseBody _json(Object? body, int status) => ResponseBody.fromString(
 );
 
 /// Monta o client real (mesmo `buildDio` da produção) com a rede substituída.
-({ApiClient client, _FakeAdapter adapter}) clientThatReturns(
+({ApiClient client, MockHttpClientAdapter adapter}) clientThatReturns(
   Future<ResponseBody> Function(RequestOptions options) responder,
 ) {
+  final adapter = MockHttpClientAdapter();
+  when(() => adapter.fetch(any(), any(), any())).thenAnswer(
+    (invocation) =>
+        responder(invocation.positionalArguments.first as RequestOptions),
+  );
+
   final dio = buildDio();
-  final adapter = _FakeAdapter(responder);
   dio.httpClientAdapter = adapter;
   return (client: ApiClient(dio), adapter: adapter);
 }
 
+/// A requisição que chegou ao adapter. `verify` **consome** o que foi gravado,
+/// então use uma vez por teste.
+RequestOptions lastRequestOf(MockHttpClientAdapter adapter) =>
+    verify(() => adapter.fetch(captureAny(), any(), any())).captured.last
+        as RequestOptions;
+
 void main() {
+  // `any()` de um tipo não nulo precisa de um valor de reserva registrado —
+  // mocktail usa ele só para casar a assinatura, nunca para responder.
+  setUpAll(() => registerFallbackValue(RequestOptions()));
+
   group('devolve o Response do Dio, sem decodificar o corpo', () {
     test('objeto vem como Response<dynamic>', () async {
       final (client: client, adapter: _) = clientThatReturns(
@@ -94,8 +89,9 @@ void main() {
         data: {'amountCents': 550000},
       );
 
-      expect(adapter.lastRequest!.method, 'PATCH');
-      expect(adapter.lastRequest!.data, {'amountCents': 550000});
+      final request = lastRequestOf(adapter);
+      expect(request.method, 'PATCH');
+      expect(request.data, {'amountCents': 550000});
       expect(response, isA<Response<dynamic>>());
       expect(response.data['amountCents'], 550000);
     });
@@ -125,7 +121,7 @@ void main() {
           queryParameters: {'month': null, 'months': 12},
         );
 
-        final uri = adapter.lastRequest!.uri.toString();
+        final uri = lastRequestOf(adapter).uri.toString();
         expect(uri, contains('months=12'));
         expect(uri, isNot(contains('month=&')));
         expect(uri, isNot(contains('month=1')));

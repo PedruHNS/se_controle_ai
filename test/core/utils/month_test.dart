@@ -118,4 +118,22 @@ void main() {
     expect(Month.of(2026, 1), '2026-01');
     expect(Month.of(2026, 12), '2026-12');
   });
+
+  group('Month.periodLabel', () {
+    test('vigência em aberto', () {
+      expect(Month.periodLabel('2026-01', null), 'Desde janeiro 2026');
+    });
+
+    test('intervalo fechado põe o segundo mês em minúscula', () {
+      // O label capitaliza; no meio da frase isso leria como erro.
+      expect(
+        Month.periodLabel('2026-01', '2026-10'),
+        'Janeiro 2026 a outubro 2026',
+      );
+    });
+
+    test('mês único não se repete', () {
+      expect(Month.periodLabel('2026-12', '2026-12'), 'Dezembro 2026');
+    });
+  });
 }

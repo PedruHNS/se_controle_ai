@@ -6,12 +6,14 @@ import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
 
-import '../../fixtures/fake_summary_repository.dart';
+import 'package:mocktail/mocktail.dart';
+
+import '../../fixtures/mocks.dart';
 import '../../fixtures/summary_fixture.dart';
 import '../../fixtures/test_injector.dart';
 
 void main() {
-  late FakeSummaryRepository repository;
+  late MockSummaryRepository repository;
 
   setUp(() => repository = setupTestInjector());
   // tearDown(resetInjector);
@@ -23,7 +25,7 @@ void main() {
 
   group('carregamento', () {
     testWidgets('mostra spinner antes da resposta', (tester) async {
-      repository.delay = const Duration(milliseconds: 100);
+      stubMonthly(repository, delay: const Duration(milliseconds: 100));
 
       await tester.pumpWidget(const MaterialApp(home: HomePage()));
       await tester.pump();
@@ -90,8 +92,9 @@ void main() {
 
   group('mês no vermelho', () {
     testWidgets('troca o rótulo do saldo e avisa do estouro', (tester) async {
-      repository.response = Success(
-        MonthlySummaryModel.fromJson(negativeSummaryJson),
+      stubMonthly(
+        repository,
+        result: Success(MonthlySummaryModel.fromJson(negativeSummaryJson)),
       );
 
       await pumpHome(tester);
@@ -113,8 +116,9 @@ void main() {
     testWidgets('mostra estado vazio em vez de seções em branco', (
       tester,
     ) async {
-      repository.response = Success(
-        MonthlySummaryModel.fromJson(emptySummaryJson),
+      stubMonthly(
+        repository,
+        result: Success(MonthlySummaryModel.fromJson(emptySummaryJson)),
       );
 
       await pumpHome(tester);
@@ -129,7 +133,7 @@ void main() {
     testWidgets('falha de rede mostra mensagem e botão de tentar de novo', (
       tester,
     ) async {
-      repository.response = const Error(NetworkFailure());
+      stubMonthly(repository, result: const Error(NetworkFailure()));
 
       await pumpHome(tester);
 
@@ -140,24 +144,30 @@ void main() {
     testWidgets('tentar de novo refaz a busca e mostra o conteúdo', (
       tester,
     ) async {
-      repository.response = const Error(NetworkFailure());
+      stubMonthly(repository, result: const Error(NetworkFailure()));
       await pumpHome(tester);
 
-      repository.response = Success(MonthlySummaryModel.fromJson(summaryJson));
+      stubMonthly(
+        repository,
+        result: Success(MonthlySummaryModel.fromJson(summaryJson)),
+      );
       await tester.tap(find.text('Tentar de novo'));
       await tester.pumpAndSettle();
 
       expect(find.text('Salário'), findsOneWidget);
       expect(find.text('Tentar de novo'), findsNothing);
-      expect(repository.requestedMonths, hasLength(2));
+      verify(() => repository.getMonthly(month: any(named: 'month'))).called(2);
     });
 
     testWidgets('erro que não vale repetir não oferece o botão', (
       tester,
     ) async {
       // 422 é regra de negócio: repetir daria o mesmo resultado.
-      repository.response = const Error(
-        DomainRuleFailure(message: 'Gasto no cartão exige informar o cartão'),
+      stubMonthly(
+        repository,
+        result: const Error(
+          DomainRuleFailure(message: 'Gasto no cartão exige informar o cartão'),
+        ),
       );
 
       await pumpHome(tester);
@@ -178,11 +188,18 @@ void main() {
       await pumpHome(tester);
       final start = Month.current();
 
-      await tester.tap(find.byIcon(Icons.chevron_right));
+      // Escopo na AppBar: a seção de ganhos também tem um chevron, o dela
+      // levando para a tela de ganhos.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byIcon(Icons.chevron_right),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text(Month.label(Month.next(start))), findsOneWidget);
-      expect(repository.requestedMonths, [start, Month.next(start)]);
+      expect(capturedMonths(repository), [start, Month.next(start)]);
     });
 
     testWidgets('atalho de voltar ao mês atual aparece só fora dele', (
@@ -192,7 +209,12 @@ void main() {
 
       expect(find.text('Voltar para o mês atual'), findsNothing);
 
-      await tester.tap(find.byIcon(Icons.chevron_left));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byIcon(Icons.chevron_left),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Voltar para o mês atual'), findsOneWidget);
 
