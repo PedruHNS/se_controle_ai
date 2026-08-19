@@ -1,8 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../data/repositories/credit_card_repository.dart';
 import '../../data/repositories/income_repository.dart';
 import '../../data/repositories/summary_repository.dart';
+import '../../features/credit_cards/controller/credit_card_form_controller.dart';
+import '../../features/credit_cards/controller/credit_card_list_controller.dart';
 import '../../features/home/controller/home_controller.dart';
 import '../../features/incomes/controller/income_detail_controller.dart';
 import '../../features/incomes/controller/income_form_controller.dart';
@@ -39,6 +42,10 @@ void setupInjector() {
     () => IncomeRepositoryImpl(getIt<ApiClient>()),
   );
 
+  getIt.registerLazySingleton<CreditCardRepository>(
+    () => CreditCardRepositoryImpl(getIt<ApiClient>()),
+  );
+
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
   // get_it — a página não chama `dispose` no controller. O dono da instância é o
   // container, não a tela: sair da home e voltar reaproveita o mesmo controller,
@@ -73,6 +80,20 @@ void setupInjector() {
 
   getIt.registerFactory<IncomeDetailController>(
     () => IncomeDetailController(getIt<IncomeRepository>()),
+  );
+
+  // Cartões seguem a mesma divisão: a lista é lazySingleton com dispose pelo
+  // get_it, o formulário é factory porque precisa nascer limpo — e aqui isso
+  // pesa mais que em ganhos, já que a mesma tela serve para cadastrar e para
+  // editar. Um formulário reaproveitado abriria a edição com o cartão anterior
+  // ainda no `_cardOnOpen`, e o diff do CAR-08 sairia contra o cartão errado.
+  getIt.registerLazySingleton<CreditCardListController>(
+    () => CreditCardListController(getIt<CreditCardRepository>()),
+    dispose: (e) => e.dispose(),
+  );
+
+  getIt.registerFactory<CreditCardFormController>(
+    () => CreditCardFormController(getIt<CreditCardRepository>()),
   );
 }
 

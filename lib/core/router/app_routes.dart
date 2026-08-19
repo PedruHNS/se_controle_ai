@@ -26,6 +26,12 @@ abstract final class AppRoutes {
   static const creditCardForm = 'credit-card-form';
   static const creditCardFormPath = 'form';
 
+  /// Edição usa a mesma tela do cadastro, com o id na rota. Não existe tela de
+  /// detalhe de cartão: um cartão são cinco campos, e uma tela só de leitura
+  /// para eles seria um passo a mais para chegar ao mesmo formulário.
+  static const creditCardEdit = 'credit-card-edit';
+  static const creditCardEditPath = ':id';
+
   // Gastos — Fases 4 e 5
   static const expenses = 'expenses';
   static const expensesPath = '/expenses';

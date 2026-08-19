@@ -1,6 +1,9 @@
 import 'package:se_controle_ai/core/di/injector.dart';
+import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
+import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
+import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
@@ -67,6 +70,34 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
     )
     ..registerFactory<IncomeDetailController>(
       () => IncomeDetailController(getIt<IncomeRepository>()),
+    );
+
+  return repository;
+}
+
+/// O mesmo para as telas de cartões.
+MockCreditCardRepository setupCreditCardTestInjector({
+  MockCreditCardRepository? mock,
+}) {
+  final repository = mock ?? creditCardRepositoryMock();
+
+  if (getIt.isRegistered<CreditCardRepository>()) {
+    getIt.unregister<CreditCardRepository>();
+  }
+  if (getIt.isRegistered<CreditCardListController>()) {
+    getIt.unregister<CreditCardListController>();
+  }
+  if (getIt.isRegistered<CreditCardFormController>()) {
+    getIt.unregister<CreditCardFormController>();
+  }
+
+  getIt
+    ..registerSingleton<CreditCardRepository>(repository)
+    ..registerFactory<CreditCardListController>(
+      () => CreditCardListController(getIt<CreditCardRepository>()),
+    )
+    ..registerFactory<CreditCardFormController>(
+      () => CreditCardFormController(getIt<CreditCardRepository>()),
     );
 
   return repository;

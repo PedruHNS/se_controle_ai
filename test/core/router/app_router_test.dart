@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
+import 'package:se_controle_ai/features/credit_cards/view/credit_card_form_page.dart';
+import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
@@ -14,6 +16,7 @@ void main() {
   setUp(() {
     setupTestInjector();
     setupIncomeTestInjector();
+    setupCreditCardTestInjector();
   });
 
   // O appRouter é global e guarda a pilha de navegação entre testes; sem isto,
@@ -60,6 +63,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(IncomeFormPage), findsOneWidget);
+  });
+
+  testWidgets('da home até o formulário de cartão, pela lista', (tester) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    // A linha da home é a única porta para o cadastro: as faturas do resumo só
+    // aparecem quando existe gasto no mês. Ela fica no fim do resumo, e a
+    // ListView não constrói o que está fora da tela — daí o scroll.
+    await tester.scrollUntilVisible(find.text('Cartões'), 200);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cartões'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreditCardListPage), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FloatingActionButton, 'Novo cartão'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreditCardFormPage), findsOneWidget);
+    expect(find.text('Novo cartão'), findsWidgets);
+  });
+
+  // `form` antes de `:id` no router: invertido, esta rota viraria uma edição de
+  // cartão com id "form".
+  testWidgets('a rota de edição abre o formulário preenchido', (tester) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    appRouter.goNamed(
+      AppRoutes.creditCardEdit,
+      pathParameters: {RouteParams.id: 'id-nubank'},
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreditCardFormPage), findsOneWidget);
+    expect(find.text('Editar cartão'), findsOneWidget);
+    expect(find.text('Nubank'), findsOneWidget);
   });
 
   testWidgets('endereço inexistente cai no errorBuilder, não em tela crua', (

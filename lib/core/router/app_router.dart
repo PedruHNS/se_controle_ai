@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/credit_cards/view/credit_card_form_page.dart';
+import '../../features/credit_cards/view/credit_card_list_page.dart';
 import '../../features/home/view/home_page.dart';
 import '../../features/incomes/view/income_detail_page.dart';
 import '../../features/incomes/view/income_form_page.dart';
@@ -48,6 +50,27 @@ final GoRouter appRouter = GoRouter(
           name: AppRoutes.incomeDetail,
           builder: (context, state) =>
               IncomeDetailPage(id: state.pathParameters[RouteParams.id]!),
+        ),
+      ],
+    ),
+
+    GoRoute(
+      path: AppRoutes.creditCardsPath,
+      name: AppRoutes.creditCards,
+      builder: (context, state) => const CreditCardListPage(),
+      routes: [
+        // `form` antes de `:id`, pela mesma razão de ganhos: o go_router casa na
+        // ordem, e invertido a rota de cadastro viraria uma edição de id "form".
+        GoRoute(
+          path: AppRoutes.creditCardFormPath,
+          name: AppRoutes.creditCardForm,
+          builder: (context, state) => const CreditCardFormPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.creditCardEditPath,
+          name: AppRoutes.creditCardEdit,
+          builder: (context, state) =>
+              CreditCardFormPage(id: state.pathParameters[RouteParams.id]!),
         ),
       ],
     ),

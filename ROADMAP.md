@@ -7,15 +7,19 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 *Atualizado em 19/08/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **Fases 0, 1 e 2 concluídas** · a home mostra o
-resumo do mês e ganhos tem CRUD completo, com reajuste, correção e encerramento.
+Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 3 concluídas** · a home mostra o
+resumo do mês, ganhos tem CRUD completo com reajuste, correção e encerramento, e
+cartões tem CRUD com a edição parcial do CAR-08.
 
-`flutter analyze` sem issue · **175 testes, todos passando** · fluxo de ganhos
-verificado contra o backend real em Docker, incluindo a recusa de 422.
+`flutter analyze` sem issue · **244 testes, todos passando** · ganhos e cartões
+verificados contra o backend real em Docker, incluindo a recusa de 422 e as duas
+direções do `PATCH`.
 
 Em 19/08, antes de abrir a Fase 3, foram fechadas duas dívidas que a fase nova
 ia copiar: a guarda de corrida existia só no `HomeController` (ver a convenção
-abaixo) e o `app_router_test` cobria um botão que a home não tem.
+abaixo) e o `app_router_test` cobria um botão que a home não tem. No mesmo dia o
+atalho de voltar ao mês atual saiu do `bottom` do AppBar, onde empurrava o nome
+do mês para fora da barra.
 
 As seis libs estão em uso:
 
@@ -141,10 +145,12 @@ Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
 | `core/router/app_routes.dart` | Nomes e caminhos de rota centralizados |
 | `core/router/app_router.dart` | Instância do GoRouter + tela de 404 |
 | `core/shared/view_state.dart` | `Loading` / `Loaded` / `Failed` para a view dar switch exaustivo |
+| `core/shared/patch.dart` | `Patch<T>`: os três estados de um campo de `PATCH` — `keep`, `clear`, `to` |
 | `core/shared/widgets/failure_card_widget.dart` | Card de erro único, com ícone e título por tipo de `Failure` |
 | `core/shared/forms/money_value_accessor.dart` | Ponte entre `FormControl<int>` em centavos e o texto do campo |
 | `core/shared/widgets/money_field_widget.dart` | `ReactiveTextField<int>` de dinheiro, com as mensagens de erro do valor |
 | `core/shared/widgets/month_field_widget.dart` | `ReactiveFormField<String>`: competência por setas, com piso (`minMonth`) para travar o que a regra recusaria |
+| `core/shared/widgets/day_field_widget.dart` | `ReactiveFormField<int>`: dia 1–31 por setas, circular na virada |
 | `core/utils/base_controller.dart` | Ciclo de vida do controller: `onInit`, `onReady`, `dispose`, com log |
 | `core/utils/money.dart` | Centavos ↔ real: `format`, `formatSigned`, `formatCompact`, `tryParse` |
 | `core/utils/month.dart` | Competência `YYYY-MM`: label, aritmética, limites do backend |
@@ -163,6 +169,11 @@ Fase 2: foi escrito junto com o controller, e a guarda nunca entrou.
 | `features/incomes/controller/` | `IncomeListController`, `IncomeFormController`, `IncomeDetailController` |
 | `features/incomes/view/` | Lista, formulário e detalhe |
 | `features/incomes/widgets/` | `IncomeTile`, `IncomeHistoryCard`, e os diálogos de valor e encerramento |
+| `data/models/credit_card_model.dart` | `CreditCardModel` — o cartão do CRUD, **não** a fatura do resumo |
+| `data/repositories/credit_card_repository.dart` | As cinco rotas de `/credit-cards`, com o `PATCH` do CAR-08 |
+| `features/credit_cards/controller/` | `CreditCardListController` (lista + exclusão), `CreditCardFormController` (cadastro + edição) |
+| `features/credit_cards/view/` | Lista e formulário; não há tela de detalhe |
+| `features/credit_cards/widgets/` | `CreditCardTile` |
 
 **Um model por arquivo, sem barrel.** Cada consumidor importa o arquivo da classe
 que usa. Não existe `models/monthly_summary.dart` reexportando o resto — quem
@@ -175,8 +186,10 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `fixtures/summary_fixture.dart` | JSON real capturado do backend: mês normal, vazio e no vermelho |
 | `fixtures/test_injector.dart` | Registra as dependências das telas com os fakes; idempotente entre testes |
 | `fixtures/income_fixture.dart` | JSON de `/incomes`: salário, salário reajustado, 13º e o avulso por competência |
-| `fixtures/mocks.dart` | Os mocks de repositório e os stubs padrão (`stubMonthly`, `stubIncomeList`, `stubIncomeOperations`…) |
+| `fixtures/mocks.dart` | Os mocks de repositório e os stubs padrão (`stubMonthly`, `stubIncomeList`, `stubCreditCardList`…), mais o `capturedUpdateBody` que anota o corpo do `PATCH` |
 | `core/utils/iso_date_test.dart` | 6 casos do formato de data, incluindo entrada fora do formato |
+| `fixtures/credit_card_fixture.dart` | JSON real de `/credit-cards`: cartão completo, cartão sem os opcionais, e sem competência |
+| `core/shared/patch_test.dart` | Os três estados do `Patch` e o `diff` que decide entre eles |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -298,27 +311,29 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 0 — Fundação: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 1 — Resumo mensal: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 2 — Ganhos: **concluída** |
-| ░░░░░░░░░░ | Fases 3 a 8 — não iniciadas |
+| ▓▓▓▓▓▓▓▓▓▓ | Fase 3 — Cartões: **concluída** |
+| ░░░░░░░░░░ | Fases 4 a 8 — não iniciadas |
 
-**Próximo passo: Fase 3 — Cartões.** É o CRUD mais simples que sobrou, e o que
-destrava as Fases 4 e 5 — gasto no cartão exige `creditCardId`. O padrão de
-formulário agora existe e é para copiar da Fase 2: `MoneyFieldWidget`,
-`MonthFieldWidget`, controller com `errorFor(path)` e diálogo que mostra o erro
-sem fechar.
+**Próximo passo: Fase 4 — Gastos fixos.** É a primeira fase com dois caminhos de
+pagamento (débito e cartão), e a que finalmente fecha o critério da Fase 3: o
+cartão cadastrado precisa aparecer como opção no formulário de gasto.
 
-O que Cartões tem de próprio: `closingDay`/`dueDay` como dia de 1 a 31, limite
-opcional, e o `PATCH` em que **campo ausente não muda nada e `null` limpa**
-(CAR-08) — o formulário precisa distinguir "não mexi" de "apaguei", coisa que
-Ganhos não exigiu.
+O que já está pronto para ela copiar: o `CreditCardRepository.list` alimenta o
+seletor de cartão; `Patch<T>` resolve o `PATCH` parcial, que em gastos é ainda
+mais restrito (só descrição, categoria e forma de pagamento); e o par
+reajuste/correção de ganhos é o molde do dinheiro com vigência, que `FIXED`
+repete.
 
-Atenção a um nome: já existe `CreditCardInvoiceModel`, que é a **fatura** dentro
-de `/summary`. O CRUD precisa de um model diferente, o cartão em si —
-`CreditCardModel`, em `credit_card_model.dart`. Os campos não batem, não dá para
-reaproveitar.
+Duas armadilhas que a Fase 4 herda:
 
-O `dueDate` que vem com `?month=` já tem onde ser formatado: `IsoDate.label` /
-`IsoDate.fullLabel`, em `core/utils`. Era um `static` privado dentro do
-`CreditCardInvoiceCard` e subiu em 19/08 justamente para esta fase não duplicá-lo.
+**`FIXED` e `INSTALLMENT` não compartilham operação de dinheiro.** O campo do
+outro tipo vem `null`, e isso tem que virar duas telas de edição, não uma com
+ifs. Vale reler a seção do contrato antes de começar.
+
+**O 409 do CAR-07 nunca foi exercitado contra o backend**, porque excluir cartão
+só é recusado quando há gasto vinculado — e gasto não existia. O caminho de
+código está pronto e coberto por mock; a primeira chance de conferir ao vivo é
+depois do primeiro gasto no cartão.
 
 ### Fase 0 — Fundação · ▓▓▓▓▓▓▓▓▓▓ concluída
 Nenhuma tela. Só o encanamento que todas as fases seguintes usam.
@@ -455,13 +470,79 @@ digitados chegando inteiros, competência pela seta, 400 no campo e rede em
 snackbar), `money_value_accessor_test.dart` (6), mais 3 casos novos em
 `month_test.dart` para o `periodLabel`.
 
-### Fase 3 — Cartões · ░░░░░░░░░░ não iniciada · **próxima**
+### Fase 3 — Cartões · ▓▓▓▓▓▓▓▓▓▓ concluída
 Vem antes de gastos porque gasto no cartão exige `creditCardId`.
 
-- CRUD completo; `closingDay`/`dueDay` com seletor de dia
-- Limite opcional
+- [x] CRUD completo: listar, cadastrar, editar, excluir
+- [x] `closingDay`/`dueDay` com seletor de dia (`DayFieldWidget`)
+- [x] Limite opcional, e limpável
+- [x] **Edição parcial do CAR-08**: campo ausente não muda nada, `null` limpa
+- [x] 409 do CAR-07 explicado dentro do diálogo de exclusão
+- [x] Linha "Cartões" na home — a única porta para o cadastro
 
 **Pronto quando:** o cartão criado aparece como opção no formulário de gasto.
+→ **Só fecha na Fase 4**, porque não existe formulário de gasto. O que dava para
+verificar foi verificado ao vivo contra o Docker, pelo repositório de verdade:
+criação, leitura com e sem `?month`, as duas direções do `PATCH`, listagem, 404,
+400 com `issues` e exclusão. O `PATCH` só com o nome deixou dígitos e limite
+intactos; o `PATCH` com `limitCents: null` limpou o limite e **não** tocou nos
+dígitos.
+
+**Quatro decisões desta fase:**
+
+**`Patch<T>` — três estados onde o Dart só oferece dois.** O CAR-08 distingue
+campo ausente de campo `null`, e um `int?` no parâmetro do repositório não
+consegue dizer isso: `null` teria que significar "não mexi" e "apaga" ao mesmo
+tempo. Então os dois campos limpáveis pedem `Patch<T>`, com `keep`, `clear` e
+`to`. Os outros três não são anuláveis no backend (CAR-01/CAR-02), então neles
+`null` só pode ser "não mexi" e o tipo simples basta — a assimetria da API espelha
+a do backend, de propósito.
+
+`Patch.diff(atual, anterior)` é onde a decisão acontece: os dois estados chegam do
+`FormControl` idênticos, como `null`, e o que os separa é o valor que o cartão
+tinha **quando a tela abriu**. Por isso o controller guarda `_cardOnOpen` e não o
+atualiza enquanto a pessoa digita.
+
+**Uma tela para cadastrar e editar, e nenhuma tela de detalhe.** Ganho tem duas
+telas para mexer em dinheiro porque reajuste e correção fazem coisas diferentes
+com o passado. Cartão não tem passado: trocar o dia de fechamento não reescreve
+mês nenhum. Um cartão são cinco campos, então uma tela só de leitura para eles
+seria um passo a mais para chegar ao mesmo formulário. O modo vem do id da rota —
+`/credit-cards/form` cadastra, `/credit-cards/:id` edita.
+
+**Salvar sem ter mexido em nada fecha a tela, sem requisição.** O `PATCH` de corpo
+vazio volta 400 ("Informe ao menos um campo para atualizar"), e prender quem só
+abriu e fechou seria absurdo. O controller compara, não acha diferença e devolve
+o id como se tivesse salvo — porque, em efeito, salvou.
+
+**O 409 do CAR-07 fica dentro do diálogo de exclusão.** "Este cartão tem gastos
+vinculados" é resposta à pergunta que o diálogo fez, e a FK é `RESTRICT`: o cartão
+continua lá, na lista de trás, sem ter sido tocado. Rede e 500 sobem para
+snackbar; conflito não.
+
+**Dois widgets novos em `core/shared`:** `DayFieldWidget` (dia 1–31 por setas,
+circular na virada) e o `Patch` acima. O dia é seletor pela mesma razão da
+competência — o 400 do backend para dia inválido chega com a mensagem crua do zod
+("Too small: expected number to be >=1"), que ninguém entenderia. Com seletor a
+requisição nem sai.
+
+**Testes da fase** (68 no total): `patch_test.dart` (10 casos: os três estados, o
+diff nos quatro cruzamentos, e a igualdade por valor que o `verify` exige),
+`credit_card_model_test.dart` (7: parse do JSON real com e sem os opcionais,
+`dueDate` null sem competência, CAR-03 nos dois sentidos e com dias iguais),
+`credit_card_list_controller_test.dart` (9: busca com competência, corrida,
+exclusão, e o 409 devolvido sem recarregar), `credit_card_form_controller_test.dart`
+(22: cadastro, dígitos opcionais, edição, GET que falha, **oito casos só do corpo
+do `PATCH`**, e as recusas do backend), `credit_card_pages_test.dart` (18 de
+widget: lista com e sem limite, vazia, erro, diálogo de exclusão com o 409,
+formulário nos dois modos, helper do CAR-03, e o "abrir e fechar não manda
+requisição"), mais 2 casos novos em `app_router_test.dart` — a corrente da home
+até o formulário, e a rota de edição.
+
+**O que os testes da fase não cobrem:** o 409 do CAR-07 ao vivo (não há gasto para
+vincular) e o caminho de `dispose` do `CreditCardListController` em produção — no
+`test_injector` ele é `registerFactory`, mesma divergência que já existe no
+`HomeController`.
 
 ### Fase 4 — Gastos fixos · ░░░░░░░░░░ não iniciada
 - Criar `FIXED` (débito ou cartão), editar detalhes
