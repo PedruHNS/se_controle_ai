@@ -54,41 +54,73 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(0),
-          child: SignalBuilder(
-            // Só aparece quando saiu do mês corrente — atalho para voltar sem
-            // precisar de N toques na seta.
+      ),
+      // O atalho fica **no corpo**, não no `bottom` do AppBar. No AppBar ele
+      // disputava altura com o título: o `bottom` reservava zero, o botão ocupava
+      // seu espaço mesmo assim e empurrava o rótulo do mês para fora da barra —
+      // dava a impressão de que a navegação tinha trocado o mês por um botão.
+      //
+      // Aqui também fica visível nos três estados: navegar para um mês que falha
+      // ao carregar não pode tirar o caminho de volta.
+      body: Column(
+        children: [
+          SignalBuilder(
             builder: (context) => _controller.isCurrentMonth.value
                 ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: TextButton.icon(
-                      onPressed: _controller.goToCurrentMonth,
-                      icon: const Icon(Icons.today, size: 16),
-                      label: const Text('Voltar para o mês atual'),
+                : _BackToCurrentMonth(onPressed: _controller.goToCurrentMonth),
+          ),
+          Expanded(
+            child: SignalBuilder(
+              builder: (context) => switch (_controller.state.value) {
+                Loading() => const Center(child: CircularProgressIndicator()),
+                Failed(failure: final failure) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: FailureCardWidget(
+                      failure: failure,
+                      onRetry: _controller.load,
                     ),
                   ),
-          ),
-        ),
-      ),
-      body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
-              ),
+                ),
+                Loaded(data: final summary) => _SummaryContent(
+                  summary: summary,
+                  onRefresh: _controller.refresh,
+                ),
+              },
             ),
           ),
-          Loaded(data: final summary) => _SummaryContent(
-            summary: summary,
-            onRefresh: _controller.refresh,
+        ],
+      ),
+    );
+  }
+}
+
+/// Faixa de volta ao mês corrente, visível só fora dele.
+///
+/// Cor de destaque em vez de botão solto: a faixa também serve de aviso de que o
+/// que está na tela não é o mês de hoje.
+class _BackToCurrentMonth extends StatelessWidget {
+  const _BackToCurrentMonth({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.secondaryContainer,
+      child: SizedBox(
+        width: double.infinity,
+        child: TextButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.today, size: 16),
+          label: const Text('Voltar para o mês atual'),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSecondaryContainer,
+            shape: const RoundedRectangleBorder(),
           ),
-        },
+        ),
       ),
     );
   }

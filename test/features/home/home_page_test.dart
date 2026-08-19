@@ -226,5 +226,44 @@ void main() {
       expect(find.text('Voltar para o mês atual'), findsNothing);
       expect(find.text(Month.label(Month.current())), findsOneWidget);
     });
+
+    // Regressão: o atalho morava no `bottom` do AppBar com
+    // `preferredSize: Size.fromHeight(0)`. A barra não crescia, o botão ocupava
+    // espaço mesmo assim e o rótulo do mês era empurrado para cima do topo
+    // (`top: -14`), recortado. Na tela parecia que avançar o mês tinha trocado o
+    // nome do mês por um botão. Só a posição pega isso: o rótulo continuava no
+    // widget tree, e todo `expect(find.text(...))` seguia verde.
+    testWidgets('o rótulo do mês continua dentro da barra fora do mês atual', (
+      tester,
+    ) async {
+      await pumpHome(tester);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byIcon(Icons.chevron_right),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final label = find.text(Month.label(Month.next(Month.current())));
+      expect(label, findsOneWidget);
+
+      final appBar = tester.getRect(find.byType(AppBar));
+      final title = tester.getRect(label);
+
+      expect(
+        title.top,
+        greaterThanOrEqualTo(appBar.top),
+        reason: 'o rótulo do mês saiu por cima da barra',
+      );
+      expect(title.bottom, lessThanOrEqualTo(appBar.bottom));
+
+      // E o atalho não invade a barra: ele vive no corpo, abaixo dela.
+      expect(
+        tester.getRect(find.text('Voltar para o mês atual')).top,
+        greaterThanOrEqualTo(appBar.bottom),
+      );
+    });
   });
 }
