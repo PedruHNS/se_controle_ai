@@ -2,10 +2,15 @@ import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../data/repositories/credit_card_repository.dart';
+import '../../data/repositories/expense_repository.dart';
 import '../../data/repositories/income_repository.dart';
 import '../../data/repositories/summary_repository.dart';
+import '../../features/credit_cards/controller/credit_card_expenses_controller.dart';
 import '../../features/credit_cards/controller/credit_card_form_controller.dart';
 import '../../features/credit_cards/controller/credit_card_list_controller.dart';
+import '../../features/expenses/controller/expense_detail_controller.dart';
+import '../../features/expenses/controller/expense_form_controller.dart';
+import '../../features/expenses/controller/expense_list_controller.dart';
 import '../../features/home/controller/home_controller.dart';
 import '../../features/incomes/controller/income_detail_controller.dart';
 import '../../features/incomes/controller/income_form_controller.dart';
@@ -44,6 +49,10 @@ void setupInjector() {
 
   getIt.registerLazySingleton<CreditCardRepository>(
     () => CreditCardRepositoryImpl(getIt<ApiClient>()),
+  );
+
+  getIt.registerLazySingleton<ExpenseRepository>(
+    () => ExpenseRepositoryImpl(getIt<ApiClient>()),
   );
 
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
@@ -94,6 +103,41 @@ void setupInjector() {
 
   getIt.registerFactory<CreditCardFormController>(
     () => CreditCardFormController(getIt<CreditCardRepository>()),
+  );
+
+  // Factory pelo mesmo motivo do detalhe de ganho: dois cartões podem estar na
+  // pilha, e cada tela fala do seu.
+  getIt.registerFactory<CreditCardExpensesController>(
+    () => CreditCardExpensesController(
+      getIt<ExpenseRepository>(),
+      getIt<CreditCardRepository>(),
+    ),
+  );
+
+  // Gastos repetem a divisão de ganhos: lista lazySingleton, formulário e
+  // detalhe factory.
+  //
+  // Os dois últimos dependem **também** do repositório de cartões, e não por
+  // acaso: o formulário precisa da lista para o seletor de cartão (é o que
+  // fecha o critério da Fase 3), e o detalhe busca o nome do cartão do gasto
+  // para não escrever só "No cartão".
+  getIt.registerLazySingleton<ExpenseListController>(
+    () => ExpenseListController(getIt<ExpenseRepository>()),
+    dispose: (e) => e.dispose(),
+  );
+
+  getIt.registerFactory<ExpenseFormController>(
+    () => ExpenseFormController(
+      getIt<ExpenseRepository>(),
+      getIt<CreditCardRepository>(),
+    ),
+  );
+
+  getIt.registerFactory<ExpenseDetailController>(
+    () => ExpenseDetailController(
+      getIt<ExpenseRepository>(),
+      getIt<CreditCardRepository>(),
+    ),
   );
 }
 

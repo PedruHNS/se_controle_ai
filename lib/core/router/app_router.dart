@@ -2,11 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/credit_cards/view/credit_card_expenses_page.dart';
 import '../../features/credit_cards/view/credit_card_form_page.dart';
 import '../../features/credit_cards/view/credit_card_list_page.dart';
 import '../../features/home/view/home_page.dart';
 import '../../features/incomes/view/income_detail_page.dart';
 import '../../features/incomes/view/income_form_page.dart';
+import '../../features/expenses/view/expense_detail_page.dart';
+import '../../features/expenses/view/expense_form_page.dart';
+import '../../features/expenses/view/expense_list_page.dart';
 import '../../features/incomes/view/income_list_page.dart';
 import '../../features/notifications/view/notification_list_page.dart';
 import '../../features/tags/view/tag_list_page.dart';
@@ -69,10 +73,50 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const CreditCardFormPage(),
         ),
         GoRoute(
-          path: AppRoutes.creditCardEditPath,
-          name: AppRoutes.creditCardEdit,
+          path: AppRoutes.creditCardExpensesPath,
+          name: AppRoutes.creditCardExpenses,
           builder: (context, state) =>
-              CreditCardFormPage(id: state.pathParameters[RouteParams.id]!),
+              CreditCardExpensesPage(id: state.pathParameters[RouteParams.id]!),
+          routes: [
+            GoRoute(
+              path: AppRoutes.creditCardEditPath,
+              name: AppRoutes.creditCardEdit,
+              builder: (context, state) =>
+                  CreditCardFormPage(id: state.pathParameters[RouteParams.id]!),
+            ),
+          ],
+        ),
+      ],
+    ),
+
+    GoRoute(
+      path: AppRoutes.expensesPath,
+      name: AppRoutes.expenses,
+      builder: (context, state) => const ExpenseListPage(),
+      routes: [
+        // `form` antes de `:id`, pela mesma razão de ganhos e cartões: o
+        // go_router casa na ordem, e invertido a rota de cadastro viraria um
+        // detalhe de id "form".
+        GoRoute(
+          path: AppRoutes.expenseFormPath,
+          name: AppRoutes.expenseForm,
+          builder: (context, state) => const ExpenseFormPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.expenseDetailPath,
+          name: AppRoutes.expenseDetail,
+          builder: (context, state) =>
+              ExpenseDetailPage(id: state.pathParameters[RouteParams.id]!),
+          routes: [
+            // Filha do detalhe: fechar a edição volta para o gasto, que é de
+            // onde se entrou nela.
+            GoRoute(
+              path: AppRoutes.expenseEditPath,
+              name: AppRoutes.expenseEdit,
+              builder: (context, state) =>
+                  ExpenseFormPage(id: state.pathParameters[RouteParams.id]!),
+            ),
+          ],
         ),
       ],
     ),

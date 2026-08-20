@@ -182,18 +182,31 @@ class _SummaryContent extends StatelessWidget {
             emptyMessage: 'Nenhum ganho cadastrado. Toque para adicionar um.',
             onTap: () => context.pushNamed(AppRoutes.incomes),
           ),
-          if (summary.debit.items.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            SummarySection(
-              title: 'Débito e dinheiro',
-              icon: Icons.payments_outlined,
-              items: summary.debit.items,
-              totalCents: summary.debit.totalCents,
-            ),
-          ],
+          // Sempre visível, mesmo sem item: desde a Fase 4 esta seção é a porta
+          // da lista de gastos, e uma porta que só aparece depois do primeiro
+          // gasto não serve para cadastrar o primeiro gasto. É a mesma escolha
+          // já feita em Ganhos.
+          const SizedBox(height: 16),
+          SummarySection(
+            title: 'Débito e dinheiro',
+            icon: Icons.payments_outlined,
+            items: summary.debit.items,
+            totalCents: summary.debit.totalCents,
+            emptyMessage: 'Nenhum gasto no débito. Toque para adicionar um.',
+            onTap: () => context.pushNamed(AppRoutes.expenses),
+          ),
           for (final invoice in summary.creditCards) ...[
             const SizedBox(height: 16),
-            CreditCardInvoiceCard(invoice: invoice),
+            // A fatura do resumo é a segunda porta do cartão: quem está olhando
+            // o mês e quer saber o que compõe aquele total já está com o dedo
+            // em cima do card certo.
+            CreditCardInvoiceCard(
+              invoice: invoice,
+              onTap: () => context.pushNamed(
+                AppRoutes.creditCardExpenses,
+                pathParameters: {RouteParams.id: invoice.cardId},
+              ),
+            ),
           ],
           const SizedBox(height: 24),
         ],

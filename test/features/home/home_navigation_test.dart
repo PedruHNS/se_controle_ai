@@ -4,6 +4,7 @@ import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/core/shared/widgets/app_drawer.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
+import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 import 'package:se_controle_ai/features/notifications/view/notification_list_page.dart';
 import 'package:se_controle_ai/features/tags/view/tag_list_page.dart';
@@ -17,6 +18,7 @@ void main() {
     setupTestInjector();
     setupIncomeTestInjector();
     setupCreditCardTestInjector();
+    setupExpenseTestInjector();
   });
 
   // O appRouter é global e guarda a pilha entre testes.
@@ -37,14 +39,24 @@ void main() {
   Finder item(String label) =>
       find.descendant(of: find.byType(AppDrawer), matching: find.text(label));
 
-  testWidgets('o menu da home abre o drawer com os três destinos', (
+  testWidgets('o menu da home abre o drawer com os quatro destinos', (
     tester,
   ) async {
     await openDrawer(tester);
 
     expect(item('Ganhos'), findsOneWidget);
+    expect(item('Gastos'), findsOneWidget);
     expect(item('Cartões'), findsOneWidget);
     expect(item('Tags'), findsOneWidget);
+  });
+
+  testWidgets('Gastos leva à lista de gastos', (tester) async {
+    await openDrawer(tester);
+
+    await tester.tap(item('Gastos'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ExpenseListPage), findsOneWidget);
   });
 
   testWidgets('Cartões leva à lista de cartões', (tester) async {

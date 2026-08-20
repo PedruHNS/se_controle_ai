@@ -73,9 +73,12 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
           Loaded(data: final cards) => _CreditCardList(
             cards: cards,
             onRefresh: _controller.refresh,
+            // O toque abre o cartão, não o formulário: a pergunta de quem
+            // aperta um cartão da lista é "o que eu lancei aqui", e a edição
+            // fica a um toque de lá.
             onOpen: (card) => _openAndReload(
               context.pushNamed(
-                AppRoutes.creditCardEdit,
+                AppRoutes.creditCardExpenses,
                 pathParameters: {RouteParams.id: card.id},
               ),
             ),

@@ -6,6 +6,7 @@ import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
+import 'package:se_controle_ai/features/home/widgets/credit_card_invoice_card.dart';
 
 import 'package:mocktail/mocktail.dart';
 
@@ -67,6 +68,20 @@ void main() {
       expect(find.text('Salário'), findsOneWidget);
       expect(find.text('Débito e dinheiro'), findsOneWidget);
       expect(find.text('Aluguel'), findsOneWidget);
+    });
+
+    // A fatura do resumo é a segunda porta do cartão — a outra é a lista de
+    // cartões, pelo menu.
+    testWidgets('a fatura do cartão é tocável', (tester) async {
+      await pumpHome(tester);
+
+      final card = find.byType(CreditCardInvoiceCard);
+      expect(card, findsOneWidget);
+      expect(
+        tester.widget<CreditCardInvoiceCard>(card).onTap,
+        isNotNull,
+        reason: 'sem onTap o card vira enfeite, e o cartão fica sem porta aqui',
+      );
     });
 
     testWidgets('mostra a fatura do cartão com vencimento e limite', (

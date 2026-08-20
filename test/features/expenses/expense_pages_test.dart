@@ -1,0 +1,340 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/data/models/expense_model.dart';
+import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
+import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
+import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
+
+import '../../fixtures/expense_fixture.dart';
+import '../../fixtures/mocks.dart';
+import '../../fixtures/test_injector.dart';
+
+void main() {
+  late MockExpenseRepository repository;
+
+  setUp(() {
+    setupCreditCardTestInjector();
+    repository = setupExpenseTestInjector();
+  });
+
+  Future<void> pumpList(WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: ExpenseListPage()));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpForm(WidgetTester tester, {String? id}) async {
+    await tester.pumpWidget(MaterialApp(home: ExpenseFormPage(id: id)));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpDetail(WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ExpenseDetailPage(id: 'gasto-1')),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  group('lista', () {
+    testWidgets('mostra os gastos com período e categoria', (tester) async {
+      await pumpList(tester);
+
+      expect(find.text('Aluguel'), findsOneWidget);
+      expect(find.text('Youtube Music'), findsOneWidget);
+      expect(find.text('Presente do João'), findsOneWidget);
+      expect(
+        find.textContaining('Moradia'),
+        findsOneWidget,
+        reason: 'a categoria entra no subtítulo quando existe',
+      );
+    });
+
+    // O valor não vem no payload da listagem: sai do histórico, na competência
+    // corrente. Sem isso a lista mostraria travessão em tudo.
+    testWidgets('mostra o valor vigente, tirado do histórico', (tester) async {
+      await pumpList(tester);
+
+      expect(find.text(r'R$ 1.350,00'), findsWidgets);
+    });
+
+    testWidgets('gasto de mês único fora do mês recebe selo', (tester) async {
+      await pumpList(tester);
+
+      // O presente é de 2026-08; fora dele o selo vira "Encerrado", dentro dele
+      // "Mês único". Um dos dois tem que estar na tela.
+      expect(find.textContaining(RegExp('Mês único|Encerrado')), findsWidgets);
+    });
+
+    testWidgets('lista vazia convida a cadastrar', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(list: const Success([])),
+      );
+
+      await pumpList(tester);
+
+      expect(find.text('Nenhum gasto cadastrado'), findsOneWidget);
+    });
+
+    testWidgets('falha mostra o card de erro', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          list: const Error(NetworkFailure(message: 'Sem conexão.')),
+        ),
+      );
+
+      await pumpList(tester);
+
+      expect(find.text('Sem conexão.'), findsOneWidget);
+    });
+  });
+
+  group('formulário de cadastro', () {
+    testWidgets('abre no débito, e sem seletor de cartão', (tester) async {
+      await pumpForm(tester);
+
+      expect(find.text('Novo gasto'), findsOneWidget);
+      expect(find.text('Débito'), findsOneWidget);
+      expect(find.text('Valor por mês'), findsOneWidget);
+      expect(find.text('Cartão'), findsOneWidget);
+      // O seletor só aparece depois de escolher cartão.
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    });
+
+    // O critério da Fase 3, na tela: o cartão cadastrado aparece como opção.
+    testWidgets('escolher cartão revela o seletor com os cartões', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.text('Cartão'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nubank ••••4321'), findsWidgets);
+    });
+
+    testWidgets('submit vazio não chama o backend', (tester) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Informe a descrição.'), findsOneWidget);
+      verifyNever(
+        () => repository.createFixed(
+          description: any(named: 'description'),
+          paymentMethod: any(named: 'paymentMethod'),
+          amountCents: any(named: 'amountCents'),
+          startMonth: any(named: 'startMonth'),
+          category: any(named: 'category'),
+          creditCardId: any(named: 'creditCardId'),
+          recurring: any(named: 'recurring'),
+        ),
+      );
+    });
+
+    testWidgets('falha de rede vira snackbar', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          create: const Error(NetworkFailure(message: 'Sem conexão.')),
+        ),
+      );
+
+      await pumpForm(tester);
+
+      await tester.enterText(find.byType(TextField).first, 'Aluguel');
+      await tester.enterText(find.byType(TextField).at(2), '1200,00');
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(SnackBar, 'Sem conexão.'), findsOneWidget);
+    });
+  });
+
+  group('formulário de edição', () {
+    testWidgets('abre preenchido e sem os campos de dinheiro', (tester) async {
+      await pumpForm(tester, id: 'gasto-1');
+
+      expect(find.text('Editar gasto'), findsOneWidget);
+      expect(find.text('Aluguel'), findsOneWidget);
+      expect(find.text('Moradia'), findsOneWidget);
+      // GFX-06: dinheiro não se edita aqui — muda por reajuste ou correção.
+      expect(find.text('Valor por mês'), findsNothing);
+      expect(find.text('A partir de'), findsNothing);
+      expect(find.text('Recorrente'), findsNothing);
+    });
+
+    testWidgets('GET que falha mostra erro, e não formulário', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          detail: const Error(NotFoundFailure(message: 'Gasto não encontrado')),
+        ),
+      );
+
+      await pumpForm(tester, id: 'sumiu');
+
+      expect(find.text('Gasto não encontrado'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Salvar'), findsNothing);
+    });
+  });
+
+  group('detalhe', () {
+    testWidgets('mostra valor, período e forma de pagamento', (tester) async {
+      await pumpDetail(tester);
+
+      expect(find.text('Aluguel'), findsOneWidget);
+      expect(find.text(r'R$ 1.350,00'), findsOneWidget);
+      expect(find.textContaining('Recorrente desde'), findsOneWidget);
+      expect(find.textContaining('No débito'), findsOneWidget);
+    });
+
+    testWidgets('gasto no cartão mostra o nome do cartão', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          detail: Success(ExpenseModel.fromJson(youtubeJson)),
+        ),
+      );
+
+      await pumpDetail(tester);
+
+      expect(find.textContaining('Nubank ••••4321'), findsOneWidget);
+    });
+
+    // A prova visual de que o reajuste de julho não mexeu em janeiro.
+    testWidgets('histórico aparece quando há mais de uma vigência', (
+      tester,
+    ) async {
+      await pumpDetail(tester);
+
+      // O histórico fica embaixo dos cartões de ação, fora da tela — e a
+      // ListView não constrói o que não está visível.
+      await tester.scrollUntilVisible(find.text('Histórico de valores'), 200);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Histórico de valores'), findsOneWidget);
+      expect(
+        find.text(r'R$ 1.200,00'),
+        findsOneWidget,
+        reason: 'a vigência antiga continua no histórico, com o valor de lá',
+      );
+    });
+
+    testWidgets('gasto encerrado esconde as operações de dinheiro', (
+      tester,
+    ) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          detail: Success(ExpenseModel.fromJson(presenteJson)),
+        ),
+      );
+
+      await pumpDetail(tester);
+
+      expect(find.text('Reajustar'), findsNothing);
+      expect(find.text('Corrigir valor'), findsNothing);
+      expect(find.text('Encerrar'), findsNothing);
+      // Editar dados e excluir continuam: os dois valem em gasto encerrado.
+      expect(find.text('Editar dados'), findsOneWidget);
+      expect(find.text('Excluir'), findsOneWidget);
+    });
+
+    testWidgets('reajuste manda valor e mês', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('Reajustar'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, '1500,00');
+      await tester.tap(find.widgetWithText(FilledButton, 'Reajustar'));
+      await tester.pumpAndSettle();
+
+      verify(
+        () => repository.adjust(
+          'gasto-1',
+          amountCents: 150000,
+          effectiveFrom: any(named: 'effectiveFrom'),
+        ),
+      ).called(1);
+    });
+
+    // O 422 do backend fica no diálogo, que é onde a pergunta foi feita.
+    testWidgets('recusa do reajuste aparece dentro do diálogo', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          operations: const Error(
+            DomainRuleFailure(
+              message: 'Reajuste precisa valer de 2026-09 em diante.',
+            ),
+          ),
+        ),
+      );
+
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('Reajustar'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, '1500,00');
+      await tester.tap(find.widgetWithText(FilledButton, 'Reajustar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.text('Reajuste precisa valer de 2026-09 em diante.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('correção manda só o valor', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('Corrigir valor'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, '1400,00');
+      await tester.tap(find.widgetWithText(FilledButton, 'Corrigir'));
+      await tester.pumpAndSettle();
+
+      verify(
+        () => repository.correct('gasto-1', amountCents: 140000),
+      ).called(1);
+    });
+
+    testWidgets('encerramento pede o último mês pago', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('Encerrar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Último mês pago'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Encerrar'));
+      await tester.pumpAndSettle();
+
+      verify(
+        () => repository.close('gasto-1', lastMonth: any(named: 'lastMonth')),
+      ).called(1);
+    });
+
+    testWidgets('exclusão pede confirmação antes de excluir', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('como se nunca'), findsOneWidget);
+      verifyNever(() => repository.delete(any()));
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Excluir'));
+      await tester.pumpAndSettle();
+
+      verify(() => repository.delete('gasto-1')).called(1);
+    });
+  });
+}

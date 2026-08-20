@@ -3,14 +3,17 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/patch.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
+import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
+import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 
 import 'credit_card_fixture.dart';
+import 'expense_fixture.dart';
 import 'income_fixture.dart';
 import 'summary_fixture.dart';
 
@@ -25,6 +28,8 @@ class MockSummaryRepository extends Mock implements SummaryRepository {}
 class MockIncomeRepository extends Mock implements IncomeRepository {}
 
 class MockCreditCardRepository extends Mock implements CreditCardRepository {}
+
+class MockExpenseRepository extends Mock implements ExpenseRepository {}
 
 /// Stub de `getMonthly` para qualquer mês.
 ///
@@ -290,3 +295,157 @@ List<Map<String, dynamic>> updateBodies(MockCreditCardRepository mock) =>
 /// foram enviadas, e com quê.
 Map<String, dynamic> capturedUpdateBody(MockCreditCardRepository mock) =>
     updateBodies(mock).last;
+
+/// Stub de `list` de gastos.
+void stubExpenseList(
+  MockExpenseRepository mock, {
+  Result<List<ExpenseModel>, Failure>? result,
+  Duration? delay,
+}) {
+  final answer =
+      result ?? Success(expenseListJson.map(ExpenseModel.fromJson).toList());
+  when(
+    () => mock.list(
+      month: any(named: 'month'),
+      type: any(named: 'type'),
+      paymentMethod: any(named: 'paymentMethod'),
+      creditCardId: any(named: 'creditCardId'),
+    ),
+  ).thenAnswer((_) async {
+    if (delay != null) await Future<void>.delayed(delay);
+    return answer;
+  });
+}
+
+void stubExpenseDetail(
+  MockExpenseRepository mock, {
+  Result<ExpenseModel, Failure>? result,
+}) {
+  when(() => mock.getById(any(), month: any(named: 'month'))).thenAnswer(
+    (_) async => result ?? Success(ExpenseModel.fromJson(aluguelJson)),
+  );
+}
+
+/// Stub de criação, edição de dados e as quatro operações de 204.
+///
+/// O `updateDetails` casa com qualquer `Patch` pela mesma razão do cartão: o
+/// teste que verifica o corpo olha o argumento capturado, em vez de precisar de
+/// um stub por combinação de estados.
+void stubExpenseOperations(
+  MockExpenseRepository mock, {
+  Result<bool, Failure> result = const Success(true),
+  Result<String, Failure> createResult = const Success('novo-gasto'),
+  Duration? delay,
+}) {
+  // `Patch` e `PaymentMethod` não são anuláveis nesta interface, e para esses o
+  // mocktail precisa de um valor de reserva antes de aceitar `any()`.
+  registerFallbackValue(const Patch<String>.keep());
+  registerFallbackValue(PaymentMethod.debit);
+
+  Future<T> answer<T>(T value) async {
+    if (delay != null) await Future<void>.delayed(delay);
+    return value;
+  }
+
+  when(
+    () => mock.createFixed(
+      description: any(named: 'description'),
+      paymentMethod: any(named: 'paymentMethod'),
+      amountCents: any(named: 'amountCents'),
+      startMonth: any(named: 'startMonth'),
+      category: any(named: 'category'),
+      creditCardId: any(named: 'creditCardId'),
+      recurring: any(named: 'recurring'),
+    ),
+  ).thenAnswer((_) => answer(createResult));
+
+  when(
+    () => mock.updateDetails(
+      any(),
+      description: any(named: 'description'),
+      paymentMethod: any(named: 'paymentMethod'),
+      category: any(named: 'category'),
+      creditCardId: any(named: 'creditCardId'),
+    ),
+  ).thenAnswer((invocation) {
+    _recordExpenseUpdateBody(mock, invocation);
+    return answer(result);
+  });
+
+  when(
+    () => mock.adjust(
+      any(),
+      amountCents: any(named: 'amountCents'),
+      effectiveFrom: any(named: 'effectiveFrom'),
+    ),
+  ).thenAnswer((_) => answer(result));
+
+  when(
+    () => mock.correct(any(), amountCents: any(named: 'amountCents')),
+  ).thenAnswer((_) => answer(result));
+
+  when(
+    () => mock.close(any(), lastMonth: any(named: 'lastMonth')),
+  ).thenAnswer((_) => answer(result));
+
+  when(() => mock.delete(any())).thenAnswer((_) => answer(result));
+}
+
+/// Mock de gastos pronto: a lista de exemplo, o detalhe do aluguel e as
+/// operações respondendo sucesso.
+MockExpenseRepository expenseRepositoryMock({
+  Result<List<ExpenseModel>, Failure>? list,
+  Result<ExpenseModel, Failure>? detail,
+  Result<bool, Failure> operations = const Success(true),
+  Result<String, Failure> create = const Success('novo-gasto'),
+  Duration? delay,
+}) {
+  final mock = MockExpenseRepository();
+  stubExpenseList(mock, result: list, delay: delay);
+  stubExpenseDetail(mock, result: detail);
+  stubExpenseOperations(
+    mock,
+    result: operations,
+    createResult: create,
+    delay: delay,
+  );
+  return mock;
+}
+
+/// Os corpos de `PATCH /expenses/:id` que o mock recebeu, montados como o
+/// repositório os montaria — mesma técnica do `updateBodies` do cartão, e pelo
+/// mesmo motivo: o `captured` do mocktail devolve os nomeados fora de ordem.
+final _expenseUpdateBodies =
+    <MockExpenseRepository, List<Map<String, dynamic>>>{};
+
+void _recordExpenseUpdateBody(
+  MockExpenseRepository mock,
+  Invocation invocation,
+) {
+  final named = invocation.namedArguments;
+
+  final body = <String, dynamic>{
+    'description': ?named[const Symbol('description')] as String?,
+    'paymentMethod':
+        ?(named[const Symbol('paymentMethod')] as PaymentMethod?)?.wire,
+  };
+
+  (named[const Symbol('category')] as Patch<String>? ??
+          const Patch<String>.keep())
+      .writeTo(body, 'category');
+  (named[const Symbol('creditCardId')] as Patch<String>? ??
+          const Patch<String>.keep())
+      .writeTo(body, 'creditCardId');
+
+  (_expenseUpdateBodies[mock] ??= []).add(body);
+}
+
+/// Todos os corpos de `updateDetails` recebidos por este mock.
+List<Map<String, dynamic>> expenseUpdateBodies(MockExpenseRepository mock) =>
+    _expenseUpdateBodies[mock] ?? const [];
+
+/// O corpo do último `updateDetails`.
+Map<String, dynamic>? lastExpenseUpdateBody(MockExpenseRepository mock) {
+  final bodies = expenseUpdateBodies(mock);
+  return bodies.isEmpty ? null : bodies.last;
+}

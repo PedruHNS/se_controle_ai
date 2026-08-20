@@ -1,0 +1,174 @@
+import '../../core/utils/month.dart';
+import 'amount_version_model.dart';
+
+/// Como o gasto é pago. O backend só aceita estes dois (GFX-01).
+enum PaymentMethod {
+  creditCard('CREDIT_CARD'),
+  debit('DEBIT');
+
+  const PaymentMethod(this.wire);
+
+  /// O valor como o backend o escreve. Não é o `name` do enum: lá é
+  /// `SCREAMING_SNAKE`, aqui é `lowerCamel`, e traduzir por `toUpperCase()`
+  /// funcionaria por acaso hoje e quebraria no primeiro valor com duas
+  /// palavras.
+  final String wire;
+
+  static PaymentMethod fromWire(String value) =>
+      values.firstWhere((method) => method.wire == value);
+}
+
+/// Fixo (valor versionado por vigência) ou parcelado (parcelas materializadas).
+///
+/// Cada tipo tem exatamente uma fonte da verdade para o dinheiro (GFX-09): um
+/// `FIXED` nunca tem parcelas, um `INSTALLMENT` nunca tem vigências.
+enum ExpenseType {
+  fixed('FIXED'),
+  installment('INSTALLMENT');
+
+  const ExpenseType(this.wire);
+
+  final String wire;
+
+  static ExpenseType fromWire(String value) =>
+      values.firstWhere((type) => type.wire == value);
+}
+
+/// Um gasto: aluguel, streaming, ração dos gatos, o presente de agosto.
+///
+/// **[amountCents] é nulo quando a busca não leva `?month`** — diferente do
+/// ganho, onde o backend cai para a vigência mais recente (GAN-10). É a razão
+/// de existirem [amountCentsIn] e [latestAmountCents]: a lista busca sem
+/// competência, para não esconder o que já foi encerrado, e tira o valor do
+/// [history].
+class ExpenseModel {
+  const ExpenseModel({
+    required this.id,
+    required this.description,
+    required this.category,
+    required this.type,
+    required this.paymentMethod,
+    required this.creditCardId,
+    required this.recurring,
+    required this.startMonth,
+    required this.endMonth,
+    required this.amountCents,
+    required this.totalCents,
+    required this.installmentsCount,
+    required this.installmentLabel,
+    required this.history,
+  });
+
+  final String id;
+  final String description;
+
+  /// Texto livre, sem tabela nem enum no backend. Opcional.
+  final String? category;
+
+  final ExpenseType type;
+  final PaymentMethod paymentMethod;
+
+  /// Obrigatório quando [paymentMethod] é cartão, proibido quando é débito
+  /// (GFX-01). O backend recusa a combinação errada com 422.
+  final String? creditCardId;
+
+  /// Segue até ser encerrado. Falso no gasto avulso — que não é um tipo à
+  /// parte, é um fixo não recorrente (GFX-03).
+  final bool recurring;
+
+  final String startMonth;
+
+  /// Última competência cobrada. Null enquanto o gasto está em aberto.
+  final String? endMonth;
+
+  /// O valor **da competência consultada**, ou null quando a busca veio sem
+  /// `?month`.
+  final int? amountCents;
+
+  /// Os três só valem para parcelado (Fase 5). Em gasto fixo chegam nulos.
+  final int? totalCents;
+  final int? installmentsCount;
+  final String? installmentLabel;
+
+  /// Da vigência mais antiga para a mais nova, como o backend devolve. Vazio em
+  /// gasto parcelado, onde o dinheiro mora nas parcelas (GFX-09).
+  final List<AmountVersionModel> history;
+
+  bool get isFixed => type == ExpenseType.fixed;
+  bool get isInstallment => type == ExpenseType.installment;
+  bool get onCreditCard => paymentMethod == PaymentMethod.creditCard;
+
+  /// Tem data de fim. É o que decide se as operações de dinheiro ainda são
+  /// possíveis: gasto encerrado não aceita reajuste, correção nem novo
+  /// encerramento.
+  ///
+  /// **Não** é o mesmo que "não é mais cobrado": um gasto avulso nasce com
+  /// `endMonth` preenchido e ainda assim é cobrado no mês dele. Para essa
+  /// pergunta use [endedBefore].
+  bool get isClosed => endMonth != null;
+
+  /// Começa e termina na mesma competência: o presente, a consulta avulsa.
+  bool get isSingleMonth => endMonth != null && endMonth == startMonth;
+
+  /// Já acabou **antes** de [month] — aí sim "não é mais cobrado".
+  bool endedBefore(String month) {
+    final end = endMonth;
+    return end != null && Month.isBefore(end, month);
+  }
+
+  /// O valor vigente em [month], lido do histórico. Null quando o gasto não é
+  /// cobrado naquela competência.
+  int? amountCentsIn(String month) {
+    for (final version in history) {
+      final started = Month.compare(month, version.validFrom) >= 0;
+      final to = version.validTo;
+      final notFinished = to == null || Month.compare(month, to) <= 0;
+      if (started && notFinished) return version.amountCents;
+    }
+    return null;
+  }
+
+  /// É cobrado em [month]?
+  bool isActiveIn(String month) => amountCentsIn(month) != null;
+
+  /// O valor da vigência mais recente. É o que a lista mostra para um gasto que
+  /// não é cobrado no mês corrente — encerrado, ou ainda por começar —, onde
+  /// [amountCentsIn] não teria resposta.
+  int? get latestAmountCents =>
+      history.isEmpty ? amountCents : history.last.amountCents;
+
+  /// A vigência que ainda está aberta, se houver. É dela que saem os limites
+  /// dos diálogos de reajuste e de encerramento.
+  AmountVersionModel? get currentVersion {
+    for (final version in history.reversed) {
+      if (version.isOpen) return version;
+    }
+    return null;
+  }
+
+  /// Houve pelo menos um reajuste — a tela só mostra a linha do tempo quando
+  /// existe mais de uma vigência para comparar.
+  bool get hasAdjustments => history.length > 1;
+
+  factory ExpenseModel.fromJson(Map<String, dynamic> json) => ExpenseModel(
+    id: json['id'] as String,
+    description: json['description'] as String,
+    category: json['category'] as String?,
+    type: ExpenseType.fromWire(json['type'] as String),
+    paymentMethod: PaymentMethod.fromWire(json['paymentMethod'] as String),
+    creditCardId: json['creditCardId'] as String?,
+    recurring: json['recurring'] as bool,
+    startMonth: json['startMonth'] as String,
+    endMonth: json['endMonth'] as String?,
+    amountCents: json['amountCents'] as int?,
+    totalCents: json['totalCents'] as int?,
+    installmentsCount: json['installmentsCount'] as int?,
+    installmentLabel: json['installmentLabel'] as String?,
+    // `history` vem null em parcelado, e as parcelas vêm em `installments` —
+    // que esta fase não lê, porque não há tela de parcelado ainda (Fase 5).
+    history: (json['history'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(AmountVersionModel.fromJson)
+        .toList(growable: false),
+  );
+}

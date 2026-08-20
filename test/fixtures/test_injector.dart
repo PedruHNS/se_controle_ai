@@ -1,9 +1,14 @@
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
+import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
+import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
+import 'package:se_controle_ai/features/expenses/controller/expense_detail_controller.dart';
+import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
+import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
@@ -90,6 +95,9 @@ MockCreditCardRepository setupCreditCardTestInjector({
   if (getIt.isRegistered<CreditCardFormController>()) {
     getIt.unregister<CreditCardFormController>();
   }
+  if (getIt.isRegistered<CreditCardExpensesController>()) {
+    getIt.unregister<CreditCardExpensesController>();
+  }
 
   getIt
     ..registerSingleton<CreditCardRepository>(repository)
@@ -98,6 +106,60 @@ MockCreditCardRepository setupCreditCardTestInjector({
     )
     ..registerFactory<CreditCardFormController>(
       () => CreditCardFormController(getIt<CreditCardRepository>()),
+    )
+    // A tela do cartão mostra os gastos dele, então precisa do repositório de
+    // gastos registrado também — na prática, [setupExpenseTestInjector]. Como é
+    // factory, a ordem entre os dois não importa: quem resolve é o `getIt` na
+    // hora de construir.
+    ..registerFactory<CreditCardExpensesController>(
+      () => CreditCardExpensesController(
+        getIt<ExpenseRepository>(),
+        getIt<CreditCardRepository>(),
+      ),
+    );
+
+  return repository;
+}
+
+/// O mesmo para as telas de gastos.
+///
+/// O formulário e o detalhe dependem **também** do repositório de cartões, então
+/// quem chama isto precisa ter registrado os cartões antes — na prática,
+/// [setupCreditCardTestInjector] logo acima. Registrar um mock de cartão aqui
+/// dentro esconderia essa dependência, que é justamente o que a Fase 4 tem de
+/// novo em relação a ganhos.
+MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
+  final repository = mock ?? expenseRepositoryMock();
+
+  if (getIt.isRegistered<ExpenseRepository>()) {
+    getIt.unregister<ExpenseRepository>();
+  }
+  if (getIt.isRegistered<ExpenseListController>()) {
+    getIt.unregister<ExpenseListController>();
+  }
+  if (getIt.isRegistered<ExpenseFormController>()) {
+    getIt.unregister<ExpenseFormController>();
+  }
+  if (getIt.isRegistered<ExpenseDetailController>()) {
+    getIt.unregister<ExpenseDetailController>();
+  }
+
+  getIt
+    ..registerSingleton<ExpenseRepository>(repository)
+    ..registerFactory<ExpenseListController>(
+      () => ExpenseListController(getIt<ExpenseRepository>()),
+    )
+    ..registerFactory<ExpenseFormController>(
+      () => ExpenseFormController(
+        getIt<ExpenseRepository>(),
+        getIt<CreditCardRepository>(),
+      ),
+    )
+    ..registerFactory<ExpenseDetailController>(
+      () => ExpenseDetailController(
+        getIt<ExpenseRepository>(),
+        getIt<CreditCardRepository>(),
+      ),
     );
 
   return repository;

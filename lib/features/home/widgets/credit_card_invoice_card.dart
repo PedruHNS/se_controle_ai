@@ -7,9 +7,13 @@ import 'line_item_tile.dart';
 
 /// A fatura de um cartão no mês: total, vencimento, uso do limite e os itens.
 class CreditCardInvoiceCard extends StatelessWidget {
-  const CreditCardInvoiceCard({required this.invoice, super.key});
+  const CreditCardInvoiceCard({required this.invoice, this.onTap, super.key});
 
   final CreditCardInvoiceModel invoice;
+
+  /// Abre o cartão. Opcional porque o card também é usado só para exibir — e
+  /// um `InkWell` sem destino é armadilha para quem toca.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -18,56 +22,65 @@ class CreditCardInvoiceCard extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.credit_card,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // `label` já vem pronto do backend: "Nubank ••••4321".
-                      Text(invoice.label, style: theme.textTheme.titleSmall),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Vence em ${IsoDate.label(invoice.dueDate)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  Money.format(invoice.totalCents),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (usage != null)
+      child: InkWell(
+        onTap: onTap,
+        // O raio acompanha o do Card, senão o respingo do toque escapa pelos
+        // cantos.
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: _LimitUsage(usage: usage, limitCents: invoice.limitCents!),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.credit_card,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // `label` já vem pronto do backend: "Nubank ••••4321".
+                        Text(invoice.label, style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Vence em ${IsoDate.label(invoice.dueDate)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    Money.format(invoice.totalCents),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          if (invoice.items.isNotEmpty) ...[
-            const Divider(height: 1),
-            for (final item in invoice.items) LineItemTile(item: item),
-            const SizedBox(height: 8),
+            if (usage != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _LimitUsage(
+                  usage: usage,
+                  limitCents: invoice.limitCents!,
+                ),
+              ),
+            if (invoice.items.isNotEmpty) ...[
+              const Divider(height: 1),
+              for (final item in invoice.items) LineItemTile(item: item),
+              const SizedBox(height: 8),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

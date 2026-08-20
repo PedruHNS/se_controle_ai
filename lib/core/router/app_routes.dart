@@ -26,11 +26,19 @@ abstract final class AppRoutes {
   static const creditCardForm = 'credit-card-form';
   static const creditCardFormPath = 'form';
 
-  /// Edição usa a mesma tela do cadastro, com o id na rota. Não existe tela de
-  /// detalhe de cartão: um cartão são cinco campos, e uma tela só de leitura
-  /// para eles seria um passo a mais para chegar ao mesmo formulário.
+  /// A tela do cartão: o que foi lançado nele, e a fatura do mês.
+  ///
+  /// A Fase 3 decidiu não ter tela de cartão — cinco campos não valem uma tela
+  /// só de leitura no caminho do formulário. A Fase 4 mudou a conta: com gasto
+  /// no cartão existindo, esta tela responde algo que a lista não responde.
+  static const creditCardExpenses = 'credit-card-expenses';
+  static const creditCardExpensesPath = ':id';
+
+  /// Edição usa a mesma tela do cadastro, com o id na rota. É **filha** da tela
+  /// do cartão (`/credit-cards/:id/edit`): fechar a edição volta para o cartão,
+  /// que é de onde se entra nela.
   static const creditCardEdit = 'credit-card-edit';
-  static const creditCardEditPath = ':id';
+  static const creditCardEditPath = 'edit';
 
   // Gastos — Fases 4 e 5
   static const expenses = 'expenses';
@@ -39,6 +47,13 @@ abstract final class AppRoutes {
   static const expenseFormPath = 'form';
   static const expenseDetail = 'expense-detail';
   static const expenseDetailPath = ':id';
+
+  /// Edição usa a mesma tela do cadastro, com o id na rota — como em cartões.
+  /// Aqui ela é **filha do detalhe** (`/expenses/:id/edit`), e não irmã: o
+  /// gasto tem tela de detalhe, e sair da edição tem que voltar para ela, não
+  /// para a lista.
+  static const expenseEdit = 'expense-edit';
+  static const expenseEditPath = 'edit';
 
   // Projeção — Fase 6
   static const projection = 'projection';
