@@ -52,24 +52,37 @@ class IncomeRepositoryImpl implements IncomeRepository {
   final ApiClient _api;
 
   @override
-  Future<Result<List<IncomeModel>, Failure>> list({String? month}) =>
-      _guard(() async {
-        final response = await _api.get(
-          '/incomes',
-          queryParameters: {'month': month},
-        );
-        return Decode.listOf(response.data, IncomeModel.fromJson);
-      });
+  Future<Result<List<IncomeModel>, Failure>> list({String? month}) async {
+    try {
+      final response = await _api.get(
+        '/incomes',
+        queryParameters: {'month': month},
+      );
+      return Success(Decode.listOf(response.data, IncomeModel.fromJson));
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
 
   @override
-  Future<Result<IncomeModel, Failure>> getById(String id, {String? month}) =>
-      _guard(() async {
-        final response = await _api.get(
-          '/incomes/$id',
-          queryParameters: {'month': month},
-        );
-        return IncomeModel.fromJson(Decode.object(response.data));
-      });
+  Future<Result<IncomeModel, Failure>> getById(
+    String id, {
+    String? month,
+  }) async {
+    try {
+      final response = await _api.get(
+        '/incomes/$id',
+        queryParameters: {'month': month},
+      );
+      return Success(IncomeModel.fromJson(Decode.object(response.data)));
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
 
   @override
   Future<Result<String, Failure>> create({
@@ -77,72 +90,98 @@ class IncomeRepositoryImpl implements IncomeRepository {
     required int amountCents,
     required String startMonth,
     bool recurring = true,
-  }) => _guard(() async {
-    final response = await _api.post(
-      '/incomes',
-      data: {
-        'description': description,
-        'amountCents': amountCents,
-        'startMonth': startMonth,
-        'recurring': recurring,
-      },
-    );
-    return Decode.object(response.data)['id'] as String;
-  });
+  }) async {
+    try {
+      final response = await _api.post(
+        '/incomes',
+        data: {
+          'description': description,
+          'amountCents': amountCents,
+          'startMonth': startMonth,
+          'recurring': recurring,
+        },
+      );
+      return Success(Decode.object(response.data)['id'] as String);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
 
   @override
   Future<Result<bool, Failure>> adjust(
     String id, {
     required int amountCents,
     required String effectiveFrom,
-  }) => _guard(() async {
-    await _api.post(
-      '/incomes/$id/adjustments',
-      data: {'amountCents': amountCents, 'effectiveFrom': effectiveFrom},
-    );
-    return true;
-  });
+  }) async {
+    try {
+      await _api.post(
+        '/incomes/$id/adjustments',
+        data: {'amountCents': amountCents, 'effectiveFrom': effectiveFrom},
+      );
+      return Success(true);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
 
   @override
   Future<Result<bool, Failure>> correct(
     String id, {
     required int amountCents,
-  }) => _guard(() async {
-    await _api.patch('/incomes/$id/amount', data: {'amountCents': amountCents});
-    return true;
-  });
-
-  @override
-  Future<Result<bool, Failure>> close(String id, {required String lastMonth}) =>
-      _guard(() async {
-        await _api.post('/incomes/$id/closure', data: {'lastMonth': lastMonth});
-        return true;
-      });
-
-  @override
-  Future<Result<bool, Failure>> delete(String id) => _guard(() async {
-    await _api.delete('/incomes/$id');
-    return true;
-  });
-
-  /// Os sete métodos têm o mesmo esqueleto de erro, então ele vive aqui em vez
-  /// de sete `try/catch` iguais. O decode fica **dentro** do `try` pelo mesmo
-  /// motivo de sempre: `on AppException` não pega o `TypeError` de um cast.
-  Future<Result<T, Failure>> _guard<T>(Future<T> Function() call) async {
+  }) async {
     try {
-      return Success(await call());
+      await _api.patch(
+        '/incomes/$id/amount',
+        data: {'amountCents': amountCents},
+      );
+      return Success(true);
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(
-        Failure.fromException(
-          SerializationException(
-            message: '$error',
-            cause: error,
-            stackTrace: stackTrace,
-          ),
-        ),
-      );
+      return Error(_serializationFailure(error, stackTrace));
     }
   }
+
+  @override
+  Future<Result<bool, Failure>> close(
+    String id, {
+    required String lastMonth,
+  }) async {
+    try {
+      await _api.post('/incomes/$id/closure', data: {'lastMonth': lastMonth});
+      return Success(true);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<bool, Failure>> delete(String id) async {
+    try {
+      await _api.delete('/incomes/$id');
+      return Success(true);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
+
+  /// O decode fica dentro do `try` de propósito: `on AppException` não pega o
+  /// `TypeError` de um cast, então um campo que mudou de tipo no backend viraria
+  /// crash em vez de erro tratado. Este `catch` é a rede para isso.
+  Failure _serializationFailure(Object error, StackTrace stackTrace) =>
+      Failure.fromException(
+        SerializationException(
+          message: '$error',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
 }
