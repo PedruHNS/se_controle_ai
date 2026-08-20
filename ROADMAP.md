@@ -7,14 +7,15 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 *Atualizado em 20/08/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 4 concluídas** · a home mostra o
+Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 6 concluídas** · a home mostra o
 resumo do mês, ganhos e gastos fixos têm CRUD completo com reajuste, correção e
-encerramento, cartões têm CRUD com a edição parcial do CAR-08, e um menu lateral
-na home leva às telas de cadastro.
+encerramento, gasto parcelado tem reparcelamento e quitação, cartões têm CRUD com
+a edição parcial do CAR-08, a projeção mostra para onde o saldo caminha, e um
+menu lateral na home leva a todas elas.
 
-`flutter analyze` sem issue · **323 testes, todos passando** · ganhos, cartões e
-gastos verificados contra o backend real em Docker, incluindo as recusas de 422 e
-as duas direções do `PATCH`.
+`flutter analyze` sem issue · **364 testes, todos passando** · ganhos, cartões e
+gastos verificados contra o backend real em Docker, incluindo as recusas de 422,
+as duas direções do `PATCH` e o 409 do CAR-07.
 
 O único teste vermelho que havia — `app_router_test` procurando uma linha
 "Cartões" que nunca chegou a existir na home — foi reescrito na Fase 4 para
@@ -206,6 +207,7 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `features/home/controller/home_controller.dart` | Estado do resumo com signals — **é o molde a copiar** |
 | `features/home/view/home_page.dart` | A tela: `CustomScrollView` com a faixa fixa, navegação de mês, `switch` no `ViewState`, pull-to-refresh |
 | `features/home/widgets/` | `BalanceCard`, `SummarySection`, `CreditCardInvoiceCard`, `LineItemTile` |
+| `features/projection/` | Controller, tela e o `ProjectionChart` — barras do acumulado, sem biblioteca |
 | `data/models/income_model.dart` · `income_version_model.dart` | O ganho e suas vigências |
 | `data/repositories/income_repository.dart` | As sete rotas de `/incomes`, com reajuste e correção separados |
 | `features/incomes/controller/` | `IncomeListController`, `IncomeFormController`, `IncomeDetailController` |
@@ -217,10 +219,11 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `features/credit_cards/view/` | Lista, formulário e a tela do cartão com os gastos dele |
 | `features/credit_cards/widgets/` | `CreditCardTile` |
 | `data/models/expense_model.dart` | `ExpenseModel` + os enums `ExpenseType` e `PaymentMethod` |
+| `data/models/installment_model.dart` | `InstallmentModel` — uma parcela; o "de N" muda no reparcelamento |
 | `data/repositories/expense_repository.dart` | As oito rotas de `/expenses` que a Fase 4 usa; parcelado fica para a Fase 5 |
 | `features/expenses/controller/` | `ExpenseListController`, `ExpenseFormController` (cadastro + edição), `ExpenseDetailController` |
 | `features/expenses/view/` | Lista, formulário e detalhe |
-| `features/expenses/widgets/` | `ExpenseTile` e os diálogos de valor e encerramento |
+| `features/expenses/widgets/` | `ExpenseTile`, `InstallmentsCard` e os quatro diálogos: valor, encerramento, reparcelamento e quitação |
 | `features/tags/view/tag_list_page.dart` | Só o aviso de "em desenvolvimento" — não há endpoint de tags |
 | `features/notifications/view/notification_list_page.dart` | Só o estado vazio — o servidor ainda não manda notificação |
 
@@ -239,8 +242,11 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `core/utils/iso_date_test.dart` | 6 casos do formato de data, incluindo entrada fora do formato |
 | `fixtures/credit_card_fixture.dart` | JSON real de `/credit-cards`: cartão completo, cartão sem os opcionais, e sem competência |
 | `core/shared/patch_test.dart` | Os três estados do `Patch` e o `diff` que decide entre eles |
-| `features/home/home_navigation_test.dart` | O menu abre com os quatro destinos, cada um chega na tela certa, e o sino leva às notificações |
-| `fixtures/expense_fixture.dart` | JSON real de `/expenses`: aluguel com dois valores vigentes, gasto no cartão, avulso e um parcelado |
+| `features/home/home_navigation_test.dart` | O menu abre com os cinco destinos, cada um chega na tela certa, e o sino leva às notificações |
+| `fixtures/projection_fixture.dart` | JSON real de `/summary/projection`: seis meses no azul, e os mesmos seis com uma reforma de R$ 50.000,00 |
+| `fixtures/expense_fixture.dart` | JSON real de `/expenses`: aluguel com dois valores vigentes, gasto no cartão, avulso, e um parcelado antes e depois de reparcelado |
+| `features/expenses/expense_installment_test.dart` | O que só o parcelado tem: plano, reparcelamento, quitação, e o formulário que troca de campos |
+| `features/projection/projection_test.dart` | Horizonte, guarda de corrida e o aviso do primeiro mês no vermelho |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -372,31 +378,25 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 2 — Ganhos: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 3 — Cartões: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 4 — Gastos fixos: **concluída** |
-| ░░░░░░░░░░ | Fases 5 a 10 — não iniciadas |
+| ▓▓▓▓▓▓▓▓▓▓ | Fase 5 — Gastos parcelados: **concluída** |
+| ▓▓▓▓▓▓▓▓▓▓ | Fase 6 — Projeção: **concluída** |
+| ░░░░░░░░░░ | Fases 7 a 10 — não iniciadas |
 
 A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
 fonte da verdade, não um cache, e só sai barata com o contrato parado.
 
-**Próximo passo: Fase 5 — Gastos parcelados.** É a fase com mais regra de
-negócio do app, e agora ela tem onde se apoiar: o `ExpenseRepository`, o
-`ExpenseModel` e as três telas de gasto já existem. O que falta é o **outro
-regime de escrita** — parcela materializada em vez de vigência.
+**Próximo passo: Fase 7 — Acabamento.** Todas as telas que o backend suporta
+existem; o que falta agora não é feature, é polimento — tema claro/escuro,
+máscara de moeda no input, estados vazios com ilustração, animação de transição
+e o que fazer quando o backend não responde.
 
-O que a Fase 5 encontra pronto: `ExpenseModel` já lê `type`, `totalCents`,
-`installmentsCount` e `installmentLabel`, e já aguenta um parcelado sem engasgar
-(`history` vem null e vira lista vazia). Falta ler `installments`, criar com
-`type: INSTALLMENT`, e as duas operações próprias — reparcelamento e quitação.
+As Fases 9 (notificações) e 10 (offline-first) continuam **bloqueadas pelo
+backend**: dependem das Etapas 8 e 9 de lá, que por sua vez esperam a 6.
 
-Duas armadilhas que a Fase 5 herda:
-
-**`FIXED` e `INSTALLMENT` não compartilham operação de dinheiro.** O campo do
-outro tipo vem `null`, e isso tem que virar duas telas de edição, não uma com
-ifs. Hoje o formulário e o detalhe assumem gasto fixo em todo canto — o seletor
-de tipo e o desvio para as telas de parcelado entram na Fase 5, não antes.
-
-**O 409 do CAR-07 continua sem prova ao vivo, mas agora é possível fazê-la.**
-Excluir cartão só é recusado quando há gasto vinculado, e gasto passou a
-existir na Fase 4. É a primeira coisa a conferir contra o Docker.
+Com as Fases 5 e 6, **as duas dívidas que vinham desde a Fase 3 foram pagas**: o
+409 do CAR-07 foi exercitado ao vivo (excluir cartão com gasto vinculado devolve
+`ConflictFailure`, "Cartão possui gastos vinculados"), e o teste de rota que
+procurava uma linha inexistente na home foi reescrito na Fase 4.
 
 ### Fase 0 — Fundação · ▓▓▓▓▓▓▓▓▓▓ concluída
 Nenhuma tela. Só o encanamento que todas as fases seguintes usam.
@@ -606,10 +606,14 @@ até a Fase 4**: ele rolava a home atrás da linha "Cartões" que nunca foi
 construída. Foi reescrito para entrar pelo menu lateral, que é por onde o
 caminho existe.
 
-**O que os testes da fase não cobrem:** o 409 do CAR-07 ao vivo (não há gasto para
-vincular) e o caminho de `dispose` do `CreditCardListController` em produção — no
-`test_injector` ele é `registerFactory`, mesma divergência que já existe no
-`HomeController`.
+**O que os testes da fase não cobriam:** o 409 do CAR-07 ao vivo — sem gasto não
+havia o que vincular. **Pago na Fase 5**: excluir um cartão com gasto vinculado
+devolve `ConflictFailure` com "Cartão possui gastos vinculados", conferido contra
+o Docker.
+
+Segue sem prova o caminho de `dispose` do `CreditCardListController` em
+produção: no `test_injector` ele é `registerFactory`, mesma divergência que já
+existe no `HomeController`.
 
 ### Fase 4 — Gastos fixos · ▓▓▓▓▓▓▓▓▓▓ concluída
 A primeira fase com dois caminhos de pagamento, e a que fechou o critério da
@@ -715,19 +719,118 @@ recusar pelo campo obrigatório, que é feio mas correto; e o caminho de `dispos
 do `ExpenseListController` em produção, mesma divergência de registro que já
 existe nas outras listas.
 
-### Fase 5 — Gastos parcelados · ░░░░░░░░░░ não iniciada
-A fase com mais regra de negócio — vale deixar para depois de o padrão estar firme.
+O formulário e o detalhe assumiam gasto fixo em todo canto, o que era esperado
+enquanto parcelado não tinha tela. **A Fase 5 desfez essa suposição** — o
+seletor de tipo e o desvio das operações entraram lá.
 
-- Criar `INSTALLMENT`, ver as parcelas geradas
-- Reparcelamento (corta no mês corrente, numeração continua)
-- Quitação antecipada (`settlement`)
+### Fase 5 — Gastos parcelados · ▓▓▓▓▓▓▓▓▓▓ concluída
+A fase com mais regra de negócio, e a que fez o app aceitar os **dois regimes de
+escrita** de gasto.
+
+- [x] Criar `INSTALLMENT` pelo mesmo formulário, com seletor de tipo
+- [x] Ver o plano de parcelas, com a do mês em destaque
+- [x] Reparcelamento — total e quantidade novos, a partir de um mês
+- [x] Quitação antecipada
+- [x] As operações de fixo somem em parcelado, e vice-versa (GPR-17)
 
 **Pronto quando:** R$ 100 em 3x mostra 33,34 + 33,33 + 33,33, e reparcelar em
 outra quantidade não mexe nas parcelas passadas.
+→ **Fechado.** Contra o Docker, pelo repositório de verdade: geladeira de
+R$ 3.000 em 10x, reparcelada para R$ 4.000 em 12x a partir de maio — as quatro
+primeiras continuaram R$ 300 e as oito novas saíram a R$ 350; quitada a partir
+de setembro, sobraram 8 parcelas com a última virando `8/8`. O rateio em si é
+do backend e está coberto lá, exaustivamente.
 
-### Fase 6 — Projeção · ░░░░░░░░░░ não iniciada
-- `GET /summary/projection` como gráfico ou lista de saldo acumulado
-- Horizonte configurável
+**Quatro decisões desta fase:**
+
+**O tipo é escolhido no cadastro e nunca mais muda.** Fixo guarda dinheiro em
+vigência, parcelado em parcela (GFX-09), e trocar o tipo de um gasto existente
+seria jogar fora a fonte da verdade dele. O backend nem oferece a operação;
+aqui o seletor simplesmente não aparece na edição.
+
+**A validação é por campo, e não pelo grupo.** Os campos do tipo não escolhido
+nascem vazios e inválidos — se o `submit` olhasse `form.invalid`, escolher
+parcelado travaria o salvamento por causa de um "valor por mês" que nem está na
+tela. Cada modo valida a lista de campos que mostra. Foi a mesma escolha já
+feita na Fase 4 para a edição, agora com um segundo motivo.
+
+**`amountCentsIn` procura nos dois lugares.** O valor de um mês vem da vigência
+num gasto fixo e da parcela num parcelado, e como nenhum gasto tem as duas
+listas preenchidas, não há ambiguidade em olhar as duas. O ganho é que a lista,
+o tile e o detalhe não perguntam de que tipo é o gasto para saber quanto ele
+custa neste mês.
+
+**O selo do tile virou a parcela.** Num parcelado, "3/10" diz ao mesmo tempo que
+está em curso e quanto falta — mais do que "Mês único" diria. Como a listagem
+não leva `?month`, o `installmentLabel` do backend vem null ali, e o rótulo é
+montado do plano: é para isso que o model lê `installments` inteiro.
+
+**Dois diálogos novos, e os dois avisam do que o sistema não faz.** O de
+reparcelamento diz que os dois números são **totais da compra**, contando as
+parcelas já cobradas — quem digita "12" está dizendo doze no total, não mais
+doze — e mostra quantas ficam de fora. O de quitação avisa que **o valor pago na
+antecipação não é registrado**: o sistema projeta o que é devido, não concilia o
+que foi pago, e quem quiser ver o desembolso precisa lançar um gasto avulso.
+
+**Testes da fase** (17 no total, em `expense_installment_test.dart`): o model
+lendo as dez parcelas e o valor por competência, a resposta real de um
+reparcelamento provando GPR-08, GPR-10 e GPR-11 de uma vez, o cadastro nos dois
+tipos, os campos do tipo não escolhido não travando o salvamento, as duas
+operações no controller, e as telas — as ações que somem, o plano listado, os
+campos que trocam com o tipo e a prévia de "10x de R$ 300,00".
+
+**O que os testes da fase não cobrem:** o rateio, que é do backend e está
+coberto lá com todos os totais de 1 a 400 centavos contra 1 a 24 parcelas —
+reimplementá-lo aqui duplicaria conhecimento para provar a mesma coisa duas
+vezes.
+
+### Fase 6 — Projeção · ▓▓▓▓▓▓▓▓▓▓ concluída
+A primeira tela que não é cadastro — ela não escreve nada. O
+`SummaryRepository.getProjection` existia desde a Fase 0 e nunca tinha tido
+consumidor.
+
+- [x] Saldo acumulado mês a mês, em gráfico e em lista
+- [x] Horizonte configurável: 6, 12 ou 24 meses
+- [x] Aviso do primeiro mês no vermelho
+- [x] Item "Projeção" no menu lateral
+
+**Três decisões desta fase:**
+
+**O gráfico é desenhado à mão, sem biblioteca.** São barras verticais com uma
+linha de zero, num `CustomPainter` de sessenta linhas — sem eixo com escala,
+legenda ou interação. Uma dependência de gráfico custaria mais do que isso e
+traria o que a tela não usa. Se um dia precisar de zoom, tooltip ou várias
+séries, a conta muda e vale reabrir.
+
+**A barra é o acumulado, e não o saldo do mês.** A pergunta da tela é "quanto
+vou ter juntado": um mês negativo no meio de uma sequência boa não assusta
+ninguém, o acumulado cruzar o zero sim. O saldo do mês continua na lista, em
+segundo plano, porque sem ele não dá para saber *por que* o acumulado subiu ou
+caiu. E a escala inclui o zero sempre — sem isso, uma sequência toda positiva
+desenharia a menor barra colada no chão, dando impressão de mês zerado onde
+sobra dinheiro.
+
+**A tela avisa que a conta começa do zero.** O backend acumula a partir de zero,
+não do que existe em conta (decisão registrada em `05-resumo-mensal.md`), e sem
+essa ressalva o número grande do topo é uma promessa que o app não fez.
+
+**Pronto quando:** a projeção mostra o saldo acumulado dos próximos meses e
+avisa quando ele fica negativo.
+→ **Fechado.** Conferido contra o Docker nos dois cenários: com os dados atuais
+a projeção sobe mês a mês; com um gasto avulso de R$ 50.000,00 em agosto, ela
+afunda e sobe de volta sem cruzar o zero dentro do horizonte — e o aviso aponta
+o primeiro mês no vermelho, que é o caso em que o último acumulado ainda é
+negativo enquanto o saldo mensal já voltou a ser positivo.
+
+**Testes da fase** (13, em `projection_test.dart`): o horizonte inicial e a
+troca dele, a busca que não se repete quando a escolha é a mesma, a guarda de
+corrida — que aqui pesa mais que nas outras telas, porque a resposta de 24 meses
+pode chegar depois da de 6 —, o aviso do mês no vermelho com a projeção real de
+uma reforma, e a ressalva do saldo inicial.
+
+**O que os testes da fase não cobrem:** o desenho do gráfico. O `CustomPainter`
+é verificado só por existir na árvore; comparar pixel exigiria golden test, que
+o projeto ainda não usa em lugar nenhum.
 
 ### Fase 7 — Acabamento · ░░░░░░░░░░ não iniciada
 Tema claro/escuro, máscara de moeda no input, estados vazios com ilustração,
