@@ -13,8 +13,16 @@ import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
 import '../widgets/expense_amount_dialog.dart';
 import '../widgets/expense_closure_dialog.dart';
+import '../widgets/expense_reschedule_dialog.dart';
+import '../widgets/expense_settlement_dialog.dart';
+import '../widgets/installments_card.dart';
 
-/// Um gasto: valor vigente, histórico e as operações.
+/// Um gasto: o valor deste mês, o plano e as operações.
+///
+/// **As operações de dinheiro dependem do tipo** (GPR-17): fixo reajusta,
+/// corrige e encerra; parcelado reparcela e quita. A tela mostra só as que
+/// cabem — o backend recusaria as outras com 422, e oferecer um botão para
+/// levar erro é pior que não oferecer.
 class ExpenseDetailPage extends StatefulWidget {
   const ExpenseDetailPage({required this.id, super.key});
 
@@ -128,6 +136,16 @@ class _ExpenseDetailPageState extends State<ExpenseDetailPage> {
               controller: _controller,
               expense: expense,
             ),
+            onReschedule: () => showExpenseRescheduleDialog(
+              context,
+              controller: _controller,
+              expense: expense,
+            ),
+            onSettle: () => showExpenseSettlementDialog(
+              context,
+              controller: _controller,
+              expense: expense,
+            ),
             onDelete: () => _confirmDelete(expense),
           ),
         },
@@ -146,6 +164,8 @@ class _ExpenseDetail extends StatelessWidget {
     required this.onAdjust,
     required this.onCorrect,
     required this.onClose,
+    required this.onReschedule,
+    required this.onSettle,
     required this.onDelete,
   });
 
@@ -157,12 +177,36 @@ class _ExpenseDetail extends StatelessWidget {
   final VoidCallback onAdjust;
   final VoidCallback onCorrect;
   final VoidCallback onClose;
+  final VoidCallback onReschedule;
+  final VoidCallback onSettle;
   final VoidCallback onDelete;
 
-  /// O valor que a tela mostra em destaque: o vigente hoje, ou o da última
-  /// vigência quando o gasto já acabou ou ainda não começou.
+  /// O valor que a tela mostra em destaque: o cobrado hoje, ou o último quando
+  /// o gasto já acabou ou ainda não começou.
   int? get _amountCents =>
       expense.amountCentsIn(Month.current()) ?? expense.latestAmountCents;
+
+  /// A linha de baixo do cabeçalho, que muda com o tipo: um parcelado se
+  /// descreve pelo plano ("3/10 · total de R$ 3.000,00"), um fixo pelo período.
+  String get _periodLine {
+    if (expense.isInstallment) {
+      final label = expense.installmentLabelIn(Month.current());
+      final total = expense.totalCents;
+      return [
+        if (label != null) 'Parcela $label',
+        if (total != null) 'total de ${Money.format(total)}',
+        if (label == null)
+          Month.periodLabel(expense.startMonth, expense.endMonth),
+      ].join(' · ');
+    }
+
+    if (expense.isClosed) {
+      return 'Encerrado em ${Month.label(expense.endMonth!)}';
+    }
+    return expense.recurring
+        ? 'Recorrente desde ${Month.label(expense.startMonth)}'
+        : 'Mês único — ${Month.label(expense.startMonth)}';
+  }
 
   String get _paymentLine {
     if (!expense.onCreditCard) return 'No débito';
@@ -197,11 +241,7 @@ class _ExpenseDetail extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    expense.isClosed
-                        ? 'Encerrado em ${Month.label(expense.endMonth!)}'
-                        : expense.recurring
-                        ? 'Recorrente desde ${Month.label(expense.startMonth)}'
-                        : 'Mês único — ${Month.label(expense.startMonth)}',
+                    _periodLine,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -232,9 +272,31 @@ class _ExpenseDetail extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Gasto encerrado não aceita reajuste, correção nem encerramento.
-          // Some com os botões em vez de deixar o usuário levar 422.
-          if (!expense.isClosed) ...[
+          // Parcelado tem as suas duas, e não aceita as de fixo (GPR-17).
+          if (expense.isInstallment) ...[
+            _ActionCard(
+              icon: Icons.call_split,
+              title: 'Reparcelar',
+              subtitle:
+                  'Mudou o total ou o número de vezes. As parcelas já '
+                  'cobradas ficam como estão.',
+              onTap: working ? null : onReschedule,
+            ),
+            const SizedBox(height: 8),
+            _ActionCard(
+              icon: Icons.done_all,
+              title: 'Quitar',
+              subtitle:
+                  'Paguei o resto adiantado. As parcelas de um mês em diante '
+                  'somem.',
+              onTap: working ? null : onSettle,
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Gasto fixo encerrado não aceita reajuste, correção nem
+          // encerramento. Some com os botões em vez de deixar levar 422.
+          if (expense.isFixed && !expense.isClosed) ...[
             _ActionCard(
               icon: Icons.trending_up,
               title: 'Reajustar',
@@ -270,9 +332,18 @@ class _ExpenseDetail extends StatelessWidget {
             onTap: working ? null : onDelete,
           ),
 
+          // Cada tipo mostra o seu plano: a linha do tempo de vigências no
+          // fixo, a de parcelas no parcelado.
           if (expense.hasAdjustments) ...[
             const SizedBox(height: 16),
             AmountHistoryCard(history: expense.history),
+          ],
+          if (expense.installments.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            InstallmentsCard(
+              installments: expense.installments,
+              currentMonth: Month.current(),
+            ),
           ],
           const SizedBox(height: 24),
         ],

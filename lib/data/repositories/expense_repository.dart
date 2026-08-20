@@ -14,9 +14,10 @@ import '../models/expense_model.dart';
 /// assinatura única com um `bool` esconderia justamente a decisão que o usuário
 /// precisa tomar (CONC-11).
 ///
-/// Ficam de fora, por pertencerem ao gasto parcelado (Fase 5): a criação com
-/// `type: INSTALLMENT`, o reparcelamento e a quitação. A interface cresce
-/// quando a tela existir; declará-los agora seria contrato sem consumidor.
+/// **Cada tipo de gasto tem as suas operações de dinheiro, e elas não se
+/// misturam** (GPR-17): fixo reajusta, corrige e encerra; parcelado reparcela e
+/// quita. O backend recusa a troca com 422, e aqui elas são métodos separados
+/// pelo mesmo motivo — uma assinatura só esconderia que são coisas diferentes.
 abstract interface class ExpenseRepository {
   /// Sem [month], devolve **todos** os gastos, e cada um vem com
   /// `amountCents: null` — o valor sai do `history`. Com [month], só os
@@ -40,6 +41,40 @@ abstract interface class ExpenseRepository {
   /// [creditCardId] é obrigatório quando [paymentMethod] é cartão e proibido
   /// quando é débito; quem recusa a combinação errada é o backend, com 422
   /// (GFX-01), porque a regra precisa existir num lugar só.
+  /// Cria um gasto **parcelado**. [totalCents] é o total da compra, não o da
+  /// parcela (GPR-02), e o rateio é do backend: a sobra vai para as primeiras,
+  /// um centavo em cada (GPR-03).
+  ///
+  /// Mínimo de 2 parcelas — para 1x existe o gasto fixo não recorrente (GPR-01).
+  Future<Result<String, Failure>> createInstallment({
+    required String description,
+    required PaymentMethod paymentMethod,
+    required int totalCents,
+    required int installmentsCount,
+    required String firstMonth,
+    String? category,
+    String? creditCardId,
+  });
+
+  /// Refaz o plano de [fromMonth] em diante; as parcelas anteriores ficam
+  /// intactas, porque já foram cobradas.
+  ///
+  /// Os dois números são **totais**, não o que falta: [newTotalCents] é o novo
+  /// total da compra e [newInstallmentsCount] a nova quantidade contando as já
+  /// cobradas (GPR-07/GPR-08). A numeração continua de onde parou, e o "de N"
+  /// das antigas é atualizado junto (GPR-10/GPR-11).
+  Future<Result<bool, Failure>> reschedule(
+    String id, {
+    required int newTotalCents,
+    required int newInstallmentsCount,
+    required String fromMonth,
+  });
+
+  /// Quitação: apaga as parcelas de [fromMonth] em diante e ajusta o "de N" das
+  /// que ficam (GPR-14). É o "paguei o resto adiantado" — o valor pago na
+  /// antecipação não é registrado em lugar nenhum.
+  Future<Result<bool, Failure>> settle(String id, {required String fromMonth});
+
   Future<Result<String, Failure>> createFixed({
     required String description,
     required PaymentMethod paymentMethod,
@@ -189,6 +224,80 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       creditCardId.writeTo(body, 'creditCardId');
 
       await _api.patch('/expenses/$id', data: body);
+      return Success(true);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<String, Failure>> createInstallment({
+    required String description,
+    required PaymentMethod paymentMethod,
+    required int totalCents,
+    required int installmentsCount,
+    required String firstMonth,
+    String? category,
+    String? creditCardId,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/expenses',
+        data: {
+          'type': ExpenseType.installment.wire,
+          'description': description,
+          'category': category,
+          'paymentMethod': paymentMethod.wire,
+          'creditCardId': creditCardId,
+          'totalCents': totalCents,
+          'installmentsCount': installmentsCount,
+          'firstMonth': firstMonth,
+        },
+      );
+      return Success(Decode.object(response.data)['id'] as String);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<bool, Failure>> reschedule(
+    String id, {
+    required int newTotalCents,
+    required int newInstallmentsCount,
+    required String fromMonth,
+  }) async {
+    try {
+      await _api.post(
+        '/expenses/$id/reschedule',
+        data: {
+          'newTotalCents': newTotalCents,
+          'newInstallmentsCount': newInstallmentsCount,
+          'fromMonth': fromMonth,
+        },
+      );
+      return Success(true);
+    } on AppException catch (exception) {
+      return Error(Failure.fromException(exception));
+    } catch (error, stackTrace) {
+      return Error(_serializationFailure(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Result<bool, Failure>> settle(
+    String id, {
+    required String fromMonth,
+  }) async {
+    try {
+      await _api.post(
+        '/expenses/$id/settlement',
+        data: {'fromMonth': fromMonth},
+      );
       return Success(true);
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));

@@ -1,5 +1,6 @@
 import '../../core/utils/month.dart';
 import 'amount_version_model.dart';
+import 'installment_model.dart';
 
 /// Como o gasto é pago. O backend só aceita estes dois (GFX-01).
 enum PaymentMethod {
@@ -57,6 +58,7 @@ class ExpenseModel {
     required this.installmentsCount,
     required this.installmentLabel,
     required this.history,
+    required this.installments,
   });
 
   final String id;
@@ -94,6 +96,10 @@ class ExpenseModel {
   /// gasto parcelado, onde o dinheiro mora nas parcelas (GFX-09).
   final List<AmountVersionModel> history;
 
+  /// Da primeira à última, como o backend devolve. Vazio em gasto fixo — é a
+  /// outra metade do GFX-09.
+  final List<InstallmentModel> installments;
+
   bool get isFixed => type == ExpenseType.fixed;
   bool get isInstallment => type == ExpenseType.installment;
   bool get onCreditCard => paymentMethod == PaymentMethod.creditCard;
@@ -116,8 +122,13 @@ class ExpenseModel {
     return end != null && Month.isBefore(end, month);
   }
 
-  /// O valor vigente em [month], lido do histórico. Null quando o gasto não é
-  /// cobrado naquela competência.
+  /// O valor cobrado em [month]. Null quando o gasto não é cobrado naquela
+  /// competência.
+  ///
+  /// Procura nos dois lugares porque cada tipo guarda o dinheiro no seu: fixo
+  /// na vigência, parcelado na parcela. Como nenhum gasto tem as duas listas
+  /// preenchidas (GFX-09), não há ambiguidade — e quem chama não precisa saber
+  /// de que tipo é o gasto.
   int? amountCentsIn(String month) {
     for (final version in history) {
       final started = Month.compare(month, version.validFrom) >= 0;
@@ -125,17 +136,33 @@ class ExpenseModel {
       final notFinished = to == null || Month.compare(month, to) <= 0;
       if (started && notFinished) return version.amountCents;
     }
+    return installmentIn(month)?.amountCents;
+  }
+
+  /// A parcela cobrada em [month], se houver.
+  InstallmentModel? installmentIn(String month) {
+    for (final installment in installments) {
+      if (installment.referenceMonth == month) return installment;
+    }
     return null;
   }
+
+  /// `'3/10'` para a competência corrente, ou null em gasto fixo e nos meses
+  /// sem parcela. O `installmentLabel` do backend só vem quando a busca leva
+  /// `?month`, e a listagem da tela não leva.
+  String? installmentLabelIn(String month) => installmentIn(month)?.label;
 
   /// É cobrado em [month]?
   bool isActiveIn(String month) => amountCentsIn(month) != null;
 
-  /// O valor da vigência mais recente. É o que a lista mostra para um gasto que
-  /// não é cobrado no mês corrente — encerrado, ou ainda por começar —, onde
+  /// O último valor que o gasto teve. É o que a lista mostra quando ele não é
+  /// cobrado no mês corrente — encerrado, ou ainda por começar —, onde
   /// [amountCentsIn] não teria resposta.
-  int? get latestAmountCents =>
-      history.isEmpty ? amountCents : history.last.amountCents;
+  int? get latestAmountCents {
+    if (history.isNotEmpty) return history.last.amountCents;
+    if (installments.isNotEmpty) return installments.last.amountCents;
+    return amountCents;
+  }
 
   /// A vigência que ainda está aberta, se houver. É dela que saem os limites
   /// dos diálogos de reajuste e de encerramento.
@@ -164,11 +191,16 @@ class ExpenseModel {
     totalCents: json['totalCents'] as int?,
     installmentsCount: json['installmentsCount'] as int?,
     installmentLabel: json['installmentLabel'] as String?,
-    // `history` vem null em parcelado, e as parcelas vêm em `installments` —
-    // que esta fase não lê, porque não há tela de parcelado ainda (Fase 5).
+    // Um dos dois vem null, conforme o tipo, e o null vira lista vazia: quem lê
+    // não precisa de `?` em cima de cada acesso para saber que gasto fixo não
+    // tem parcela.
     history: (json['history'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>()
         .map(AmountVersionModel.fromJson)
+        .toList(growable: false),
+    installments: (json['installments'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(InstallmentModel.fromJson)
         .toList(growable: false),
   );
 }

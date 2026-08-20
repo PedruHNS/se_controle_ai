@@ -10,7 +10,13 @@ import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/credit_card_repository.dart';
 import '../../../data/repositories/expense_repository.dart';
 
-/// Cadastro e edição de gasto fixo, no mesmo formulário.
+/// Cadastro e edição de gasto, no mesmo formulário.
+///
+/// **O tipo é escolhido no cadastro e nunca mais muda.** Fixo e parcelado têm
+/// regimes de escrita diferentes — vigência de um lado, parcela do outro
+/// (GFX-09) — e trocar o tipo de um gasto existente seria jogar fora a fonte da
+/// verdade dele. O backend nem oferece a operação; aqui o seletor some na
+/// edição.
 ///
 /// **Em edição, só os dados cadastrais aparecem.** Descrição, categoria, forma
 /// de pagamento e cartão não são versionados (GFX-06): mudá-los vale para todos
@@ -34,9 +40,23 @@ class ExpenseFormController extends BaseController {
   static const category = 'category';
   static const paymentMethod = 'paymentMethod';
   static const creditCardId = 'creditCardId';
+  static const type = 'type';
+
+  // Só no gasto fixo.
   static const amountCents = 'amountCents';
   static const startMonth = 'startMonth';
   static const recurring = 'recurring';
+
+  // Só no parcelado. Os nomes são os do backend, e `firstMonth` não é o mesmo
+  // campo que `startMonth`: um `issues[].path` de 400 precisa achar o controle
+  // certo, e os dois convivem no mesmo `FormGroup`.
+  static const totalCents = 'totalCents';
+  static const installmentsCount = 'installmentsCount';
+  static const firstMonth = 'firstMonth';
+
+  /// Mínimo do backend (GPR-01): para 1x existe o fixo não recorrente.
+  static const minInstallments = 2;
+  static const maxInstallments = 120;
 
   static const backendError = 'backend';
 
@@ -65,6 +85,22 @@ class ExpenseFormController extends BaseController {
       validators: [Validators.required],
     ),
     recurring: FormControl<bool>(value: true),
+    type: FormControl<ExpenseType>(value: ExpenseType.fixed),
+    totalCents: FormControl<int>(
+      validators: [Validators.required, Validators.min(1)],
+    ),
+    installmentsCount: FormControl<int>(
+      value: minInstallments,
+      validators: [
+        Validators.required,
+        Validators.min(minInstallments),
+        Validators.max(maxInstallments),
+      ],
+    ),
+    firstMonth: FormControl<String>(
+      value: Month.current(),
+      validators: [Validators.required],
+    ),
   });
 
   final _saving = signal<bool>(false);
@@ -83,6 +119,9 @@ class ExpenseFormController extends BaseController {
   ReadonlySignal<Failure?> get generalFailure => _failure;
 
   bool get isEditing => _id != null;
+
+  ExpenseType get selectedType =>
+      control<ExpenseType>(type).value ?? ExpenseType.fixed;
 
   String? get id => _id;
 
@@ -138,6 +177,10 @@ class ExpenseFormController extends BaseController {
 
   /// Nova tentativa dos `GET` que a tela precisa para abrir.
   Future<void> retry() => start(id: _id);
+
+  /// Troca entre gasto fixo e parcelado. Só existe no cadastro.
+  void selectType(ExpenseType value) =>
+      control<ExpenseType>(type).updateValue(value);
 
   /// Troca a forma de pagamento.
   ///
@@ -195,12 +238,25 @@ class ExpenseFormController extends BaseController {
     // caminho — `patchValue` em bloco, por exemplo.
     _syncCreditCardValidators();
 
-    // Em edição, valor e competência não estão na tela — e eles nascem
-    // inválidos (vazios). Validar o grupo inteiro travaria o salvamento sem ter
-    // o que corrigir, então cada modo valida só o que mostra.
-    final fields = isEditing
-        ? [description, category, paymentMethod, creditCardId]
-        : form.controls.keys.toList();
+    // Cada modo valida só o que mostra, e nunca é o grupo inteiro: os campos do
+    // outro tipo nascem inválidos por estarem vazios, e em edição valor e
+    // competência nem aparecem. Validar tudo travaria o salvamento sem ter o
+    // que corrigir na tela.
+    final fields = [
+      description,
+      category,
+      paymentMethod,
+      creditCardId,
+      if (!isEditing)
+        ...switch (selectedType) {
+          ExpenseType.fixed => [amountCents, startMonth, recurring],
+          ExpenseType.installment => [
+            totalCents,
+            installmentsCount,
+            firstMonth,
+          ],
+        },
+    ];
 
     final invalid = fields
         .map((field) => form.control(field))
@@ -218,14 +274,18 @@ class ExpenseFormController extends BaseController {
     _saving.value = true;
     _failure.value = null;
 
-    final id = isEditing ? await _update() : await _create();
+    final id = isEditing
+        ? await _update()
+        : selectedType == ExpenseType.installment
+        ? await _createInstallment()
+        : await _createFixed();
 
     _saving.value = false;
 
     return id;
   }
 
-  Future<String?> _create() async {
+  Future<String?> _createFixed() async {
     final result = await _repository.createFixed(
       description: _description,
       category: _category,
@@ -234,6 +294,23 @@ class ExpenseFormController extends BaseController {
       amountCents: control<int>(amountCents).value!,
       startMonth: control<String>(startMonth).value!,
       recurring: control<bool>(recurring).value ?? true,
+    );
+
+    return result.when((id) => id, (failure) {
+      _applyFailure(failure);
+      return null;
+    });
+  }
+
+  Future<String?> _createInstallment() async {
+    final result = await _repository.createInstallment(
+      description: _description,
+      category: _category,
+      paymentMethod: _method,
+      creditCardId: _cardId,
+      totalCents: control<int>(totalCents).value!,
+      installmentsCount: control<int>(installmentsCount).value!,
+      firstMonth: control<String>(firstMonth).value!,
     );
 
     return result.when((id) => id, (failure) {

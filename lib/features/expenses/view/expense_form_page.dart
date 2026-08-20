@@ -6,15 +6,19 @@ import '../../../core/di/injector.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
+import '../../../core/utils/money.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_form_controller.dart';
 
-/// Cadastro e edição de gasto fixo.
+/// Cadastro e edição de gasto.
 ///
 /// Uma tela para os dois: o [id] null é cadastro, preenchido é edição. Em
-/// edição só os dados cadastrais aparecem — valor, competência e recorrência
-/// somem, porque mexer em dinheiro é reajuste, correção ou encerramento, e cada
-/// um faz uma coisa diferente com o passado.
+/// edição só os dados cadastrais aparecem — dinheiro e competência somem,
+/// porque mexer neles é reajuste, correção, encerramento, reparcelamento ou
+/// quitação, e cada um faz uma coisa diferente com o passado.
+///
+/// No cadastro, o seletor de tipo troca a metade de baixo do formulário: fixo
+/// pede valor por mês, parcelado pede o total da compra e em quantas vezes.
 class ExpenseFormPage extends StatefulWidget {
   const ExpenseFormPage({this.id, super.key});
 
@@ -216,33 +220,43 @@ class _ExpenseForm extends StatelessWidget {
           ),
 
           // Dinheiro só no cadastro (GFX-06): depois de existir, o valor muda
-          // por reajuste ou correção, na tela do gasto.
+          // pelas operações da tela do gasto.
+          //
+          // O tipo também só aparece aqui: fixo e parcelado guardam dinheiro em
+          // lugares diferentes (GFX-09), e trocar o tipo de um gasto existente
+          // seria jogar fora a fonte da verdade dele. O backend nem oferece.
           if (!editing) ...[
             const SizedBox(height: 16),
-            MoneyFieldWidget(
-              formControlName: ExpenseFormController.amountCents,
-              label: 'Valor por mês',
-              onSubmitted: (_) => onSubmit(),
-            ),
-            const SizedBox(height: 16),
-            MonthFieldWidget(
-              formControlName: ExpenseFormController.startMonth,
-              label: 'A partir de',
-            ),
+            Text('Tipo', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
-            ReactiveSwitchListTile(
-              formControlName: ExpenseFormController.recurring,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Recorrente'),
-              subtitle: ReactiveValueListenableBuilder<bool>(
-                formControlName: ExpenseFormController.recurring,
-                builder: (context, control, child) => Text(
-                  control.value ?? true
-                      ? 'Cobra todo mês até você encerrar.'
-                      : 'Sai só nesta competência — presente, conserto, '
-                            'consulta.',
-                ),
-              ),
+            ReactiveValueListenableBuilder<ExpenseType>(
+              formControlName: ExpenseFormController.type,
+              builder: (context, control, child) =>
+                  SegmentedButton<ExpenseType>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ExpenseType.fixed,
+                        icon: Icon(Icons.repeat),
+                        label: Text('Fixo'),
+                      ),
+                      ButtonSegment(
+                        value: ExpenseType.installment,
+                        icon: Icon(Icons.view_week_outlined),
+                        label: Text('Parcelado'),
+                      ),
+                    ],
+                    selected: {control.value ?? ExpenseType.fixed},
+                    onSelectionChanged: (selection) =>
+                        controller.selectType(selection.first),
+                  ),
+            ),
+
+            ReactiveValueListenableBuilder<ExpenseType>(
+              formControlName: ExpenseFormController.type,
+              builder: (context, control, child) =>
+                  control.value == ExpenseType.installment
+                  ? _InstallmentFields(onSubmit: onSubmit)
+                  : _FixedFields(onSubmit: onSubmit),
             ),
           ],
 
@@ -250,8 +264,8 @@ class _ExpenseForm extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Descrição, categoria e forma de pagamento valem para todos os '
-              'meses, inclusive os que já passaram. Para mudar o valor, use '
-              'Reajustar ou Corrigir na tela do gasto.',
+              'meses, inclusive os que já passaram. Para mudar o valor, use as '
+              'ações da tela do gasto.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -277,6 +291,149 @@ class _ExpenseForm extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Os campos que só o gasto fixo tem: um valor por mês, a partir de uma
+/// competência, repetindo ou não.
+class _FixedFields extends StatelessWidget {
+  const _FixedFields({required this.onSubmit});
+
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 16),
+        MoneyFieldWidget(
+          formControlName: ExpenseFormController.amountCents,
+          label: 'Valor por mês',
+          onSubmitted: (_) => onSubmit(),
+        ),
+        const SizedBox(height: 16),
+        MonthFieldWidget(
+          formControlName: ExpenseFormController.startMonth,
+          label: 'A partir de',
+        ),
+        const SizedBox(height: 8),
+        ReactiveSwitchListTile(
+          formControlName: ExpenseFormController.recurring,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Recorrente'),
+          subtitle: ReactiveValueListenableBuilder<bool>(
+            formControlName: ExpenseFormController.recurring,
+            builder: (context, control, child) => Text(
+              control.value ?? true
+                  ? 'Cobra todo mês até você encerrar.'
+                  : 'Sai só nesta competência — presente, conserto, consulta.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Os campos que só o parcelado tem. O valor pedido é o **total da compra**
+/// (GPR-02) — quem digita 3.000 em 10x está comprando uma geladeira de três
+/// mil, não pagando trinta mil.
+class _InstallmentFields extends StatelessWidget {
+  const _InstallmentFields({required this.onSubmit});
+
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 16),
+        MoneyFieldWidget(
+          formControlName: ExpenseFormController.totalCents,
+          label: 'Total da compra',
+          onSubmitted: (_) => onSubmit(),
+        ),
+        const SizedBox(height: 16),
+        ReactiveTextField<int>(
+          formControlName: ExpenseFormController.installmentsCount,
+          keyboardType: TextInputType.number,
+          validationMessages: {
+            ValidationMessage.required: (_) => 'Informe em quantas vezes.',
+            ValidationMessage.number: (_) => 'Só números.',
+            ValidationMessage.min: (_) =>
+                'Mínimo de ${ExpenseFormController.minInstallments} parcelas. '
+                'Para 1x, cadastre como fixo não recorrente.',
+            ValidationMessage.max: (_) =>
+                'Máximo de ${ExpenseFormController.maxInstallments} parcelas.',
+            ExpenseFormController.backendError: (error) => '$error',
+          },
+          decoration: const InputDecoration(
+            labelText: 'Em quantas vezes',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        MonthFieldWidget(
+          formControlName: ExpenseFormController.firstMonth,
+          label: 'Primeira parcela',
+        ),
+        const SizedBox(height: 8),
+        // O rateio é do backend, e a sobra vai nas primeiras parcelas (GPR-03).
+        // Dizer isso aqui evita a pergunta "por que a primeira é um centavo
+        // maior" depois de salvar.
+        _InstallmentPreview(style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+/// "10x de R$ 300,00" enquanto a pessoa digita — a conta que ela faria de
+/// cabeça, feita na tela.
+class _InstallmentPreview extends StatelessWidget {
+  const _InstallmentPreview({this.style});
+
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+
+    return ReactiveValueListenableBuilder<int>(
+      formControlName: ExpenseFormController.totalCents,
+      builder: (context, totalControl, child) =>
+          ReactiveValueListenableBuilder<int>(
+            formControlName: ExpenseFormController.installmentsCount,
+            builder: (context, countControl, child) {
+              final total = totalControl.value;
+              final count = countControl.value;
+
+              if (total == null ||
+                  count == null ||
+                  count < 1 ||
+                  total < count) {
+                return const SizedBox.shrink();
+              }
+
+              // Divisão inteira, como o backend faz. A sobra vai um centavo em
+              // cada uma das primeiras, então o texto fala em "a partir de".
+              final each = total ~/ count;
+              final remainder = total % count;
+
+              return Text(
+                remainder == 0
+                    ? '${count}x de ${Money.format(each)}'
+                    : '${count}x de ${Money.format(each)} — as $remainder '
+                          'primeiras saem um centavo mais caras',
+                style: style?.copyWith(color: color),
+              );
+            },
+          ),
     );
   }
 }

@@ -85,9 +85,12 @@ const presenteJson = <String, dynamic>{
   'installments': null,
 };
 
-/// Um parcelado, para o model provar que não engasga com ele: `history` vem
-/// **null** e o dinheiro está em `installments`, que a Fase 4 não lê (GFX-09).
-const geladeiraJson = <String, dynamic>{
+/// Geladeira em 10x de R$ 300,00, buscada com `?month=2026-03` — daí o
+/// `amountCents` da parcela do mês e o `installmentLabel: '3/10'`.
+///
+/// `history` vem **null**: em parcelado o dinheiro está nas parcelas (GFX-09).
+/// `final` e não `const`: o `for` que gera as dez parcelas não é constante.
+final geladeiraJson = <String, dynamic>{
   'id': '9c1f6b02-0f0e-4a1f-9d0a-2b3c4d5e6f70',
   'description': 'Geladeira',
   'category': 'Casa',
@@ -103,11 +106,100 @@ const geladeiraJson = <String, dynamic>{
   'installmentLabel': '3/10',
   'history': null,
   'installments': <Map<String, dynamic>>[
+    for (var n = 1; n <= 10; n++)
+      {
+        'number': n,
+        'total': 10,
+        'amountCents': 30000,
+        'referenceMonth': '2026-0$n',
+      },
+  ],
+};
+
+/// A mesma compra depois de reparcelada: 12x de R$ 4.000,00 a partir de maio.
+///
+/// É a resposta real do backend, e mostra as três regras juntas — as quatro
+/// primeiras ficaram com o valor antigo porque já foram cobradas (GPR-08), a
+/// numeração continuou em 5 (GPR-10), e o "de N" das antigas virou 12 (GPR-11).
+final geladeiraReparceladaJson = <String, dynamic>{
+  ...geladeiraJson,
+  'endMonth': '2026-12',
+  'amountCents': 35000,
+  'totalCents': 400000,
+  'installmentsCount': 12,
+  'installmentLabel': '5/12',
+  'installments': <Map<String, dynamic>>[
+    {
+      'number': 1,
+      'total': 12,
+      'amountCents': 30000,
+      'referenceMonth': '2026-01',
+    },
+    {
+      'number': 2,
+      'total': 12,
+      'amountCents': 30000,
+      'referenceMonth': '2026-02',
+    },
     {
       'number': 3,
-      'total': 10,
+      'total': 12,
       'amountCents': 30000,
+      'referenceMonth': '2026-03',
+    },
+    {
+      'number': 4,
+      'total': 12,
+      'amountCents': 30000,
+      'referenceMonth': '2026-04',
+    },
+    {
+      'number': 5,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-05',
+    },
+    {
+      'number': 6,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-06',
+    },
+    {
+      'number': 7,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-07',
+    },
+    {
+      'number': 8,
+      'total': 12,
+      'amountCents': 35000,
       'referenceMonth': '2026-08',
+    },
+    {
+      'number': 9,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-09',
+    },
+    {
+      'number': 10,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-10',
+    },
+    {
+      'number': 11,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-11',
+    },
+    {
+      'number': 12,
+      'total': 12,
+      'amountCents': 35000,
+      'referenceMonth': '2026-12',
     },
   ],
 };

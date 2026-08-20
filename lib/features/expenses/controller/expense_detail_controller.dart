@@ -7,8 +7,13 @@ import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/credit_card_repository.dart';
 import '../../../data/repositories/expense_repository.dart';
 
-/// Um gasto e suas quatro operações: reajuste, correção, encerramento e
-/// exclusão.
+/// Um gasto e suas operações.
+///
+/// **As de dinheiro dependem do tipo, e não se misturam** (GPR-17): fixo
+/// reajusta, corrige e encerra; parcelado reparcela e quita. O backend recusa a
+/// troca com 422 — "Reajuste só se aplica a gasto fixo. Em um parcelado, use o
+/// reparcelamento" —, e a tela some com o que não cabe em vez de deixar a
+/// pessoa levar o erro.
 ///
 /// As três primeiras devolvem `Failure?` em vez de guardarem o erro num signal:
 /// elas são disparadas de dentro de um diálogo, e é lá que o erro precisa
@@ -152,6 +157,44 @@ class ExpenseDetailController extends BaseController {
     _working.value = true;
 
     final result = await _repository.close(id, lastMonth: lastMonth);
+
+    _working.value = false;
+
+    return result.when((_) async {
+      await load(silent: true);
+      return null;
+    }, (error) async => error);
+  }
+
+  /// Reparcelamento — refaz o plano de [fromMonth] em diante. Os dois números
+  /// são totais da compra, não o que falta (GPR-07/GPR-08).
+  Future<Failure?> reschedule({
+    required int newTotalCents,
+    required int newInstallmentsCount,
+    required String fromMonth,
+  }) async {
+    _working.value = true;
+
+    final result = await _repository.reschedule(
+      id,
+      newTotalCents: newTotalCents,
+      newInstallmentsCount: newInstallmentsCount,
+      fromMonth: fromMonth,
+    );
+
+    _working.value = false;
+
+    return result.when((_) async {
+      await load(silent: true);
+      return null;
+    }, (error) async => error);
+  }
+
+  /// Quitação — apaga as parcelas de [fromMonth] em diante (GPR-14).
+  Future<Failure?> settle({required String fromMonth}) async {
+    _working.value = true;
+
+    final result = await _repository.settle(id, fromMonth: fromMonth);
 
     _working.value = false;
 

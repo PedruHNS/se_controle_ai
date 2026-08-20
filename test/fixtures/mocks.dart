@@ -373,6 +373,18 @@ void stubExpenseOperations(
   });
 
   when(
+    () => mock.createInstallment(
+      description: any(named: 'description'),
+      paymentMethod: any(named: 'paymentMethod'),
+      totalCents: any(named: 'totalCents'),
+      installmentsCount: any(named: 'installmentsCount'),
+      firstMonth: any(named: 'firstMonth'),
+      category: any(named: 'category'),
+      creditCardId: any(named: 'creditCardId'),
+    ),
+  ).thenAnswer((_) => answer(createResult));
+
+  when(
     () => mock.adjust(
       any(),
       amountCents: any(named: 'amountCents'),
@@ -386,6 +398,19 @@ void stubExpenseOperations(
 
   when(
     () => mock.close(any(), lastMonth: any(named: 'lastMonth')),
+  ).thenAnswer((_) => answer(result));
+
+  when(
+    () => mock.reschedule(
+      any(),
+      newTotalCents: any(named: 'newTotalCents'),
+      newInstallmentsCount: any(named: 'newInstallmentsCount'),
+      fromMonth: any(named: 'fromMonth'),
+    ),
+  ).thenAnswer((_) => answer(result));
+
+  when(
+    () => mock.settle(any(), fromMonth: any(named: 'fromMonth')),
   ).thenAnswer((_) => answer(result));
 
   when(() => mock.delete(any())).thenAnswer((_) => answer(result));

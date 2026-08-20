@@ -30,6 +30,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// O formulário cresceu com o seletor de tipo, e o botão saiu da área
+  /// visível do teste — a ListView não constrói o que está fora da tela.
+  Future<void> tapSalvar(WidgetTester tester) async {
+    final button = find.widgetWithText(FilledButton, 'Salvar');
+    // `.first` porque o seletor de tipo também é rolável, e sem escopo o
+    // `scrollUntilVisible` acha dois Scrollables e desiste.
+    await tester.scrollUntilVisible(
+      button,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pumpDetail(WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: ExpenseDetailPage(id: 'gasto-1')),
@@ -122,7 +138,15 @@ void main() {
     testWidgets('submit vazio não chama o backend', (tester) async {
       await pumpForm(tester);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+      await tapSalvar(tester);
+
+      // Rolar até o botão deixou a descrição para trás; a mensagem está lá em
+      // cima, onde o campo está.
+      await tester.scrollUntilVisible(
+        find.text('Informe a descrição.'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Informe a descrição.'), findsOneWidget);
@@ -150,8 +174,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField).first, 'Aluguel');
       await tester.enterText(find.byType(TextField).at(2), '1200,00');
-      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-      await tester.pumpAndSettle();
+      await tapSalvar(tester);
 
       expect(find.widgetWithText(SnackBar, 'Sem conexão.'), findsOneWidget);
     });

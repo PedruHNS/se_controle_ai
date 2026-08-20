@@ -16,7 +16,12 @@ class ExpenseTile extends StatelessWidget {
   /// lista. Por isso "Encerrado" só aparece quando o gasto acabou **antes**
   /// deste mês: o presente de agosto tem fim marcado, mas em agosto ele está
   /// sendo cobrado.
+  ///
+  /// Num parcelado o selo é a parcela do mês — "3/10" diz ao mesmo tempo que
+  /// está em curso e quanto falta, que é mais do que "Mês único" diria.
   String? get _badge {
+    final label = expense.installmentLabelIn(Month.current());
+    if (label != null) return label;
     if (expense.endedBefore(Month.current())) return 'Encerrado';
     if (expense.isSingleMonth) return 'Mês único';
     return null;
@@ -36,7 +41,11 @@ class ExpenseTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: Icon(
-        expense.onCreditCard ? Icons.credit_card : Icons.payments_outlined,
+        expense.isInstallment
+            ? Icons.view_week_outlined
+            : expense.onCreditCard
+            ? Icons.credit_card
+            : Icons.payments_outlined,
         color: theme.colorScheme.onSurfaceVariant,
       ),
       title: Text(expense.description),
