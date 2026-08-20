@@ -3,6 +3,7 @@ import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
@@ -10,7 +11,6 @@ import '../../../data/models/income_model.dart';
 import '../controller/income_detail_controller.dart';
 import '../widgets/income_amount_dialog.dart';
 import '../widgets/income_closure_dialog.dart';
-import '../widgets/income_history_card.dart';
 
 /// Um ganho: valor vigente, histórico e as quatro operações.
 class IncomeDetailPage extends StatefulWidget {
@@ -224,7 +224,7 @@ class _IncomeDetail extends StatelessWidget {
 
           if (income.hasAdjustments) ...[
             const SizedBox(height: 16),
-            IncomeHistoryCard(income: income),
+            AmountHistoryCard(history: income.history),
           ],
           const SizedBox(height: 24),
         ],

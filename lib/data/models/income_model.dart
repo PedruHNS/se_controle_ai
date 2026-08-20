@@ -1,5 +1,5 @@
 import '../../core/utils/month.dart';
-import 'income_version_model.dart';
+import 'amount_version_model.dart';
 
 /// Um ganho: salário, freela, 13º, aluguel recebido.
 ///
@@ -33,7 +33,7 @@ class IncomeModel {
   final int amountCents;
 
   /// Da vigência mais antiga para a mais nova, como o backend devolve.
-  final List<IncomeVersionModel> history;
+  final List<AmountVersionModel> history;
 
   /// Tem data de fim. É o que decide se as operações de dinheiro ainda são
   /// possíveis: ganho encerrado não aceita reajuste, correção nem novo
@@ -80,7 +80,7 @@ class IncomeModel {
   bool isActiveIn(String month) => amountCentsIn(month) != null;
 
   /// A vigência que ainda está aberta, se houver.
-  IncomeVersionModel? get currentVersion {
+  AmountVersionModel? get currentVersion {
     for (final version in history.reversed) {
       if (version.isOpen) return version;
     }
@@ -100,7 +100,7 @@ class IncomeModel {
     amountCents: json['amountCents'] as int,
     history: (json['history'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
-        .map(IncomeVersionModel.fromJson)
+        .map(AmountVersionModel.fromJson)
         .toList(growable: false),
   );
 }

@@ -1,9 +1,15 @@
-/// Uma vigência de valor: quanto o ganho valia, e de quando até quando.
+/// Uma vigência de valor: quanto algo valia, e de quando até quando.
 ///
 /// É o que torna "aumento em novembro não muda setembro" verificável na tela —
 /// o histórico completo vem do backend, não é reconstruído aqui.
-class IncomeVersionModel {
-  const IncomeVersionModel({
+///
+/// Serve a ganho e a gasto fixo porque os dois leem o **mesmo** motor de
+/// vigência no backend (`AmountTimeline`, CONC-09 a CONC-12) e o `history`
+/// chega com o mesmo formato dos dois lados. O que não se junta são as
+/// operações — reajustar um ganho e reajustar um gasto são casos de uso
+/// separados lá, e repositórios separados aqui.
+class AmountVersionModel {
+  const AmountVersionModel({
     required this.amountCents,
     required this.validFrom,
     required this.validTo,
@@ -20,8 +26,8 @@ class IncomeVersionModel {
   /// Vigência em aberto é a que ainda recebe reajuste e correção.
   bool get isOpen => validTo == null;
 
-  factory IncomeVersionModel.fromJson(Map<String, dynamic> json) =>
-      IncomeVersionModel(
+  factory AmountVersionModel.fromJson(Map<String, dynamic> json) =>
+      AmountVersionModel(
         amountCents: json['amountCents'] as int,
         validFrom: json['validFrom'] as String,
         validTo: json['validTo'] as String?,

@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
-import '../../../data/models/income_model.dart';
+import '../../../data/models/amount_version_model.dart';
+import '../../utils/money.dart';
+import '../../utils/month.dart';
 
 /// A linha do tempo de vigências — é a prova visual de que um reajuste em
-/// novembro não mexeu no que foi recebido em setembro.
-class IncomeHistoryCard extends StatelessWidget {
-  const IncomeHistoryCard({required this.income, super.key});
+/// novembro não mexeu no que foi pago em setembro.
+///
+/// Serve ganho e gasto porque os dois leem o mesmo motor de vigência no backend
+/// e recebem o histórico no mesmo formato. O que muda entre os dois é o texto
+/// das ações, não o desenho de uma linha do tempo — por isso aqui só entra a
+/// lista, e nenhum dos dois models.
+class AmountHistoryCard extends StatelessWidget {
+  const AmountHistoryCard({required this.history, super.key});
 
-  final IncomeModel income;
+  /// Da mais antiga para a mais nova, como o backend devolve.
+  final List<AmountVersionModel> history;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +41,7 @@ class IncomeHistoryCard extends StatelessWidget {
             ),
           ),
           // Mais recente primeiro: é o que se consulta com mais frequência.
-          for (final version in income.history.reversed)
+          for (final version in history.reversed)
             ListTile(
               dense: true,
               leading: Icon(
