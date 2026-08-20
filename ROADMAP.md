@@ -5,21 +5,20 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 19/08/2026.*
+*Atualizado em 20/08/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 3 concluídas** · a home mostra o
-resumo do mês, ganhos tem CRUD completo com reajuste, correção e encerramento, e
-cartões tem CRUD com a edição parcial do CAR-08, e um menu lateral na home leva
-às telas de cadastro.
+Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 4 concluídas** · a home mostra o
+resumo do mês, ganhos e gastos fixos têm CRUD completo com reajuste, correção e
+encerramento, cartões têm CRUD com a edição parcial do CAR-08, e um menu lateral
+na home leva às telas de cadastro.
 
-`flutter analyze` sem issue · **250 testes, 249 passando** · ganhos e cartões
-verificados contra o backend real em Docker, incluindo a recusa de 422 e as duas
-direções do `PATCH`.
+`flutter analyze` sem issue · **323 testes, todos passando** · ganhos, cartões e
+gastos verificados contra o backend real em Docker, incluindo as recusas de 422 e
+as duas direções do `PATCH`.
 
-**O teste vermelho é conhecido e não é regressão:** `app_router_test` › "da home
-até o formulário de cartão, pela lista" rola a home procurando uma linha
-"Cartões" que nunca chegou a ser construída (veja a Fase 3). Esse caminho hoje
-existe pelo menu lateral, e o teste precisa ser reescrito para andar por ele.
+O único teste vermelho que havia — `app_router_test` procurando uma linha
+"Cartões" que nunca chegou a existir na home — foi reescrito na Fase 4 para
+andar pelo menu lateral, que é por onde o caminho existe de verdade.
 
 Em 19/08, antes de abrir a Fase 3, foram fechadas duas dívidas que a fase nova
 ia copiar: a guarda de corrida existia só no `HomeController` (ver a convenção
@@ -158,10 +157,10 @@ o eixo vertical.
 **Tags e notificações são telas de aviso, não features.** Nenhuma das duas existe
 no backend. As telas entraram assim mesmo — "em desenvolvimento" numa, estado
 vazio explicado na outra — porque item de menu que não faz nada ao ser tocado é
-pior do que um que diz por quê. `/tags` e `/notifications` ficam sem fase no
-roadmap até haver endpoint — tags já tem spec do lado do backend
-(`docs/specs/06-tags.md`, Etapa 7, regras `TAG-01` a `TAG-13`), notificações não
-têm nem isso.
+pior do que um que diz por quê. As duas já têm spec do lado do backend — tags em
+`docs/specs/06-tags.md` (Etapa 7) e notificações em `docs/specs/07-notificacoes.md`
+(Etapa 8) —, e do lado do app notificações viraram a **Fase 9**. Tags continuam
+sem fase: são cadastro simples, e entram junto com o endpoint.
 
 **O corpo da home virou `CustomScrollView`.** A faixa de "voltar para o mês atual"
 é um `PinnedHeaderSliver`: fixa abaixo da AppBar e medida pela altura do próprio
@@ -186,7 +185,9 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `core/router/app_router.dart` | Instância do GoRouter + tela de 404 |
 | `core/shared/view_state.dart` | `Loading` / `Loaded` / `Failed` para a view dar switch exaustivo |
 | `core/shared/patch.dart` | `Patch<T>`: os três estados de um campo de `PATCH` — `keep`, `clear`, `to` |
-| `core/shared/widgets/app_drawer.dart` | Menu lateral da home: ganhos, cartões e tags |
+| `data/models/amount_version_model.dart` | `AmountVersionModel` — uma vigência de valor; serve ganho **e** gasto |
+| `core/shared/widgets/app_drawer.dart` | Menu lateral da home: ganhos, gastos, cartões e tags |
+| `core/shared/widgets/amount_history_card.dart` | A linha do tempo de vigências, usada por ganho e por gasto |
 | `core/shared/widgets/failure_card_widget.dart` | Card de erro único, com ícone e título por tipo de `Failure` |
 | `core/shared/forms/money_value_accessor.dart` | Ponte entre `FormControl<int>` em centavos e o texto do campo |
 | `core/shared/widgets/money_field_widget.dart` | `ReactiveTextField<int>` de dinheiro, com as mensagens de erro do valor |
@@ -213,8 +214,13 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `data/models/credit_card_model.dart` | `CreditCardModel` — o cartão do CRUD, **não** a fatura do resumo |
 | `data/repositories/credit_card_repository.dart` | As cinco rotas de `/credit-cards`, com o `PATCH` do CAR-08 |
 | `features/credit_cards/controller/` | `CreditCardListController` (lista + exclusão), `CreditCardFormController` (cadastro + edição) |
-| `features/credit_cards/view/` | Lista e formulário; não há tela de detalhe |
+| `features/credit_cards/view/` | Lista, formulário e a tela do cartão com os gastos dele |
 | `features/credit_cards/widgets/` | `CreditCardTile` |
+| `data/models/expense_model.dart` | `ExpenseModel` + os enums `ExpenseType` e `PaymentMethod` |
+| `data/repositories/expense_repository.dart` | As oito rotas de `/expenses` que a Fase 4 usa; parcelado fica para a Fase 5 |
+| `features/expenses/controller/` | `ExpenseListController`, `ExpenseFormController` (cadastro + edição), `ExpenseDetailController` |
+| `features/expenses/view/` | Lista, formulário e detalhe |
+| `features/expenses/widgets/` | `ExpenseTile` e os diálogos de valor e encerramento |
 | `features/tags/view/tag_list_page.dart` | Só o aviso de "em desenvolvimento" — não há endpoint de tags |
 | `features/notifications/view/notification_list_page.dart` | Só o estado vazio — o servidor ainda não manda notificação |
 
@@ -233,7 +239,8 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `core/utils/iso_date_test.dart` | 6 casos do formato de data, incluindo entrada fora do formato |
 | `fixtures/credit_card_fixture.dart` | JSON real de `/credit-cards`: cartão completo, cartão sem os opcionais, e sem competência |
 | `core/shared/patch_test.dart` | Os três estados do `Patch` e o `diff` que decide entre eles |
-| `features/home/home_navigation_test.dart` | O menu abre com os três destinos, cada um chega na tela certa, e o sino leva às notificações |
+| `features/home/home_navigation_test.dart` | O menu abre com os quatro destinos, cada um chega na tela certa, e o sino leva às notificações |
+| `fixtures/expense_fixture.dart` | JSON real de `/expenses`: aluguel com dois valores vigentes, gasto no cartão, avulso e um parcelado |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -272,10 +279,18 @@ Três consequências para quem escreve código:
 - **O decode fica dentro do `try`, e existe um `catch` genérico depois do
   `on AppException`.** `on AppException` não pega o `TypeError` de um cast, então
   sem essa rede um contrato quebrado no backend viraria crash em vez de `Failure`.
-  O `_serializationFailure` do `SummaryRepositoryImpl` embala o erro num
-  `SerializationException` e devolve como valor. Foi essa rede que transformou a
-  regressão do `ApiClient` em tela de erro em vez de tela branca — útil, e também
-  o motivo de ela ter passado despercebida por um tempo.
+  O `_serializationFailure` embala o erro num `SerializationException` e devolve
+  como valor. Foi essa rede que transformou a regressão do `ApiClient` em tela de
+  erro em vez de tela branca — útil, e também o motivo de ela ter passado
+  despercebida por um tempo.
+- **O `try/catch` fica escrito em cada método, e não num helper que recebe uma
+  closure.** Os repositórios de ganho, cartão e gasto chegaram a ter um `_guard`
+  que embrulhava o corpo de cada operação; foi removido em 20/08. A repetição é o
+  preço de o tratamento de erro ficar visível onde ele acontece — quem lê um
+  método vê o que ele faz com a falha sem sair dali, e um método que precise
+  tratar um caso a mais não briga com a forma do helper. O único trecho
+  compartilhado é o `_serializationFailure`, que é uma função pura de duas
+  linhas, não uma moldura de controle de fluxo.
 
 Cada nível tem função distinta: o mapper **classifica** (qual falha técnica foi),
 o `Failure` **traduz** (o que o usuário lê). É por isso que um 500 com
@@ -356,28 +371,32 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 1 — Resumo mensal: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 2 — Ganhos: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 3 — Cartões: **concluída** |
-| ░░░░░░░░░░ | Fases 4 a 8 — não iniciadas |
+| ▓▓▓▓▓▓▓▓▓▓ | Fase 4 — Gastos fixos: **concluída** |
+| ░░░░░░░░░░ | Fases 5 a 10 — não iniciadas |
 
-**Próximo passo: Fase 4 — Gastos fixos.** É a primeira fase com dois caminhos de
-pagamento (débito e cartão), e a que finalmente fecha o critério da Fase 3: o
-cartão cadastrado precisa aparecer como opção no formulário de gasto.
+A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
+fonte da verdade, não um cache, e só sai barata com o contrato parado.
 
-O que já está pronto para ela copiar: o `CreditCardRepository.list` alimenta o
-seletor de cartão; `Patch<T>` resolve o `PATCH` parcial, que em gastos é ainda
-mais restrito (só descrição, categoria e forma de pagamento); e o par
-reajuste/correção de ganhos é o molde do dinheiro com vigência, que `FIXED`
-repete.
+**Próximo passo: Fase 5 — Gastos parcelados.** É a fase com mais regra de
+negócio do app, e agora ela tem onde se apoiar: o `ExpenseRepository`, o
+`ExpenseModel` e as três telas de gasto já existem. O que falta é o **outro
+regime de escrita** — parcela materializada em vez de vigência.
 
-Duas armadilhas que a Fase 4 herda:
+O que a Fase 5 encontra pronto: `ExpenseModel` já lê `type`, `totalCents`,
+`installmentsCount` e `installmentLabel`, e já aguenta um parcelado sem engasgar
+(`history` vem null e vira lista vazia). Falta ler `installments`, criar com
+`type: INSTALLMENT`, e as duas operações próprias — reparcelamento e quitação.
+
+Duas armadilhas que a Fase 5 herda:
 
 **`FIXED` e `INSTALLMENT` não compartilham operação de dinheiro.** O campo do
 outro tipo vem `null`, e isso tem que virar duas telas de edição, não uma com
-ifs. Vale reler a seção do contrato antes de começar.
+ifs. Hoje o formulário e o detalhe assumem gasto fixo em todo canto — o seletor
+de tipo e o desvio para as telas de parcelado entram na Fase 5, não antes.
 
-**O 409 do CAR-07 nunca foi exercitado contra o backend**, porque excluir cartão
-só é recusado quando há gasto vinculado — e gasto não existia. O caminho de
-código está pronto e coberto por mock; a primeira chance de conferir ao vivo é
-depois do primeiro gasto no cartão.
+**O 409 do CAR-07 continua sem prova ao vivo, mas agora é possível fazê-la.**
+Excluir cartão só é recusado quando há gasto vinculado, e gasto passou a
+existir na Fase 4. É a primeira coisa a conferir contra o Docker.
 
 ### Fase 0 — Fundação · ▓▓▓▓▓▓▓▓▓▓ concluída
 Nenhuma tela. Só o encanamento que todas as fases seguintes usam.
@@ -582,22 +601,119 @@ do `PATCH`**, e as recusas do backend), `credit_card_pages_test.dart` (18 de
 widget: lista com e sem limite, vazia, erro, diálogo de exclusão com o 409,
 formulário nos dois modos, helper do CAR-03, e o "abrir e fechar não manda
 requisição"), mais 2 casos novos em `app_router_test.dart` — a corrente da home
-até o formulário, e a rota de edição. **O primeiro desses dois está vermelho**:
-ele rola a home atrás da linha "Cartões" que não foi construída. Reescrevê-lo
-para passar pelo menu lateral é a primeira dívida a pagar na Fase 4.
+até o formulário, e a rota de edição. O primeiro desses dois **ficou vermelho
+até a Fase 4**: ele rolava a home atrás da linha "Cartões" que nunca foi
+construída. Foi reescrito para entrar pelo menu lateral, que é por onde o
+caminho existe.
 
 **O que os testes da fase não cobrem:** o 409 do CAR-07 ao vivo (não há gasto para
 vincular) e o caminho de `dispose` do `CreditCardListController` em produção — no
 `test_injector` ele é `registerFactory`, mesma divergência que já existe no
 `HomeController`.
 
-### Fase 4 — Gastos fixos · ░░░░░░░░░░ não iniciada
-- Criar `FIXED` (débito ou cartão), editar detalhes
-- Reajuste com vigência, correção, encerramento
-- Recorrente vs. mês único (`recurring`)
+### Fase 4 — Gastos fixos · ▓▓▓▓▓▓▓▓▓▓ concluída
+A primeira fase com dois caminhos de pagamento, e a que fechou o critério da
+Fase 3.
+
+- [x] Criar `FIXED` no débito ou no cartão, com categoria opcional
+- [x] Editar dados cadastrais (GFX-06), com o `PATCH` parcial
+- [x] Reajuste, correção e encerramento — o mesmo motor de vigência de ganhos
+- [x] Recorrente vs. mês único (GFX-03)
+- [x] O cartão cadastrado aparece como opção no formulário — **critério da
+      Fase 3, fechado aqui**
+- [x] Item "Gastos" no menu lateral, e a seção "Débito e dinheiro" da home
+      virou porta da lista
+- [x] **Tela do cartão**: tocar um cartão mostra o que foi lançado nele e a
+      fatura do mês
 
 **Pronto quando:** um aluguel reajustado em julho aparece com valor antigo em
 junho e novo em julho, no resumo.
+→ **Fechado.** Contra o Docker, com o aluguel de R$ 1.200,00 reajustado para
+R$ 1.350,00 em julho: `/summary?month=2026-06` devolveu 120000 e
+`?month=2026-07` devolveu 135000. O ciclo inteiro foi exercitado pelo
+repositório de verdade — cadastro, reajuste, correção, os dois sentidos do
+`PATCH`, o 422 de reajuste retroativo, encerramento, listagem e exclusão.
+
+**Quatro decisões desta fase:**
+
+**`amountCents` nulo é o normal, não um erro.** Diferente de ganhos (GAN-10), o
+backend **não** escolhe uma vigência quando a busca vem sem `?month`: manda
+`amountCents: null` e o histórico completo. A lista de gastos busca sem
+competência de propósito — com ela, o backend esconderia o que não é cobrado
+neste mês (GFX-10), e um gasto encerrado ficaria inalcançável para consultar ou
+apagar. Então o valor exibido sai de `ExpenseModel.amountCentsIn(mês)`, e
+`latestAmountCents` cobre o que está fora de qualquer vigência.
+
+**O formulário de edição não tem campo de valor.** Descrição, categoria, forma
+de pagamento e cartão não são versionados (GFX-06) e valem para todos os meses;
+dinheiro muda por reajuste, correção ou encerramento, e cada um faz uma coisa
+diferente com o passado (CONC-11). Um campo "valor" na edição apagaria essa
+escolha — seria o "editar" genérico que o backend recusou a existir. Por isso o
+`submit` valida só os campos que o modo mostra: em edição, valor e competência
+nem estão na tela, e validar o grupo inteiro travaria o salvamento sem ter o que
+corrigir.
+
+**Trocar a forma de pagamento é um método, não um `valueChanges` escutado.** A
+troca tem dois efeitos que precisam valer no mesmo instante — cartão vira
+obrigatório, ou é descartado (GFX-01/GFX-07) — e o stream do reactive_forms
+entrega no microtask seguinte. Quem salvasse no mesmo frame da troca veria o
+estado anterior. `selectPaymentMethod` faz as duas coisas em sequência, e o
+`submit` refaz a sincronização como garantia, para a regra valer mesmo que o
+campo tenha sido preenchido por outro caminho.
+
+**A tela do cartão existe agora, e a Fase 3 tinha decidido que não existiria.**
+Na época a conta era outra: um cartão eram cinco campos, e uma tela só de leitura
+para eles seria um passo a mais no caminho do formulário. Com gasto no cartão
+existindo, ela responde o que a lista não responde — *o que eu lancei neste
+cartão?* —, então o toque na lista passou a abrir o cartão e a edição virou o
+lápis da barra, uma tela adentro. `/credit-cards/:id` é a tela do cartão e
+`/credit-cards/:id/edit` a edição, filha dela, para o "voltar" da edição cair no
+cartão. A fatura do resumo, na home, virou a segunda porta para o mesmo lugar.
+
+**São três buscas para montar a tela do cartão, e cada uma responde uma pergunta
+diferente.** O cartão com `?month` traz o vencimento resolvido (CAR-03); a lista
+**sem** competência traz tudo que existe no cartão, inclusive o encerrado; a
+lista **com** competência traz o que é cobrado no mês, já com valor. A terceira
+não dá para deduzir da segunda — sem competência o `amountCents` vem null, e num
+parcelado o valor do mês nem está no `history`, está nas parcelas (GFX-09).
+Somar o que dá localmente daria um total que passa a mentir no dia em que
+existir parcelado.
+
+**O nome do cartão no detalhe é best-effort.** O gasto traz `creditCardId`, não
+o nome, e uma segunda busca só para escrever "Nubank ••••1234" não pode virar
+tela de erro: se ela falha, a tela diz só "No cartão" e segue. O gasto já está
+montado quando a busca do cartão começa.
+
+**Dois arquivos saíram de ganhos para `core/shared`**, porque a Fase 4 provou
+que não eram de ganhos: `AmountVersionModel` (era `IncomeVersionModel`) e
+`AmountHistoryCard` (era `IncomeHistoryCard`). Os dois leem o mesmo motor de
+vigência do backend, que é compartilhado lá também (`AmountTimeline`,
+`shared/http/presenters.ts`). O que **não** foi unificado, de propósito: os
+diálogos de reajuste e encerramento, que se repetem em forma entre ganho e gasto
+mas falam de coisas diferentes ("recebi um aumento" × "o aluguel subiu"). É a
+mesma escolha que o backend fez entre `incomes` e `expenses` — DRY é sobre
+duplicar conhecimento, não texto.
+
+**Testes da fase** (82 no total): `expense_model_test.dart` (15: parse do JSON
+real com e sem competência, o parcelado que chega com `history` null, o valor
+por competência nos dois lados do reajuste, e a diferença entre "encerrado" e
+"não é mais cobrado"), `expense_list_controller_test.dart` (5: busca sem
+competência, falha, refresh silencioso e a guarda de corrida),
+`expense_form_controller_test.dart` (19: cadastro nos dois meios de pagamento, o
+cartão obrigatório do GFX-01, a limpeza do GFX-07, categoria vazia virando null,
+edição só do que é cadastral, os corpos do `PATCH` e o "abrir e fechar não manda
+requisição"), `expense_detail_controller_test.dart` (10: as quatro operações, a
+recarga silenciosa depois de cada uma, o 422 devolvido a quem chamou e o nome do
+cartão que falha sem derrubar a tela), `expense_pages_test.dart` (20 de widget),
+`credit_card_expenses_test.dart` (8: as três buscas, a soma da fatura, a falha
+e a tela), mais 3 casos novos em `app_router_test.dart`, 1 no
+`home_navigation_test.dart` e 1 no `home_page_test.dart`.
+
+**O que os testes da fase não cobrem:** o formulário não impede cadastrar gasto
+no cartão quando não há cartão nenhum — mostra um aviso e deixa o botão salvar
+recusar pelo campo obrigatório, que é feio mas correto; e o caminho de `dispose`
+do `ExpenseListController` em produção, mesma divergência de registro que já
+existe nas outras listas.
 
 ### Fase 5 — Gastos parcelados · ░░░░░░░░░░ não iniciada
 A fase com mais regra de negócio — vale deixar para depois de o padrão estar firme.
@@ -622,6 +738,87 @@ animações de transição, tratamento de "backend offline".
 Testes de model (parse do JSON real), de repositório (Dio mockado), de
 controller (repositório fake) e de widget nas telas principais. `flutter analyze`
 sem issue como porta de entrada.
+
+
+### Fase 9 — Notificações · ░░░░░░░░░░ não iniciada
+Depende da **Etapa 8 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
+e não começa antes dela: quem decide *quando* notificar é o servidor.
+
+**Por que não dá para resolver só no app.** Com o app fechado não existe timer
+que o sistema garanta — o Android mata alarme exato em Doze e o iOS não executa
+código arbitrário em background. Notificação agendada localmente serve para o
+que já está na memória do dispositivo e não depende de dado novo; vencimento de
+fatura muda quando um gasto é lançado em outro aparelho. Então: **push**, com o
+backend decidindo, e notificação local só para exibir o que chega em foreground.
+
+O que a fase entrega:
+
+- `firebase_messaging` para o push e `flutter_local_notifications` para exibir
+  em foreground — no foreground o FCM **não** desenha nada sozinho
+- Pedido de permissão (iOS sempre; Android 13+ pelo `POST_NOTIFICATIONS`), com o
+  app funcionando inteiro sem ela
+- Registro do token no backend a cada abertura e a cada `onTokenRefresh`, junto
+  com o fuso do aparelho — o servidor agenda em UTC, e "3 dias antes do dia 17"
+  só faz sentido no fuso de quem lê
+- Handler de background com `@pragma('vm:entry-point')`, que roda numa isolate
+  separada e não enxerga o `getIt` do app
+- Toque na notificação abre a tela certa — `go_router` já navega por nome, então
+  é o payload trazer rota e id
+- Tela de preferências: quais notificações, e com quantos dias de antecedência
+
+**Pronto quando:** com o app **fechado**, uma fatura que vence em três dias
+chega como notificação, e tocá-la abre o cartão certo.
+
+### Fase 10 — Offline-first · ░░░░░░░░░░ não iniciada
+**A última fase, e é de propósito.** O app hoje só funciona conectado: toda tela
+pergunta ao backend e mostra `FailureCardWidget` quando ele não responde.
+
+**Por que depois, e não junto.** Offline-first não é um cache que se liga no
+fim — é uma **segunda fonte da verdade**, com escrita própria, e cada tela passa
+a existir em dois modos. Enquanto o domínio ainda muda a cada fase (a 5 traz
+outro regime de escrita para gasto, a 7 traz notificação), escrever cada tela
+duas vezes dobra o custo de cada mudança. Fazer por último é pagar uma vez, com
+o contrato já parado.
+
+O que a fase entrega:
+
+- **Base local** (drift, provavelmente — SQL tipado e migration versionada), com
+  as mesmas tabelas do backend e um `updated_at` por linha
+- **Leitura cache-first**: a tela abre com o que está no disco e revalida em
+  seguida. O `Result<T, Failure>` já é a costura — a UI não muda, quem muda é o
+  repositório, que passa a ter duas fontes
+- **Escrita por outbox**: a mutação grava local, entra numa fila e a tela
+  responde na hora. Quem esvazia a fila é um sincronizador, com retry
+- **Sincronização por delta**, com o backend expondo `?since=` e **soft delete**
+  — sem `deleted_at`, um item apagado em outro aparelho ressuscita na próxima
+  sincronização
+
+Quatro problemas que esta fase precisa resolver, e que não existem hoje:
+
+**O id deixa de vir do backend.** Hoje o `201` devolve o `id` e o app o usa; um
+item criado offline precisa de id **antes** de existir no servidor. Isso obriga
+o app a gerar UUID e o backend a aceitá-lo no `POST`, de forma idempotente —
+reenviar a mesma criação não pode criar duas.
+
+**Vigência não aceita last-write-wins.** Dois aparelhos reajustando o mesmo
+gasto geram vigências que se sobrepõem, e a constraint `EXCLUDE USING gist`
+recusa a segunda — corretamente. "O último a escrever ganha" resolveria um
+`UPDATE` de campo solto, não uma linha do tempo de dinheiro. Precisa de política
+explícita, provavelmente rejeitar e mostrar o conflito a quem escreveu.
+
+**O resumo mensal é derivado, e o app não sabe derivá-lo.** `buildMonthlySummary`
+mora no backend, e portá-lo para o Dart duplicaria conhecimento — o que este
+projeto vem evitando de propósito. A saída barata é **cachear a resposta por
+competência** e marcar quando ela é velha; a cara é reimplementar a regra. A
+barata é a certa até prova em contrário.
+
+**"Atualizado quando?" vira informação de tela.** Um número velho sem aviso é
+pior que tela de erro: quem vê R$ 2.544,10 de saldo assume que é de agora. Cada
+tela que lê do cache precisa dizer de quando ele é.
+
+**Pronto quando:** com o Docker desligado, o app abre, mostra o mês com o aviso
+de que está desatualizado, aceita cadastrar um gasto, e ao religar o backend o
+gasto aparece lá sem duplicar.
 
 ---
 
@@ -757,7 +954,11 @@ Descobertas implementando a Fase 2:
 ## Decisões abertas
 
 1. **Autenticação e multi-usuário** — precisa existir? Muda o backend, não só o app.
-2. **Offline** — cache local (drift/sqflite) ou o app só funciona conectado?
+2. ~~**Offline**~~ — **resolvido em 19/08: entra, mas por último.** Vira a
+   **Fase 10**, depois de o app estar pronto. O motivo de não ser agora está lá;
+   o resumo é que offline-first não é um cache que se liga no fim, é uma segunda
+   fonte da verdade — e enquanto o domínio ainda muda a cada fase, cada tela
+   nova precisaria ser escrita duas vezes.
 3. ~~**`intl`**~~ — **resolvido em 19/08: não entra.** Moeda já é `Money`, e data
    passou a ser `IsoDate`, as duas por corte de string e sem `DateTime` no
    caminho. É a mesma razão do `Month`: `DateTime` carrega fuso, e fuso é o que
