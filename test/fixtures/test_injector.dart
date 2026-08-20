@@ -13,6 +13,7 @@ import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_list_controller.dart';
+import 'package:se_controle_ai/features/projection/controller/projection_controller.dart';
 
 import 'mocks.dart';
 
@@ -38,11 +39,18 @@ MockSummaryRepository setupTestInjector() {
   if (getIt.isRegistered<HomeController>()) {
     getIt.unregister<HomeController>();
   }
+  if (getIt.isRegistered<ProjectionController>()) {
+    getIt.unregister<ProjectionController>();
+  }
 
   getIt
     ..registerSingleton<SummaryRepository>(repository)
     ..registerFactory<HomeController>(
       () => HomeController(getIt<SummaryRepository>()),
+    )
+    // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
+    ..registerFactory<ProjectionController>(
+      () => ProjectionController(getIt<SummaryRepository>()),
     );
 
   return repository;

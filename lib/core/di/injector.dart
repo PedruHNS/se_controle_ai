@@ -15,6 +15,7 @@ import '../../features/home/controller/home_controller.dart';
 import '../../features/incomes/controller/income_detail_controller.dart';
 import '../../features/incomes/controller/income_form_controller.dart';
 import '../../features/incomes/controller/income_list_controller.dart';
+import '../../features/projection/controller/projection_controller.dart';
 import '../network/api_client.dart';
 import '../network/dio_factory.dart';
 
@@ -112,6 +113,14 @@ void setupInjector() {
       getIt<ExpenseRepository>(),
       getIt<CreditCardRepository>(),
     ),
+  );
+
+  // A projeção é lazySingleton como as outras listas: o horizonte escolhido
+  // sobrevive a sair da tela e voltar, que é o mesmo motivo de o mês da home
+  // sobreviver.
+  getIt.registerLazySingleton<ProjectionController>(
+    () => ProjectionController(getIt<SummaryRepository>()),
+    dispose: (e) => e.dispose(),
   );
 
   // Gastos repetem a divisão de ganhos: lista lazySingleton, formulário e

@@ -49,6 +49,11 @@ class AppDrawer extends StatelessWidget {
             route: AppRoutes.creditCards,
           ),
           _DrawerItem(
+            icon: Icons.show_chart,
+            label: 'Projeção',
+            route: AppRoutes.projection,
+          ),
+          _DrawerItem(
             icon: Icons.sell_outlined,
             label: 'Tags',
             route: AppRoutes.tags,

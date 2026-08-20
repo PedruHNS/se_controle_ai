@@ -7,6 +7,7 @@ import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 import 'package:se_controle_ai/features/notifications/view/notification_list_page.dart';
+import 'package:se_controle_ai/features/projection/view/projection_page.dart';
 import 'package:se_controle_ai/features/tags/view/tag_list_page.dart';
 
 import '../../fixtures/test_injector.dart';
@@ -39,7 +40,7 @@ void main() {
   Finder item(String label) =>
       find.descendant(of: find.byType(AppDrawer), matching: find.text(label));
 
-  testWidgets('o menu da home abre o drawer com os quatro destinos', (
+  testWidgets('o menu da home abre o drawer com os cinco destinos', (
     tester,
   ) async {
     await openDrawer(tester);
@@ -47,7 +48,17 @@ void main() {
     expect(item('Ganhos'), findsOneWidget);
     expect(item('Gastos'), findsOneWidget);
     expect(item('Cartões'), findsOneWidget);
+    expect(item('Projeção'), findsOneWidget);
     expect(item('Tags'), findsOneWidget);
+  });
+
+  testWidgets('Projeção leva à tela de projeção', (tester) async {
+    await openDrawer(tester);
+
+    await tester.tap(item('Projeção'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProjectionPage), findsOneWidget);
   });
 
   testWidgets('Gastos leva à lista de gastos', (tester) async {

@@ -15,6 +15,7 @@ import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 import 'credit_card_fixture.dart';
 import 'expense_fixture.dart';
 import 'income_fixture.dart';
+import 'projection_fixture.dart';
 import 'summary_fixture.dart';
 
 /// Os mocks de repositório do app.
@@ -47,16 +48,27 @@ void stubMonthly(
   });
 }
 
+/// Stub de `getProjection`.
+///
+/// O padrão é a projeção de exemplo, e não uma lista vazia: quase todo teste que
+/// mexe em projeção quer os seis meses reais, e quem quiser vazio passa vazio.
 void stubProjection(
   MockSummaryRepository mock, {
-  Result<List<MonthProjectionModel>, Failure> result = const Success([]),
+  Result<List<MonthProjectionModel>, Failure>? result,
+  Duration? delay,
 }) {
+  final answer =
+      result ??
+      Success(projectionJson.map(MonthProjectionModel.fromJson).toList());
   when(
     () => mock.getProjection(
       from: any(named: 'from'),
       months: any(named: 'months'),
     ),
-  ).thenAnswer((_) async => result);
+  ).thenAnswer((_) async {
+    if (delay != null) await Future<void>.delayed(delay);
+    return answer;
+  });
 }
 
 /// Mock de resumo pronto para uso: responde o mês de exemplo em qualquer mês

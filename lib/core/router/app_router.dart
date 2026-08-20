@@ -13,6 +13,7 @@ import '../../features/expenses/view/expense_form_page.dart';
 import '../../features/expenses/view/expense_list_page.dart';
 import '../../features/incomes/view/income_list_page.dart';
 import '../../features/notifications/view/notification_list_page.dart';
+import '../../features/projection/view/projection_page.dart';
 import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
 
@@ -134,6 +135,12 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.notificationsPath,
       name: AppRoutes.notifications,
       builder: (context, state) => const NotificationListPage(),
+    ),
+
+    GoRoute(
+      path: AppRoutes.projectionPath,
+      name: AppRoutes.projection,
+      builder: (context, state) => const ProjectionPage(),
     ),
   ],
 
