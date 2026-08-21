@@ -19,6 +19,15 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
   final _controller = getIt<IncomeFormController>();
 
   @override
+  void initState() {
+    super.initState();
+    // Sem await e sem estado de carregamento: a tag é opcional (TAG-07), então
+    // o formulário já é utilizável enquanto a lista não chega — o seletor
+    // aparece vazio e se preenche sozinho.
+    _controller.loadTags();
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -66,6 +75,21 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
                 labelText: 'Descrição',
                 hintText: 'Salário, freela, aluguel recebido',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SignalBuilder(
+              builder: (context) => ReactiveDropdownField<String>(
+                formControlName: IncomeFormController.tagId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Categoria (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (final tag in _controller.tags.value)
+                    DropdownMenuItem(value: tag.id, child: Text(tag.name)),
+                ],
               ),
             ),
             const SizedBox(height: 16),

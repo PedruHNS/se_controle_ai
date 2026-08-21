@@ -49,12 +49,12 @@ class ExpenseTile extends StatelessWidget {
         color: theme.colorScheme.onSurfaceVariant,
       ),
       title: Text(expense.description),
-      // O período é o que diferencia um aluguel de um presente na lista; a
-      // categoria entra junto quando existe, porque é ela que agrupa.
+      // O período é o que diferencia um aluguel de um presente na lista; a tag
+      // entra junto sempre, porque é ela que agrupa e é obrigatória (TAG-06).
       subtitle: Text(
         [
           Month.periodLabel(expense.startMonth, expense.endMonth),
-          if (expense.category != null) expense.category!,
+          expense.tag.name,
         ].join(' · '),
       ),
       trailing: Column(

@@ -1,6 +1,7 @@
 import '../../core/utils/month.dart';
 import 'amount_version_model.dart';
 import 'installment_model.dart';
+import 'tag_model.dart';
 
 /// Como o gasto é pago. O backend só aceita estes dois (GFX-01).
 enum PaymentMethod {
@@ -46,7 +47,8 @@ class ExpenseModel {
   const ExpenseModel({
     required this.id,
     required this.description,
-    required this.category,
+    required this.tag,
+    required this.notes,
     required this.type,
     required this.paymentMethod,
     required this.creditCardId,
@@ -64,8 +66,12 @@ class ExpenseModel {
   final String id;
   final String description;
 
-  /// Texto livre, sem tabela nem enum no backend. Opcional.
-  final String? category;
+  /// TAG-06: obrigatória no gasto. Substituiu a categoria em texto livre.
+  final TagModel tag;
+
+  /// Texto livre, opcional. Nada consulta este campo — nem filtra, nem agrupa,
+  /// nem entra no resumo. Só aparece no detalhe.
+  final String? notes;
 
   final ExpenseType type;
   final PaymentMethod paymentMethod;
@@ -180,7 +186,8 @@ class ExpenseModel {
   factory ExpenseModel.fromJson(Map<String, dynamic> json) => ExpenseModel(
     id: json['id'] as String,
     description: json['description'] as String,
-    category: json['category'] as String?,
+    tag: TagModel.fromJson(json['tag'] as Map<String, dynamic>),
+    notes: json['notes'] as String?,
     type: ExpenseType.fromWire(json['type'] as String),
     paymentMethod: PaymentMethod.fromWire(json['paymentMethod'] as String),
     creditCardId: json['creditCardId'] as String?,

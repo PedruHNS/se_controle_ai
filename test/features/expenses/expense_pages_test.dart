@@ -30,6 +30,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Escolhe a primeira tag do seletor.
+  ///
+  /// Virou passo obrigatório de qualquer teste que salve: com a TAG-06 o
+  /// formulário não é válido sem tag, e o submit nem chega ao repositório.
+  Future<void> escolherTag(WidgetTester tester) async {
+    await tester.tap(find.byType(DropdownButtonFormField<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Moradia').last);
+    await tester.pumpAndSettle();
+  }
+
   /// O formulário cresceu com o seletor de tipo, e o botão saiu da área
   /// visível do teste — a ListView não constrói o que está fora da tela.
   Future<void> tapSalvar(WidgetTester tester) async {
@@ -114,8 +125,9 @@ void main() {
       expect(find.text('Débito'), findsOneWidget);
       expect(find.text('Valor por mês'), findsOneWidget);
       expect(find.text('Cartão'), findsOneWidget);
-      // O seletor só aparece depois de escolher cartão.
-      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+      // Um só: o da categoria, que é obrigatória e está sempre visível. O do
+      // cartão só aparece depois de escolher cartão.
+      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     });
 
     // O critério da Fase 3, na tela: o cartão cadastrado aparece como opção.
@@ -127,9 +139,10 @@ void main() {
       await tester.tap(find.text('Cartão'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      // Dois agora: o da categoria e o do cartão que acabou de aparecer.
+      expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).last);
       await tester.pumpAndSettle();
 
       expect(find.text('Nubank ••••4321'), findsWidgets);
@@ -156,7 +169,8 @@ void main() {
           paymentMethod: any(named: 'paymentMethod'),
           amountCents: any(named: 'amountCents'),
           startMonth: any(named: 'startMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
         ),
@@ -173,6 +187,7 @@ void main() {
       await pumpForm(tester);
 
       await tester.enterText(find.byType(TextField).first, 'Aluguel');
+      await escolherTag(tester);
       await tester.enterText(find.byType(TextField).at(2), '1200,00');
       await tapSalvar(tester);
 
@@ -347,6 +362,15 @@ void main() {
 
     testWidgets('exclusão pede confirmação antes de excluir', (tester) async {
       await pumpDetail(tester);
+
+      // O card de observação empurrou a ação para baixo da dobra, e a ListView
+      // não constrói o que está fora da tela.
+      await tester.scrollUntilVisible(
+        find.text('Excluir'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Excluir'));
       await tester.pumpAndSettle();

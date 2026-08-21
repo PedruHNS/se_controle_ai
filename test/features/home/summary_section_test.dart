@@ -14,6 +14,7 @@ List<SummaryLineItemModel> _items(int count) => List.generate(
     description: 'Gasto $i',
     amountCents: 1000 * (i + 1),
     installmentLabel: null,
+    tag: null,
   ),
 );
 

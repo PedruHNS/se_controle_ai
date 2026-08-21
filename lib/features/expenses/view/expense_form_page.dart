@@ -8,7 +8,9 @@ import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/expense_model.dart';
+import '../../../data/models/tag_model.dart';
 import '../controller/expense_form_controller.dart';
+import '../widgets/tag_create_dialog.dart';
 
 /// Cadastro e edição de gasto.
 ///
@@ -133,17 +135,67 @@ class _ExpenseForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          // A categoria virou tag, e é obrigatória (TAG-06). O botão ao lado
+          // cria uma na hora: sem ele, precisar de um rótulo novo obrigaria a
+          // abandonar o cadastro pela metade — pior do que o texto livre que
+          // havia antes.
+          SignalBuilder(
+            builder: (context) {
+              final tags = controller.tags.value;
+
+              return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ReactiveDropdownField<String>(
+                    formControlName: ExpenseFormController.tagId,
+                    isExpanded: true,
+                    validationMessages: {
+                      ValidationMessage.required: (_) => 'Escolha a categoria.',
+                      ExpenseFormController.backendError: (error) => '\$error',
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Categoria',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final tag in tags)
+                        DropdownMenuItem(
+                          value: tag.id,
+                          child: _TagChipLabel(tag: tag),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: IconButton.filledTonal(
+                      onPressed: () => _createTag(context, controller),
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Nova categoria',
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           ReactiveTextField<String>(
-            formControlName: ExpenseFormController.category,
+            formControlName: ExpenseFormController.notes,
             textCapitalization: TextCapitalization.sentences,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
+            minLines: 2,
+            maxLines: 4,
             validationMessages: {
-              ExpenseFormController.backendError: (error) => '$error',
+              ExpenseFormController.backendError: (error) => '\$error',
             },
             decoration: const InputDecoration(
-              labelText: 'Categoria (opcional)',
-              hintText: 'Moradia, lazer, saúde',
+              labelText: 'Observação (opcional)',
+              hintText: 'Detalhe que o rótulo não carrega',
               border: OutlineInputBorder(),
+              alignLabelWithHint: true,
             ),
           ),
           const SizedBox(height: 16),
@@ -434,6 +486,50 @@ class _InstallmentPreview extends StatelessWidget {
               );
             },
           ),
+    );
+  }
+}
+
+/// Abre o diálogo, cria a tag e a seleciona. O erro do backend — nome repetido
+/// é 409 (TAG-01) — aparece em snackbar, e não como falha da tela: o formulário
+/// continua utilizável, só a criação não foi.
+Future<void> _createTag(
+  BuildContext context,
+  ExpenseFormController controller,
+) async {
+  final novo = await showTagCreateDialog(context);
+  if (novo == null) return;
+
+  final erro = await controller.createTag(name: novo.name, color: novo.color);
+  if (erro == null || !context.mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
+}
+
+/// O nome da tag com um ponto da cor dela na frente. Tag sem cor mostra só o
+/// nome — um ponto cinza sugeriria que a cor é cinza.
+class _TagChipLabel extends StatelessWidget {
+  const _TagChipLabel({required this.tag});
+
+  final TagModel tag;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tag.parsedColor;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (color != null) ...[
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(child: Text(tag.name, overflow: TextOverflow.ellipsis)),
+      ],
     );
   }
 }

@@ -52,7 +52,8 @@ abstract interface class ExpenseRepository {
     required int totalCents,
     required int installmentsCount,
     required String firstMonth,
-    String? category,
+    required String tagId,
+    String? notes,
     String? creditCardId,
   });
 
@@ -80,18 +81,20 @@ abstract interface class ExpenseRepository {
     required PaymentMethod paymentMethod,
     required int amountCents,
     required String startMonth,
-    String? category,
+    required String tagId,
+    String? notes,
     String? creditCardId,
     bool recurring = true,
   });
 
-  /// Dados cadastrais — descrição, categoria, forma de pagamento, cartão.
+  /// Dados cadastrais — descrição, tag, observação, forma de pagamento, cartão.
   /// **Não são versionados** (GFX-06): mudá-los muda a exibição de todos os
   /// meses, inclusive os passados, e isso é intencional.
   ///
-  /// Os dois campos anuláveis pedem [Patch] pelo mesmo motivo do CAR-08 do
-  /// cartão: campo ausente não muda nada, `null` limpa, e um `String?` não diz
-  /// as duas coisas. Trocar para débito limpa o cartão sozinho no backend
+  /// Os campos anuláveis pedem [Patch] pelo mesmo motivo do CAR-08 do cartão:
+  /// campo ausente não muda nada, `null` limpa, e um `String?` não diz as duas
+  /// coisas. [tagId] fica de fora disso porque a tag é obrigatória (TAG-06):
+  /// não existe "limpar a tag", só trocar — então `null` aqui é "não mexi". Trocar para débito limpa o cartão sozinho no backend
   /// (GFX-07), então nesse caso não é preciso mandar `creditCardId: null`.
   ///
   /// Corpo vazio volta 400, então quem chama confere antes se há o que mandar.
@@ -99,7 +102,8 @@ abstract interface class ExpenseRepository {
     String id, {
     String? description,
     PaymentMethod? paymentMethod,
-    Patch<String> category,
+    String? tagId,
+    Patch<String> notes,
     Patch<String> creditCardId,
   });
 
@@ -177,7 +181,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required PaymentMethod paymentMethod,
     required int amountCents,
     required String startMonth,
-    String? category,
+    required String tagId,
+    String? notes,
     String? creditCardId,
     bool recurring = true,
   }) async {
@@ -187,7 +192,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
         data: {
           'type': ExpenseType.fixed.wire,
           'description': description,
-          'category': category,
+          'tagId': tagId,
+          'notes': notes,
           'paymentMethod': paymentMethod.wire,
           'creditCardId': creditCardId,
           'amountCents': amountCents,
@@ -208,7 +214,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     String id, {
     String? description,
     PaymentMethod? paymentMethod,
-    Patch<String> category = const Patch.keep(),
+    String? tagId,
+    Patch<String> notes = const Patch.keep(),
     Patch<String> creditCardId = const Patch.keep(),
   }) async {
     try {
@@ -218,9 +225,10 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       final body = <String, dynamic>{
         'description': ?description,
         'paymentMethod': ?paymentMethod?.wire,
+        'tagId': ?tagId,
       };
 
-      category.writeTo(body, 'category');
+      notes.writeTo(body, 'notes');
       creditCardId.writeTo(body, 'creditCardId');
 
       await _api.patch('/expenses/$id', data: body);
@@ -239,7 +247,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required int totalCents,
     required int installmentsCount,
     required String firstMonth,
-    String? category,
+    required String tagId,
+    String? notes,
     String? creditCardId,
   }) async {
     try {
@@ -248,7 +257,8 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
         data: {
           'type': ExpenseType.installment.wire,
           'description': description,
-          'category': category,
+          'tagId': tagId,
+          'notes': notes,
           'paymentMethod': paymentMethod.wire,
           'creditCardId': creditCardId,
           'totalCents': totalCents,

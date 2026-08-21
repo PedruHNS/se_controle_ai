@@ -7,8 +7,10 @@ import '../../../core/utils/base_controller.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
+import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/credit_card_repository.dart';
 import '../../../data/repositories/expense_repository.dart';
+import '../../../data/repositories/tag_repository.dart';
 
 /// Cadastro e edição de gasto, no mesmo formulário.
 ///
@@ -18,8 +20,8 @@ import '../../../data/repositories/expense_repository.dart';
 /// verdade dele. O backend nem oferece a operação; aqui o seletor some na
 /// edição.
 ///
-/// **Em edição, só os dados cadastrais aparecem.** Descrição, categoria, forma
-/// de pagamento e cartão não são versionados (GFX-06): mudá-los vale para todos
+/// **Em edição, só os dados cadastrais aparecem.** Descrição, tag, observação,
+/// forma de pagamento e cartão não são versionados (GFX-06): mudá-los vale para todos
 /// os meses, inclusive os passados. Valor, competência inicial e recorrência
 /// ficam de fora de propósito — quem mexe em dinheiro é reajuste, correção ou
 /// encerramento, na tela de detalhe, e cada um faz uma coisa diferente com o
@@ -29,15 +31,21 @@ import '../../../data/repositories/expense_repository.dart';
 /// e é por ele que "não mexi" se separa de "apaguei" — dois estados que chegam
 /// do `FormControl` iguais, como `null`.
 class ExpenseFormController extends BaseController {
-  ExpenseFormController(this._repository, this._cardRepository);
+  ExpenseFormController(
+    this._repository,
+    this._cardRepository,
+    this._tagRepository,
+  );
 
   final ExpenseRepository _repository;
   final CreditCardRepository _cardRepository;
+  final TagRepository _tagRepository;
 
   /// Nomes dos campos, iguais aos do backend porque é assim que o
   /// `issues[].path` de um 400 encontra o campo certo.
   static const description = 'description';
-  static const category = 'category';
+  static const tagId = 'tagId';
+  static const notes = 'notes';
   static const paymentMethod = 'paymentMethod';
   static const creditCardId = 'creditCardId';
   static const type = 'type';
@@ -69,10 +77,13 @@ class ExpenseFormController extends BaseController {
   ExpenseModel? _expenseOnOpen;
 
   List<CreditCardModel> _cards = const [];
+  List<TagModel> _tags = const [];
 
   final form = FormGroup({
     description: FormControl<String>(validators: [Validators.required]),
-    category: FormControl<String>(),
+    // TAG-06: obrigatória. Era `category`, texto livre e opcional.
+    tagId: FormControl<String>(validators: [Validators.required]),
+    notes: FormControl<String>(),
     // Débito é o padrão porque é o caso sem pergunta seguinte: escolher cartão
     // obriga a escolher qual.
     paymentMethod: FormControl<PaymentMethod>(value: PaymentMethod.debit),
@@ -103,6 +114,7 @@ class ExpenseFormController extends BaseController {
     ),
   });
 
+  final _tagsSignal = signal<List<TagModel>>(const []);
   final _saving = signal<bool>(false);
   final _ready = signal<bool>(false);
   final _failure = signal<Failure?>(null);
@@ -129,6 +141,10 @@ class ExpenseFormController extends BaseController {
   /// formulário aparecer, então a view lê isto sem precisar de signal.
   List<CreditCardModel> get cards => _cards;
 
+  /// As tags que o seletor oferece, na ordem que o backend devolve (por nome).
+  /// Muda quando [createTag] adiciona uma, por isso é signal e não getter puro.
+  ReadonlySignal<List<TagModel>> get tags => _tagsSignal;
+
   FormControl<T> control<T>(String name) =>
       form.control(name) as FormControl<T>;
 
@@ -142,7 +158,12 @@ class ExpenseFormController extends BaseController {
     _failure.value = null;
     _ready.value = false;
 
-    final cards = await _cardRepository.list();
+    // Em paralelo: os dois são obrigatórios para a tela abrir, e sequenciar
+    // pagaria duas idas ao servidor uma depois da outra sem motivo.
+    final (cards, tagList) = await (
+      _cardRepository.list(),
+      _tagRepository.list(),
+    ).wait;
 
     final loaded = cards.when(
       (list) {
@@ -159,6 +180,22 @@ class ExpenseFormController extends BaseController {
     );
 
     if (!loaded) return;
+
+    // Sem tags o formulário não tem como salvar (TAG-06), então falhar aqui é
+    // tão bloqueante quanto falhar nos cartões.
+    final tagsLoaded = tagList.when(
+      (list) {
+        _tags = list;
+        _tagsSignal.value = list;
+        return true;
+      },
+      (failure) {
+        _failure.value = failure;
+        return false;
+      },
+    );
+
+    if (!tagsLoaded) return;
 
     if (id == null) {
       _syncCreditCardValidators();
@@ -177,6 +214,50 @@ class ExpenseFormController extends BaseController {
 
   /// Nova tentativa dos `GET` que a tela precisa para abrir.
   Future<void> retry() => start(id: _id);
+
+  /// Cria uma tag e já a seleciona no formulário.
+  ///
+  /// Existe aqui, e não só numa tela de gerenciamento, porque a tag substituiu
+  /// um campo de texto livre: sem poder criar no meio do cadastro, quem
+  /// precisasse de um rótulo novo teria que abandonar o gasto pela metade —
+  /// que é pior do que era antes.
+  ///
+  /// Devolve a mensagem de erro quando o backend recusa (nome repetido é 409,
+  /// TAG-01) e `null` quando deu certo. A falha não vai para [generalFailure]:
+  /// ela pertence ao diálogo, não à tela inteira, que continua utilizável.
+  Future<String?> createTag({required String name, String? color}) async {
+    final created = await _tagRepository.create(name: name, color: color);
+
+    return created.when(
+      (id) async {
+        final refreshed = await _tagRepository.list();
+
+        return refreshed.when(
+          (list) {
+            _tags = list;
+            _tagsSignal.value = list;
+            control<String>(tagId).updateValue(id);
+            return null;
+          },
+          // A tag existe no servidor, mas a lista local não sabe. Reabrir
+          // resolve; travar o formulário por isso seria desproporcional.
+          (failure) => failure.message,
+        );
+      },
+      (failure) => failure.message,
+    );
+  }
+
+  /// A tag escolhida, ou null enquanto nenhuma foi. A view usa para pintar o
+  /// chip com a cor certa.
+  TagModel? get selectedTag {
+    final id = control<String>(tagId).value;
+    if (id == null) return null;
+    for (final tag in _tags) {
+      if (tag.id == id) return tag;
+    }
+    return null;
+  }
 
   /// Troca entre gasto fixo e parcelado. Só existe no cadastro.
   void selectType(ExpenseType value) =>
@@ -219,7 +300,8 @@ class ExpenseFormController extends BaseController {
 
     form.patchValue({
       description: expense.description,
-      category: expense.category,
+      tagId: expense.tag.id,
+      notes: expense.notes,
       paymentMethod: expense.paymentMethod,
       creditCardId: expense.creditCardId,
     });
@@ -244,7 +326,8 @@ class ExpenseFormController extends BaseController {
     // que corrigir na tela.
     final fields = [
       description,
-      category,
+      tagId,
+      notes,
       paymentMethod,
       creditCardId,
       if (!isEditing)
@@ -288,7 +371,8 @@ class ExpenseFormController extends BaseController {
   Future<String?> _createFixed() async {
     final result = await _repository.createFixed(
       description: _description,
-      category: _category,
+      tagId: _tagId,
+      notes: _notes,
       paymentMethod: _method,
       creditCardId: _cardId,
       amountCents: control<int>(amountCents).value!,
@@ -305,7 +389,8 @@ class ExpenseFormController extends BaseController {
   Future<String?> _createInstallment() async {
     final result = await _repository.createInstallment(
       description: _description,
-      category: _category,
+      tagId: _tagId,
+      notes: _notes,
       paymentMethod: _method,
       creditCardId: _cardId,
       totalCents: control<int>(totalCents).value!,
@@ -322,7 +407,10 @@ class ExpenseFormController extends BaseController {
   Future<String?> _update() async {
     final before = _expenseOnOpen!;
 
-    final newCategory = Patch<String>.diff(_category, before.category);
+    final newNotes = Patch<String>.diff(_notes, before.notes);
+    // Tag não usa Patch: sendo obrigatória (TAG-06), não existe "limpar", só
+    // trocar — então null aqui só pode significar "não mexi".
+    final newTagId = _tagId == before.tag.id ? null : _tagId;
     // Quando a forma vira débito, `_cardId` é null e o diff dá `clear()`. O
     // backend limparia sozinho (GFX-07), mas mandar explícito não custa e
     // deixa o corpo legível no log.
@@ -336,7 +424,8 @@ class ExpenseFormController extends BaseController {
     final nothingChanged =
         newDescription == null &&
         newMethod == null &&
-        !newCategory.changesSomething &&
+        newTagId == null &&
+        !newNotes.changesSomething &&
         !newCard.changesSomething;
 
     // Salvar sem ter mexido em nada seria um `PATCH` de corpo vazio, e o
@@ -348,7 +437,8 @@ class ExpenseFormController extends BaseController {
       _id!,
       description: newDescription,
       paymentMethod: newMethod,
-      category: newCategory,
+      tagId: newTagId,
+      notes: newNotes,
       creditCardId: newCard,
     );
 
@@ -360,10 +450,12 @@ class ExpenseFormController extends BaseController {
 
   String get _description => control<String>(description).value!.trim();
 
-  /// Categoria vazia é `null`, e não `''`: o backend recusa string de tamanho
-  /// zero, e vazio aqui quer dizer "sem categoria".
-  String? get _category {
-    final value = control<String>(category).value?.trim() ?? '';
+  String get _tagId => control<String>(tagId).value!;
+
+  /// Observação vazia é `null`, e não `''`: o backend recusa string de tamanho
+  /// zero, e vazio aqui quer dizer "sem observação".
+  String? get _notes {
+    final value = control<String>(notes).value?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 

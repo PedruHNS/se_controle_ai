@@ -5,7 +5,7 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 21/08/2026.*
+*Atualizado em 21/08/2026 (segunda revisão).*
 
 Flutter 3.47.1 · Dart 3.13.1 · **Fases 0 a 6 concluídas** · a home mostra o
 resumo do mês, ganhos e gastos fixos têm CRUD completo com reajuste, correção e
@@ -13,7 +13,7 @@ encerramento, gasto parcelado tem reparcelamento e quitação, cartões têm CRU
 a edição parcial do CAR-08, a projeção mostra para onde o saldo caminha, e um
 menu lateral na home leva a todas elas.
 
-`flutter analyze` sem issue · **372 testes, todos passando** · ganhos, cartões e
+`flutter analyze` sem issue · **382 testes, todos passando** · ganhos, cartões e
 gastos verificados contra o backend real em Docker, incluindo as recusas de 422,
 as duas direções do `PATCH` e o 409 do CAR-07.
 
@@ -22,6 +22,14 @@ Em 21/08 o SDK subiu de 3.44 para 3.47.1 (Dart 3.13.1) — o `pubspec` já pedia
 débito da home passou a mostrar só as quatro linhas mais recentes, com o backend
 entregando a lista já ordenada (ver a convenção de ordem abaixo), e o
 `_defaultBaseUrl` foi corrigido depois que a rede local trocou de sub-rede.
+
+**Ainda em 21/08 entraram as tags**, com a Etapa 6 do backend. A categoria em
+texto livre do gasto virou uma **tag obrigatória**, escolhida num seletor que
+também cria tag nova sem sair do formulário — sem isso, precisar de um rótulo
+novo obrigaria a abandonar o cadastro pela metade, o que seria pior que o texto
+livre. O ganho ganhou o mesmo seletor, opcional. Entrou junto um campo de
+**observação**, texto livre e opcional, que aparece só no detalhe do gasto:
+nada o consulta, então mostrá-lo na lista roubaria espaço do que agrupa.
 
 O único teste vermelho que havia — `app_router_test` procurando uma linha
 "Cartões" que nunca chegou a existir na home — foi reescrito na Fase 4 para
@@ -166,8 +174,9 @@ no backend. As telas entraram assim mesmo — "em desenvolvimento" numa, estado
 vazio explicado na outra — porque item de menu que não faz nada ao ser tocado é
 pior do que um que diz por quê. As duas já têm spec do lado do backend — tags em
 `docs/specs/06-tags.md` (Etapa 6) e notificações em `docs/specs/07-notificacoes.md`
-(Etapa 7) —, e do lado do app notificações viraram a **Fase 9**. Tags continuam
-sem fase: são cadastro simples, e entram junto com o endpoint.
+(Etapa 7) —, e do lado do app notificações viraram a **Fase 9**. Tags entraram
+em 21/08, junto com a Etapa 6 do backend, sem virar fase própria — como
+previsto, foram cadastro simples que veio junto com o endpoint.
 
 **O corpo da home virou `CustomScrollView`.** A faixa de "voltar para o mês atual"
 é um `PinnedHeaderSliver`: fixa abaixo da AppBar e medida pela altura do próprio
@@ -213,6 +222,9 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `features/home/controller/home_controller.dart` | Estado do resumo com signals — **é o molde a copiar** |
 | `features/home/view/home_page.dart` | A tela: `CustomScrollView` com a faixa fixa, navegação de mês, `switch` no `ViewState`, pull-to-refresh |
 | `features/home/widgets/` | `BalanceCard`, `SummarySection` (com o teto de linhas `maxItems`), `CreditCardInvoiceCard`, `LineItemTile` |
+| `data/models/tag_model.dart` | A tag, com o parse tolerante de `#RRGGBB` para `Color` |
+| `data/repositories/tag_repository.dart` | As quatro operações de `/tags` |
+| `features/expenses/widgets/tag_create_dialog.dart` | Cria tag sem sair do formulário, com paleta fixa em vez de seletor livre de cor |
 | `features/projection/` | Controller, tela e o `ProjectionChart` — barras do acumulado, sem biblioteca |
 | `data/models/income_model.dart` · `income_version_model.dart` | O ganho e suas vigências |
 | `data/repositories/income_repository.dart` | As sete rotas de `/incomes`, com reajuste e correção separados |
@@ -253,6 +265,8 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `fixtures/expense_fixture.dart` | JSON real de `/expenses`: aluguel com dois valores vigentes, gasto no cartão, avulso, e um parcelado antes e depois de reparcelado |
 | `features/expenses/expense_installment_test.dart` | O que só o parcelado tem: plano, reparcelamento, quitação, e o formulário que troca de campos |
 | `features/projection/projection_test.dart` | Horizonte, guarda de corrida e o aviso do primeiro mês no vermelho |
+| `features/expenses/tag_test.dart` | O model da tag, o seletor obrigatório que bloqueia o salvamento, e o criar-sem-sair-do-formulário — inclusive o 409 de nome repetido, que fica no diálogo e não derruba a tela |
+| `fixtures/tag_fixture.dart` | JSON real de `/tags`: as tags que a migration criou a partir das categorias |
 | `features/home/summary_section_test.dart` | O teto de linhas da seção: ordem preservada sem reordenar, rodapé no singular e no plural, limite exato sem rodapé, e o total que não é recalculado sobre a fatia visível |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
@@ -343,7 +357,7 @@ a fatura de cada cartão (com `label`, `dueDate`, `limitCents`, itens).
 ### Ganhos
 | Método | Rota | Semântica |
 |---|---|---|
-| POST | `/incomes` | `{description, amountCents, startMonth, recurring?}` — `recurring` default `true` |
+| POST | `/incomes` | `{description, amountCents, startMonth, recurring?, tagId?}` — `recurring` default `true`, `tagId` opcional |
 | GET | `/incomes?month=` · `/incomes/:id?month=` | `amountCents` = valor vigente no mês |
 | POST | `/incomes/:id/adjustments` | Aumento: preserva os meses anteriores |
 | PATCH | `/incomes/:id/amount` | Correção: o valor estava errado desde o início |
@@ -353,6 +367,21 @@ a fatura de cada cartão (com `label`, `dueDate`, `limitCents`, itens).
 **Reajuste e correção são operações diferentes** e a UI precisa deixar isso
 explícito — não são dois caminhos para "editar valor".
 
+### Tags
+| Método | Rota | Semântica |
+|---|---|---|
+| POST | `/tags` | `{name, color?}`. Nome repetido ignorando caixa é 409 |
+| GET | `/tags` | Ordenado por nome |
+| PATCH | `/tags/:id` | Nome e cor; `null` limpa a cor |
+| DELETE | `/tags/:id` | **409 se algum lançamento usa a tag** |
+
+**A tag é a categoria, e é obrigatória no gasto.** Não existem os dois
+conceitos: `category`, que era texto livre, foi removida. No ganho a tag é
+opcional — exigir rótulo para lançar salário obrigaria a inventar um. Excluir
+tag em uso é recusado, ao contrário do que a spec original previa: com
+`tag_id NOT NULL`, cascatear deixaria o gasto num estado que o schema não
+admite. É o mesmo arranjo do CAR-07 do cartão.
+
 ### Cartões
 | Método | Rota |
 |---|---|
@@ -361,10 +390,10 @@ explícito — não são dois caminhos para "editar valor".
 ### Gastos
 | Método | Rota | Semântica |
 |---|---|---|
-| POST | `/expenses` | Discriminado por `type`: `FIXED` ou `INSTALLMENT` |
+| POST | `/expenses` | Discriminado por `type`: `FIXED` ou `INSTALLMENT`. `tagId` **obrigatório**, `notes` opcional |
 | GET | `/expenses?month=&type=&paymentMethod=&creditCardId=` | Filtros combináveis |
 | GET | `/expenses/:id?month=` | |
-| PATCH | `/expenses/:id` | Só descrição/categoria/forma de pagamento |
+| PATCH | `/expenses/:id` | Só descrição/tag/observação/forma de pagamento |
 | POST | `/expenses/:id/adjustments` · PATCH `/amount` · POST `/closure` | Só `FIXED` |
 | POST | `/expenses/:id/reschedule` · POST `/settlement` | Só `INSTALLMENT` |
 | DELETE | `/expenses/:id` | |

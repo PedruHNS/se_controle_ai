@@ -5,6 +5,7 @@ import '../../data/repositories/credit_card_repository.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../../data/repositories/income_repository.dart';
 import '../../data/repositories/summary_repository.dart';
+import '../../data/repositories/tag_repository.dart';
 import '../../features/credit_cards/controller/credit_card_expenses_controller.dart';
 import '../../features/credit_cards/controller/credit_card_form_controller.dart';
 import '../../features/credit_cards/controller/credit_card_list_controller.dart';
@@ -56,6 +57,10 @@ void setupInjector() {
     () => ExpenseRepositoryImpl(getIt<ApiClient>()),
   );
 
+  getIt.registerLazySingleton<TagRepository>(
+    () => HttpTagRepository(getIt<ApiClient>()),
+  );
+
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
   // get_it — a página não chama `dispose` no controller. O dono da instância é o
   // container, não a tela: sair da home e voltar reaproveita o mesmo controller,
@@ -85,7 +90,7 @@ void setupInjector() {
   // O detalhe recebe o id pelo `start`, e não pelo registro: id é dado de rota,
   // e quem o conhece é a view.
   getIt.registerFactory<IncomeFormController>(
-    () => IncomeFormController(getIt<IncomeRepository>()),
+    () => IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
   );
 
   getIt.registerFactory<IncomeDetailController>(
@@ -139,6 +144,7 @@ void setupInjector() {
     () => ExpenseFormController(
       getIt<ExpenseRepository>(),
       getIt<CreditCardRepository>(),
+      getIt<TagRepository>(),
     ),
   );
 

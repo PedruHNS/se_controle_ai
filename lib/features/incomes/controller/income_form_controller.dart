@@ -4,7 +4,9 @@ import 'package:signals/signals.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../core/utils/month.dart';
+import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/income_repository.dart';
+import '../../../data/repositories/tag_repository.dart';
 
 /// Cadastro de ganho.
 ///
@@ -16,13 +18,15 @@ import '../../../data/repositories/income_repository.dart';
 /// `FormGroup`, `FormControl` e `Validators` não são widgets, então o controller
 /// continua testável sem `pumpWidget` — os widgets `Reactive*` ficam na view.
 class IncomeFormController extends BaseController {
-  IncomeFormController(this._repository);
+  IncomeFormController(this._repository, this._tagRepository);
 
   final IncomeRepository _repository;
+  final TagRepository _tagRepository;
 
   /// Nomes dos campos como constante: eles aparecem na view, na validação e no
   /// `issues[].path` do backend, e um deles escrito errado falharia calado.
   static const description = 'description';
+  static const tagId = 'tagId';
   static const amountCents = 'amountCents';
   static const startMonth = 'startMonth';
   static const recurring = 'recurring';
@@ -34,6 +38,10 @@ class IncomeFormController extends BaseController {
 
   final form = FormGroup({
     description: FormControl<String>(validators: [Validators.required]),
+    // TAG-07: sem `Validators.required` — no ganho a tag é opcional, ao
+    // contrário do gasto. Exigir rótulo no cadastro mais comum do app
+    // obrigaria a inventar uma tag para lançar salário.
+    tagId: FormControl<String>(),
     amountCents: FormControl<int>(
       validators: [Validators.required, Validators.min(1)],
     ),
@@ -44,10 +52,15 @@ class IncomeFormController extends BaseController {
     recurring: FormControl<bool>(value: true, disabled: false),
   });
 
+  final _tags = signal<List<TagModel>>(const []);
   final _saving = signal<bool>(false);
   final _failure = signal<Failure?>(null);
 
   ReadonlySignal<bool> get saving => _saving;
+
+  /// As tags que o seletor oferece. Vazia até [loadTags] responder — e uma
+  /// lista vazia não impede o cadastro, porque a tag é opcional aqui.
+  ReadonlySignal<List<TagModel>> get tags => _tags;
 
   /// A falha que não pertence a nenhum campo — rede, 500, regra de negócio.
   /// Vira snackbar; erro de campo já está embaixo do campo.
@@ -55,6 +68,16 @@ class IncomeFormController extends BaseController {
 
   FormControl<T> control<T>(String name) =>
       form.control(name) as FormControl<T>;
+
+  /// Busca as tags do seletor.
+  ///
+  /// A falha é engolida de propósito: sendo a tag opcional (TAG-07), não poder
+  /// escolher rótulo não pode impedir o cadastro do ganho. O seletor fica
+  /// vazio, o resto do formulário funciona.
+  Future<void> loadTags() async {
+    final result = await _tagRepository.list();
+    result.when((list) => _tags.value = list, (_) {});
+  }
 
   /// Devolve o `id` criado, ou null se o formulário é inválido ou o backend
   /// recusou. A view usa o retorno para decidir entre fechar a tela e continuar
@@ -72,6 +95,7 @@ class IncomeFormController extends BaseController {
 
     final result = await _repository.create(
       description: control<String>(description).value!.trim(),
+      tagId: control<String>(tagId).value,
       amountCents: control<int>(amountCents).value!,
       startMonth: control<String>(startMonth).value!,
       recurring: control<bool>(recurring).value ?? true,

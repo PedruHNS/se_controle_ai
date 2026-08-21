@@ -1,5 +1,6 @@
 import '../../core/utils/month.dart';
 import 'amount_version_model.dart';
+import 'tag_model.dart';
 
 /// Um ganho: salário, freela, 13º, aluguel recebido.
 ///
@@ -10,6 +11,7 @@ class IncomeModel {
   const IncomeModel({
     required this.id,
     required this.description,
+    required this.tag,
     required this.recurring,
     required this.startMonth,
     required this.endMonth,
@@ -19,6 +21,9 @@ class IncomeModel {
 
   final String id;
   final String description;
+
+  /// TAG-07: opcional no ganho — salário não precisa de rótulo.
+  final TagModel? tag;
 
   /// Segue até ser encerrado. Falso em ganho de mês único (13º, freela) e
   /// também depois de um encerramento.
@@ -94,6 +99,9 @@ class IncomeModel {
   factory IncomeModel.fromJson(Map<String, dynamic> json) => IncomeModel(
     id: json['id'] as String,
     description: json['description'] as String,
+    tag: json['tag'] == null
+        ? null
+        : TagModel.fromJson(json['tag'] as Map<String, dynamic>),
     recurring: json['recurring'] as bool,
     startMonth: json['startMonth'] as String,
     endMonth: json['endMonth'] as String?,

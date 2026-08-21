@@ -11,14 +11,19 @@ import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
+import '../../fixtures/tag_fixture.dart';
 import '../../fixtures/test_injector.dart';
 
 void main() {
   late MockExpenseRepository repository;
   late MockCreditCardRepository cards;
+  late MockTagRepository tags;
 
   setUp(() {
     cards = setupCreditCardTestInjector();
+    // O setupExpense já registra as tags no getIt; aqui é o mesmo mock, para o
+    // teste poder construir o controller à mão.
+    tags = setupTagTestInjector();
     repository = setupExpenseTestInjector(
       mock: expenseRepositoryMock(
         detail: Success(ExpenseModel.fromJson(geladeiraJson)),
@@ -70,7 +75,7 @@ void main() {
   group('cadastro', () {
     late ExpenseFormController controller;
 
-    setUp(() => controller = ExpenseFormController(repository, cards));
+    setUp(() => controller = ExpenseFormController(repository, cards, tags));
     tearDown(() => controller.dispose());
 
     test('nasce como fixo', () async {
@@ -84,6 +89,7 @@ void main() {
       controller.selectType(ExpenseType.installment);
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Geladeira',
         ExpenseFormController.totalCents: 300000,
         ExpenseFormController.installmentsCount: 10,
@@ -100,7 +106,8 @@ void main() {
           totalCents: 300000,
           installmentsCount: 10,
           firstMonth: '2026-01',
-          category: null,
+          tagId: any(named: 'tagId'),
+          notes: null,
           creditCardId: null,
         ),
       ).called(1);
@@ -114,6 +121,7 @@ void main() {
       controller.selectType(ExpenseType.installment);
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Geladeira',
         ExpenseFormController.totalCents: 300000,
       });
@@ -132,6 +140,7 @@ void main() {
       controller.selectType(ExpenseType.fixed);
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Aluguel',
         ExpenseFormController.amountCents: 120000,
       });
@@ -144,7 +153,8 @@ void main() {
           paymentMethod: any(named: 'paymentMethod'),
           amountCents: 120000,
           startMonth: any(named: 'startMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
         ),
@@ -156,7 +166,8 @@ void main() {
           totalCents: any(named: 'totalCents'),
           installmentsCount: any(named: 'installmentsCount'),
           firstMonth: any(named: 'firstMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
         ),
       );
@@ -167,6 +178,7 @@ void main() {
       controller.selectType(ExpenseType.installment);
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Geladeira',
         ExpenseFormController.totalCents: 300000,
         ExpenseFormController.installmentsCount: 1,
@@ -180,7 +192,8 @@ void main() {
           totalCents: any(named: 'totalCents'),
           installmentsCount: any(named: 'installmentsCount'),
           firstMonth: any(named: 'firstMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
         ),
       );

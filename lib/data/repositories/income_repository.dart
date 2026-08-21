@@ -23,6 +23,8 @@ abstract interface class IncomeRepository {
     required String description,
     required int amountCents,
     required String startMonth,
+    /// TAG-07: opcional no ganho, ao contrário do gasto.
+    String? tagId,
     bool recurring = true,
   });
 
@@ -89,6 +91,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     required String description,
     required int amountCents,
     required String startMonth,
+    String? tagId,
     bool recurring = true,
   }) async {
     try {
@@ -96,6 +99,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
         '/incomes',
         data: {
           'description': description,
+          'tagId': ?tagId,
           'amountCents': amountCents,
           'startMonth': startMonth,
           'recurring': recurring,

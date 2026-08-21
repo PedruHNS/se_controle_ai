@@ -248,14 +248,26 @@ class _ExpenseDetail extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    [
-                      _paymentLine,
-                      if (expense.category != null) expense.category!,
-                    ].join(' · '),
+                    [_paymentLine, expense.tag.name].join(' · '),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  // Único lugar onde a observação aparece: ela é texto livre e
+                  // nada a consulta — não filtra, não agrupa, não entra no
+                  // resumo. Mostrá-la na lista roubaria espaço do que agrupa.
+                  if (expense.notes case final notes?) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(notes, style: theme.textTheme.bodySmall),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -266,8 +278,8 @@ class _ExpenseDetail extends StatelessWidget {
             icon: Icons.tune,
             title: 'Editar dados',
             subtitle:
-                'Descrição, categoria e forma de pagamento. Vale para todos '
-                'os meses.',
+                'Descrição, categoria, observação e forma de pagamento. Vale '
+                'para todos os meses.',
             onTap: working ? null : onEdit,
           ),
           const SizedBox(height: 8),

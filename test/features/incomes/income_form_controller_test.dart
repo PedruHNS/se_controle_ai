@@ -11,6 +11,7 @@ import '../../fixtures/mocks.dart';
 
 void main() {
   late MockIncomeRepository repository;
+  late MockTagRepository tags;
   late IncomeFormController controller;
 
   /// `create` com os quatro nomeados — a asserção diz exatamente o que devia
@@ -56,7 +57,9 @@ void main() {
 
   setUp(() {
     repository = incomeRepositoryMock();
-    controller = IncomeFormController(repository);
+    tags = MockTagRepository();
+    stubTagList(tags);
+    controller = IncomeFormController(repository, tags);
   });
 
   tearDown(() => controller.dispose());

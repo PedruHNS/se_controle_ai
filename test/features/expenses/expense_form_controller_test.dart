@@ -9,17 +9,22 @@ import 'package:se_controle_ai/features/expenses/controller/expense_form_control
 
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
+import '../../fixtures/tag_fixture.dart';
 
 void main() {
   late MockExpenseRepository repository;
   late MockCreditCardRepository cards;
+  late MockTagRepository tags;
   late ExpenseFormController controller;
 
-  ExpenseFormController build() => ExpenseFormController(repository, cards);
+  ExpenseFormController build() => ExpenseFormController(repository, cards, tags);
 
   setUp(() {
     repository = expenseRepositoryMock();
     cards = creditCardRepositoryMock();
+    tags = MockTagRepository();
+    stubTagList(tags);
+    stubTagCreate(tags);
     controller = build();
   });
 
@@ -64,7 +69,8 @@ void main() {
           paymentMethod: any(named: 'paymentMethod'),
           amountCents: any(named: 'amountCents'),
           startMonth: any(named: 'startMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
         ),
@@ -76,7 +82,7 @@ void main() {
 
       controller.form.patchValue({
         ExpenseFormController.description: '  Aluguel  ',
-        ExpenseFormController.category: 'Moradia',
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.amountCents: 120000,
         ExpenseFormController.startMonth: '2026-01',
       });
@@ -92,7 +98,8 @@ void main() {
           paymentMethod: PaymentMethod.debit,
           amountCents: 120000,
           startMonth: '2026-01',
-          category: 'Moradia',
+          tagId: moradiaTagId,
+          notes: null,
           creditCardId: null,
           recurring: true,
         ),
@@ -104,7 +111,8 @@ void main() {
 
       controller.form.patchValue({
         ExpenseFormController.description: 'Aluguel',
-        ExpenseFormController.category: '   ',
+        ExpenseFormController.tagId: moradiaTagId,
+        ExpenseFormController.notes: '   ',
         ExpenseFormController.amountCents: 120000,
       });
 
@@ -116,7 +124,8 @@ void main() {
           paymentMethod: any(named: 'paymentMethod'),
           amountCents: any(named: 'amountCents'),
           startMonth: any(named: 'startMonth'),
-          category: null,
+          tagId: any(named: 'tagId'),
+          notes: null,
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
         ),
@@ -129,6 +138,7 @@ void main() {
       await controller.start();
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Youtube',
         ExpenseFormController.amountCents: 2490,
       });
@@ -147,6 +157,7 @@ void main() {
       await controller.start();
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Youtube Music',
         ExpenseFormController.amountCents: 2490,
       });
@@ -164,7 +175,8 @@ void main() {
           paymentMethod: PaymentMethod.creditCard,
           amountCents: 2490,
           startMonth: any(named: 'startMonth'),
-          category: null,
+          tagId: any(named: 'tagId'),
+          notes: null,
           creditCardId: 'cartao-1',
           recurring: true,
         ),
@@ -177,6 +189,7 @@ void main() {
       await controller.start();
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Aluguel',
         ExpenseFormController.amountCents: 120000,
       });
@@ -199,7 +212,8 @@ void main() {
           paymentMethod: PaymentMethod.debit,
           amountCents: any(named: 'amountCents'),
           startMonth: any(named: 'startMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: null,
           recurring: any(named: 'recurring'),
         ),
@@ -210,6 +224,7 @@ void main() {
       await controller.start();
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Presente',
         ExpenseFormController.amountCents: 18000,
         ExpenseFormController.recurring: false,
@@ -223,7 +238,8 @@ void main() {
           paymentMethod: any(named: 'paymentMethod'),
           amountCents: any(named: 'amountCents'),
           startMonth: any(named: 'startMonth'),
-          category: any(named: 'category'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: false,
         ),
@@ -250,6 +266,7 @@ void main() {
       await controller.start();
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'x',
         ExpenseFormController.amountCents: 100,
       });
@@ -276,6 +293,7 @@ void main() {
       await controller.start();
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'x',
         ExpenseFormController.amountCents: 100,
       });
@@ -312,9 +330,25 @@ void main() {
         'Aluguel',
       );
       expect(
-        controller.control<String>(ExpenseFormController.category).value,
-        'Moradia',
+        controller.control<String>(ExpenseFormController.tagId).value,
+        moradiaTagId,
       );
+      expect(
+        controller.control<String>(ExpenseFormController.notes).value,
+        'reajuste anual em julho',
+      );
+    });
+
+    test('trocar a tag manda só o tagId', () async {
+      await controller.start(id: 'gasto-1');
+
+      controller
+          .control<String>(ExpenseFormController.tagId)
+          .updateValue(outraTagId);
+
+      await controller.submit();
+
+      expect(lastExpenseUpdateBody(repository), {'tagId': outraTagId});
     });
 
     test('GET que falha mostra erro, e não formulário', () async {
@@ -335,6 +369,7 @@ void main() {
       await controller.start(id: 'gasto-1');
 
       controller.form.patchValue({
+        ExpenseFormController.tagId: moradiaTagId,
         ExpenseFormController.description: 'Aluguel novo',
       });
 
@@ -346,16 +381,16 @@ void main() {
       });
     });
 
-    test('apagar a categoria na tela manda null', () async {
+    // A observação é anulável, então usa Patch: apagar precisa chegar como
+    // `null` explícito, e não como "não mexi".
+    test('apagar a observação na tela manda null', () async {
       await controller.start(id: 'gasto-1');
 
-      controller
-          .control<String>(ExpenseFormController.category)
-          .updateValue('');
+      controller.control<String>(ExpenseFormController.notes).updateValue('');
 
       await controller.submit();
 
-      expect(lastExpenseUpdateBody(repository), {'category': null});
+      expect(lastExpenseUpdateBody(repository), {'notes': null});
     });
 
     test('trocar para cartão manda forma e cartão juntos', () async {

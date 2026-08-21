@@ -9,7 +9,7 @@ void main() {
       final expense = ExpenseModel.fromJson(aluguelJson);
 
       expect(expense.description, 'Aluguel');
-      expect(expense.category, 'Moradia');
+      expect(expense.tag.name, 'Moradia');
       expect(expense.type, ExpenseType.fixed);
       expect(expense.paymentMethod, PaymentMethod.debit);
       expect(expense.creditCardId, isNull);
@@ -20,7 +20,7 @@ void main() {
     test('gasto no cartão sem categoria', () {
       final expense = ExpenseModel.fromJson(youtubeJson);
 
-      expect(expense.category, isNull);
+      expect(expense.tag.name, 'Outros');
       expect(expense.onCreditCard, isTrue);
       expect(expense.creditCardId, isNotNull);
     });

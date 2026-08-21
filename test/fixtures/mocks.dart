@@ -7,16 +7,19 @@ import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
+import 'package:se_controle_ai/data/models/tag_model.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
+import 'package:se_controle_ai/data/repositories/tag_repository.dart';
 
 import 'credit_card_fixture.dart';
 import 'expense_fixture.dart';
 import 'income_fixture.dart';
 import 'projection_fixture.dart';
 import 'summary_fixture.dart';
+import 'tag_fixture.dart';
 
 /// Os mocks de repositório do app.
 ///
@@ -31,6 +34,8 @@ class MockIncomeRepository extends Mock implements IncomeRepository {}
 class MockCreditCardRepository extends Mock implements CreditCardRepository {}
 
 class MockExpenseRepository extends Mock implements ExpenseRepository {}
+
+class MockTagRepository extends Mock implements TagRepository {}
 
 /// Stub de `getMonthly` para qualquer mês.
 ///
@@ -178,6 +183,31 @@ MockIncomeRepository incomeRepositoryMock({
 }
 
 /// Stub de `list` de cartões.
+/// Stub de `/tags` — o formulário de gasto não abre sem a lista, porque a tag
+/// é obrigatória (TAG-06).
+void stubTagList(
+  MockTagRepository mock, {
+  Result<List<TagModel>, Failure>? result,
+  Duration? delay,
+}) {
+  final answer =
+      result ?? Success(tagListJson.map(TagModel.fromJson).toList());
+  when(mock.list).thenAnswer((_) async {
+    if (delay != null) await Future<void>.delayed(delay);
+    return answer;
+  });
+}
+
+/// Stub de criação de tag, para o caminho "criar sem sair do formulário".
+void stubTagCreate(
+  MockTagRepository mock, {
+  Result<String, Failure>? result,
+}) {
+  when(
+    () => mock.create(name: any(named: 'name'), color: any(named: 'color')),
+  ).thenAnswer((_) async => result ?? const Success(moradiaTagId));
+}
+
 void stubCreditCardList(
   MockCreditCardRepository mock, {
   Result<List<CreditCardModel>, Failure>? result,
@@ -365,7 +395,8 @@ void stubExpenseOperations(
       paymentMethod: any(named: 'paymentMethod'),
       amountCents: any(named: 'amountCents'),
       startMonth: any(named: 'startMonth'),
-      category: any(named: 'category'),
+      tagId: any(named: 'tagId'),
+      notes: any(named: 'notes'),
       creditCardId: any(named: 'creditCardId'),
       recurring: any(named: 'recurring'),
     ),
@@ -376,7 +407,8 @@ void stubExpenseOperations(
       any(),
       description: any(named: 'description'),
       paymentMethod: any(named: 'paymentMethod'),
-      category: any(named: 'category'),
+      tagId: any(named: 'tagId'),
+      notes: any(named: 'notes'),
       creditCardId: any(named: 'creditCardId'),
     ),
   ).thenAnswer((invocation) {
@@ -391,7 +423,8 @@ void stubExpenseOperations(
       totalCents: any(named: 'totalCents'),
       installmentsCount: any(named: 'installmentsCount'),
       firstMonth: any(named: 'firstMonth'),
-      category: any(named: 'category'),
+      tagId: any(named: 'tagId'),
+      notes: any(named: 'notes'),
       creditCardId: any(named: 'creditCardId'),
     ),
   ).thenAnswer((_) => answer(createResult));
@@ -465,11 +498,13 @@ void _recordExpenseUpdateBody(
     'description': ?named[const Symbol('description')] as String?,
     'paymentMethod':
         ?(named[const Symbol('paymentMethod')] as PaymentMethod?)?.wire,
+    // Tag não usa Patch: sendo obrigatória (TAG-06), null é "não mexi".
+    'tagId': ?named[const Symbol('tagId')] as String?,
   };
 
-  (named[const Symbol('category')] as Patch<String>? ??
+  (named[const Symbol('notes')] as Patch<String>? ??
           const Patch<String>.keep())
-      .writeTo(body, 'category');
+      .writeTo(body, 'notes');
   (named[const Symbol('creditCardId')] as Patch<String>? ??
           const Patch<String>.keep())
       .writeTo(body, 'creditCardId');

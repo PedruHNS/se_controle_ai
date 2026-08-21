@@ -7,6 +7,7 @@
 const Map<String, dynamic> salaryJson = {
   'id': '14835b6d-6a94-4141-95ab-b415642066d2',
   'description': 'Salário',
+  'tag': null,
   'recurring': true,
   'startMonth': '2026-01',
   'endMonth': null,
@@ -20,6 +21,7 @@ const Map<String, dynamic> salaryJson = {
 const Map<String, dynamic> adjustedSalaryJson = {
   'id': 'b1a7c0de-0000-4000-8000-000000000001',
   'description': 'Salário',
+  'tag': null,
   'recurring': true,
   'startMonth': '2026-01',
   'endMonth': null,
@@ -34,6 +36,7 @@ const Map<String, dynamic> adjustedSalaryJson = {
 const Map<String, dynamic> bonusJson = {
   'id': 'b1a7c0de-0000-4000-8000-000000000002',
   'description': '13º salário',
+  'tag': null,
   'recurring': false,
   'startMonth': '2026-12',
   'endMonth': '2026-12',
@@ -60,6 +63,7 @@ Map<String, dynamic> singleMonthIncomeJson({
 }) => {
   'id': id,
   'description': description,
+  'tag': null,
   'recurring': false,
   'startMonth': month,
   'endMonth': month,

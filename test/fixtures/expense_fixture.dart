@@ -1,5 +1,5 @@
 // Respostas reais de `/expenses`, capturadas do backend em Docker em
-// 19/08/2026.
+// 19/08/2026 e atualizadas em 21/08 para o formato com tag e observação.
 //
 // JSON copiado, não escrito à mão: fixture inventada concorda com o que o app
 // espera por construção, e é justamente a discordância entre app e backend que
@@ -13,7 +13,12 @@
 const aluguelJson = <String, dynamic>{
   'id': 'bd9e15e7-e489-4f09-938d-028b96047cc3',
   'description': 'Aluguel',
-  'category': 'Moradia',
+  'tag': {
+    'id': '1519d248-272f-407c-9853-87fcfb7ff789',
+    'name': 'Moradia',
+    'color': '#4CAF50',
+  },
+  'notes': 'reajuste anual em julho',
   'type': 'FIXED',
   'paymentMethod': 'DEBIT',
   'creditCardId': null,
@@ -45,7 +50,12 @@ final aluguelEmMarcoJson = <String, dynamic>{
 const youtubeJson = <String, dynamic>{
   'id': '1fb725a4-a0de-4269-895a-ab4f9b5093af',
   'description': 'Youtube Music',
-  'category': null,
+  'tag': {
+    'id': '5fa6134c-35e7-4341-8db0-54f00256c8bc',
+    'name': 'Outros',
+    'color': null,
+  },
+  'notes': 'guardar a nota fiscal',
   'type': 'FIXED',
   'paymentMethod': 'CREDIT_CARD',
   'creditCardId': '7d0c3c51-cc34-4dbe-8abd-f8487377a8b3',
@@ -68,7 +78,12 @@ const youtubeJson = <String, dynamic>{
 const presenteJson = <String, dynamic>{
   'id': 'f4da0ef4-c036-405c-bfba-1b752b3f6ac1',
   'description': 'Presente do João',
-  'category': 'Presentes',
+  'tag': {
+    'id': '123c98f8-2ec5-47e8-add8-e1295ae94d1d',
+    'name': 'Presentes',
+    'color': null,
+  },
+  'notes': null,
   'type': 'FIXED',
   'paymentMethod': 'CREDIT_CARD',
   'creditCardId': '7d0c3c51-cc34-4dbe-8abd-f8487377a8b3',
@@ -93,7 +108,12 @@ const presenteJson = <String, dynamic>{
 final geladeiraJson = <String, dynamic>{
   'id': '9c1f6b02-0f0e-4a1f-9d0a-2b3c4d5e6f70',
   'description': 'Geladeira',
-  'category': 'Casa',
+  'tag': {
+    'id': '2aa154c8-9549-4ed4-bdd6-3254d91cca84',
+    'name': 'Casa',
+    'color': '#42A5F5',
+  },
+  'notes': null,
   'type': 'INSTALLMENT',
   'paymentMethod': 'CREDIT_CARD',
   'creditCardId': '7d0c3c51-cc34-4dbe-8abd-f8487377a8b3',

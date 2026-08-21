@@ -3,6 +3,7 @@ import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
+import 'package:se_controle_ai/data/repositories/tag_repository.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
@@ -56,9 +57,28 @@ MockSummaryRepository setupTestInjector() {
   return repository;
 }
 
+/// Registra o repositório de tags, com a lista já stubada.
+///
+/// Vale para gastos e para ganhos: o formulário de gasto não abre sem tags
+/// (TAG-06 as torna obrigatórias) e o de ganho as busca para o seletor
+/// opcional. Separado dos outros para poder ser chamado pelos dois.
+MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
+  final repository = mock ?? MockTagRepository();
+  stubTagList(repository);
+  stubTagCreate(repository);
+
+  if (getIt.isRegistered<TagRepository>()) {
+    getIt.unregister<TagRepository>();
+  }
+  getIt.registerSingleton<TagRepository>(repository);
+
+  return repository;
+}
+
 /// O mesmo para as telas de ganhos.
 MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   final repository = mock ?? incomeRepositoryMock();
+  setupTagTestInjector();
 
   if (getIt.isRegistered<IncomeRepository>()) {
     getIt.unregister<IncomeRepository>();
@@ -79,7 +99,7 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       () => IncomeListController(getIt<IncomeRepository>()),
     )
     ..registerFactory<IncomeFormController>(
-      () => IncomeFormController(getIt<IncomeRepository>()),
+      () => IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
     )
     ..registerFactory<IncomeDetailController>(
       () => IncomeDetailController(getIt<IncomeRepository>()),
@@ -138,6 +158,7 @@ MockCreditCardRepository setupCreditCardTestInjector({
 /// novo em relação a ganhos.
 MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
   final repository = mock ?? expenseRepositoryMock();
+  setupTagTestInjector();
 
   if (getIt.isRegistered<ExpenseRepository>()) {
     getIt.unregister<ExpenseRepository>();
@@ -161,6 +182,7 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
       () => ExpenseFormController(
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
+        getIt<TagRepository>(),
       ),
     )
     ..registerFactory<ExpenseDetailController>(
