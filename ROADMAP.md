@@ -5,17 +5,23 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 20/08/2026.*
+*Atualizado em 21/08/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 6 concluídas** · a home mostra o
+Flutter 3.47.1 · Dart 3.13.1 · **Fases 0 a 6 concluídas** · a home mostra o
 resumo do mês, ganhos e gastos fixos têm CRUD completo com reajuste, correção e
 encerramento, gasto parcelado tem reparcelamento e quitação, cartões têm CRUD com
 a edição parcial do CAR-08, a projeção mostra para onde o saldo caminha, e um
 menu lateral na home leva a todas elas.
 
-`flutter analyze` sem issue · **364 testes, todos passando** · ganhos, cartões e
+`flutter analyze` sem issue · **372 testes, todos passando** · ganhos, cartões e
 gastos verificados contra o backend real em Docker, incluindo as recusas de 422,
 as duas direções do `PATCH` e o 409 do CAR-07.
+
+Em 21/08 o SDK subiu de 3.44 para 3.47.1 (Dart 3.13.1) — o `pubspec` já pedia
+`sdk: ^3.12.2`, que o 3.12.0 instalado não satisfazia. No mesmo dia a seção de
+débito da home passou a mostrar só as quatro linhas mais recentes, com o backend
+entregando a lista já ordenada (ver a convenção de ordem abaixo), e o
+`_defaultBaseUrl` foi corrigido depois que a rede local trocou de sub-rede.
 
 O único teste vermelho que havia — `app_router_test` procurando uma linha
 "Cartões" que nunca chegou a existir na home — foi reescrito na Fase 4 para
@@ -27,7 +33,7 @@ abaixo) e o `app_router_test` cobria um botão que a home não tem. No mesmo dia
 atalho de voltar ao mês atual saiu do `bottom` do AppBar, onde empurrava o nome
 do mês para fora da barra.
 
-As seis libs estão em uso:
+As sete libs de runtime estão em uso, mais o `mocktail` nos testes:
 
 | Lib | Versão | Papel no app |
 |---|---|---|
@@ -206,7 +212,7 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `data/repositories/summary_repository.dart` | Interface + impl de `/summary` e `/summary/projection` |
 | `features/home/controller/home_controller.dart` | Estado do resumo com signals — **é o molde a copiar** |
 | `features/home/view/home_page.dart` | A tela: `CustomScrollView` com a faixa fixa, navegação de mês, `switch` no `ViewState`, pull-to-refresh |
-| `features/home/widgets/` | `BalanceCard`, `SummarySection`, `CreditCardInvoiceCard`, `LineItemTile` |
+| `features/home/widgets/` | `BalanceCard`, `SummarySection` (com o teto de linhas `maxItems`), `CreditCardInvoiceCard`, `LineItemTile` |
 | `features/projection/` | Controller, tela e o `ProjectionChart` — barras do acumulado, sem biblioteca |
 | `data/models/income_model.dart` · `income_version_model.dart` | O ganho e suas vigências |
 | `data/repositories/income_repository.dart` | As sete rotas de `/incomes`, com reajuste e correção separados |
@@ -247,6 +253,7 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `fixtures/expense_fixture.dart` | JSON real de `/expenses`: aluguel com dois valores vigentes, gasto no cartão, avulso, e um parcelado antes e depois de reparcelado |
 | `features/expenses/expense_installment_test.dart` | O que só o parcelado tem: plano, reparcelamento, quitação, e o formulário que troca de campos |
 | `features/projection/projection_test.dart` | Horizonte, guarda de corrida e o aviso do primeiro mês no vermelho |
+| `features/home/summary_section_test.dart` | O teto de linhas da seção: ordem preservada sem reordenar, rodapé no singular e no plural, limite exato sem rodapé, e o total que não é recalculado sobre a fatia visível |
 
 ### Onde erro deixa de ser exceção e passa a ser valor
 
@@ -310,6 +317,19 @@ e guarda o stack do Node em `failure.exception`, para log.
 Toda a superfície que o app tem para consumir. Dinheiro **sempre em centavos
 (int)**; competência **sempre string `YYYY-MM`**.
 
+**Mutação responde 204, sem corpo.** Reajuste, correção, encerramento,
+reparcelamento, quitação e os `PATCH` de edição não devolvem o recurso
+atualizado — quem precisa do estado novo relê. Só `POST` de criação foge disso,
+com 201 e o corpo do que foi criado.
+
+**A ordem dos itens do resumo é contrato, não acaso.** Dentro de cada
+competência, o backend entrega do lançamento criado mais recentemente para o
+mais antigo, com a descrição como desempate. Vale para `debit.items` e para os
+itens de cada fatura. É o que permite à home cortar a lista nas primeiras linhas
+sem esconder o que acabou de ser cadastrado — e é por isso que o app **não**
+reordena: `createdAt` não vem no payload, então ordenar no cliente só
+conseguiria alfabético.
+
 ### Resumo — a tela inicial em uma chamada
 | Método | Rota | Observação |
 |---|---|---|
@@ -323,7 +343,7 @@ a fatura de cada cartão (com `label`, `dueDate`, `limitCents`, itens).
 ### Ganhos
 | Método | Rota | Semântica |
 |---|---|---|
-| POST | `/incomes` | `{description, amountCents, startMonth}` |
+| POST | `/incomes` | `{description, amountCents, startMonth, recurring?}` — `recurring` default `true` |
 | GET | `/incomes?month=` · `/incomes/:id?month=` | `amountCents` = valor vigente no mês |
 | POST | `/incomes/:id/adjustments` | Aumento: preserva os meses anteriores |
 | PATCH | `/incomes/:id/amount` | Correção: o valor estava errado desde o início |
@@ -380,15 +400,19 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 4 — Gastos fixos: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 5 — Gastos parcelados: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 6 — Projeção: **concluída** |
-| ░░░░░░░░░░ | Fases 7 a 10 — não iniciadas |
+| ▓▓░░░░░░░░ | Fase 7 — Acabamento: **parcialmente feita** |
+| ░░░░░░░░░░ | Fases 8 a 10 — não iniciadas |
 
 A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
 fonte da verdade, não um cache, e só sai barata com o contrato parado.
 
 **Próximo passo: Fase 7 — Acabamento.** Todas as telas que o backend suporta
-existem; o que falta agora não é feature, é polimento — tema claro/escuro,
-máscara de moeda no input, estados vazios com ilustração, animação de transição
-e o que fazer quando o backend não responde.
+existem; o que falta não é feature, é polimento. O levantamento de 21/08 mostrou
+que a fase estava mais adiantada do que este texto dizia — pull-to-refresh,
+estados vazios e o erro por tela já tinham entrado junto com as fases
+anteriores. Sobram **tema claro/escuro** e **animações de transição** como
+trabalho novo, mais duas decisões (máscara ao vivo entra ou não; offline global
+fica aqui ou na Fase 10) e a troca do package Android, que tem prazo.
 
 As Fases 9 (notificações) e 10 (offline-first) continuam **bloqueadas pelo
 backend**: dependem das Etapas 8 e 9 de lá, que por sua vez esperam a 6.
@@ -832,10 +856,45 @@ uma reforma, e a ressalva do saldo inicial.
 é verificado só por existir na árvore; comparar pixel exigiria golden test, que
 o projeto ainda não usa em lugar nenhum.
 
-### Fase 7 — Acabamento · ░░░░░░░░░░ não iniciada
-Tema claro/escuro, máscara de moeda no input, estados vazios com ilustração,
-pull-to-refresh nas demais telas (o da home já entrou com o `CustomScrollView`),
-animações de transição, tratamento de "backend offline".
+### Fase 7 — Acabamento · ▓▓░░░░░░░░ parcialmente feita
+Levantada item a item em 21/08 contra o código: parte do que estava listado já
+tinha entrado junto com as fases anteriores.
+
+**Já feito, sem ter sido creditado aqui:**
+
+- [x] **Pull-to-refresh em todas as telas** — `RefreshIndicator` em nove views
+  (ganhos, gastos, cartões, projeção e os detalhes), incluindo o caso de lista
+  vazia, com `AlwaysScrollableScrollPhysics` para o gesto existir sem conteúdo
+- [x] **Estados vazios** nas quatro listas e na projeção, com ícone, título e
+  uma frase que orienta o próximo passo ("*Comece pelo salário — o resumo do mês
+  depende dele*")
+- [x] **Erro de backend por tela** — `FailureCardWidget` com `switch` exaustivo
+  nos nove tipos de `Failure`, e `isRetryable` decidindo se cabe "Tentar de novo"
+
+**O que falta:**
+
+- [ ] **Tema claro/escuro.** É o item de maior efeito e o mais barato: os
+  widgets já usam `colorScheme.onSurfaceVariant`, `.primary` e `.error` em vez
+  de cor fixa, então falta declarar o `darkTheme` no `app.dart` — que hoje tem
+  só `theme:` — e decidir se a preferência é do sistema ou guardada
+- [ ] **Animações de transição.** Nenhuma rota usa `pageBuilder` nem
+  `CustomTransitionPage`; todas caem na transição padrão da plataforma
+- [ ] **Extrair o estado vazio para um widget único.** O bloco está repetido
+  inline em cada lista. Trocar o `Icon` por ilustração, se for o caso, vem junto
+- [ ] **Trocar o package Android.** Ainda é `app.b4a.mangatrix.se_controle_ai`,
+  sobra do template (ver Armadilhas). É o único item da fase com prazo: depois
+  de publicar, deixa de ser barato
+- [ ] **Decidir a máscara de moeda.** O `MoneyFieldWidget` já tem prefixo
+  `R$ `, teclado numérico, filtro de caracteres e o `MoneyValueAccessor` fazendo
+  a ponte centavos↔texto. O que não existe é reformatar **enquanto** digita, e
+  isso é deliberado: o `reactive_forms` só devolve valor ao campo quando a
+  mudança não veio dele, justamente para não interromper a digitação. Ou o item
+  morre, ou vira "máscara ao vivo" assumindo esse custo
+- [ ] **Decidir onde entra o offline global.** Por tela está resolvido; o que
+  não existe é sinal no nível do app — nenhum `connectivity_plus`, nenhum banner
+  persistente, e nada que separe "sem internet" de "servidor não responde neste
+  endereço", que foi o que fez um IP errado aparecer como "Sem conexão". Pode
+  ser aqui ou na Fase 10, que já trata do assunto a fundo
 
 ### Fase 8 — Qualidade · ░░░░░░░░░░ não iniciada
 Testes de model (parse do JSON real), de repositório (Dio mockado), de
@@ -937,6 +996,14 @@ forem encontradas no meio da implementação:
 - **No emulador Android, `localhost` é o emulador, não a sua máquina.** O backend
   em Docker fica em `http://10.0.2.2:3333`. Em device físico, nem um nem outro —
   precisa do IP da máquina na rede local.
+- **O IP da rede local vive em dois arquivos, e os dois precisam andar juntos:**
+  `AppConfig._defaultBaseUrl` e `network_security_config.xml`, que autoriza HTTP
+  sem TLS para aquele host. Atualizar só um deixa o app quebrado do mesmo jeito.
+  É DHCP: em 21/08 a rede trocou de sub-rede e o app passou a pedir um endereço
+  onde não havia ninguém. **Timeout, neste app, quase sempre é endereço errado,
+  não servidor lento** — no simulador iOS,
+  `--dart-define=API_BASE_URL=http://localhost:3333` não depende de DHCP e evita
+  o problema de vez.
 - **`/summary` recebe o mês por query string, não por path.** `/summary/2026-08`
   responde 404.
 - **`amountCents`, `history` e `installments` são nulos conforme o tipo.** Ler o
