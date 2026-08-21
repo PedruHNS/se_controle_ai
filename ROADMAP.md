@@ -465,13 +465,15 @@ primeira tela já valide a stack inteira antes de existir formulário.
 A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
 fonte da verdade, não um cache, e só sai barata com o contrato parado.
 
-**Próximo passo: Fase 7 — Acabamento.** Todas as telas que o backend suporta
-existem; o que falta não é feature, é polimento. O levantamento de 21/08 mostrou
-que a fase estava mais adiantada do que este texto dizia — pull-to-refresh,
-estados vazios e o erro por tela já tinham entrado junto com as fases
-anteriores. Sobram **tema claro/escuro** e **animações de transição** como
-trabalho novo, mais duas decisões (máscara ao vivo entra ou não; offline global
-fica aqui ou na Fase 10) e a troca do package Android, que tem prazo.
+**Próximo passo: Fase 8 — Qualidade.** A Fase 7 fechou em 21/08 com tema
+claro/escuro, transição entre os estados das telas, o estado vazio extraído
+para um widget só e o identificador do template trocado nos dois sistemas. As
+duas decisões que estavam em aberto foram fechadas: máscara ao vivo **não
+entra**, e o offline global **espera a Fase 10**.
+
+Com isso, **todas as telas que o backend suporta existem e estão polidas** — o
+que falta no app não depende mais de trabalho de app, e sim das Etapas 7 e 8 do
+backend.
 
 As Fases 9 (notificações) e 10 (offline-first) continuam **bloqueadas pelo
 backend**: dependem das Etapas 7 e 8 de lá. Em 21/08 o backend jogou o
