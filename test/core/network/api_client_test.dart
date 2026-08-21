@@ -214,6 +214,20 @@ void main() {
       expect(badRequest.issues.first.path, 'amountCents');
     });
 
+    test('401 vira UnauthorizedException, e não erro inesperado', () async {
+      final (client: client, adapter: _) = clientThatReturns(
+        (_) async => _json({
+          'code': 'UNAUTHORIZED',
+          'message': 'Chave de API ausente ou inválida',
+        }, 401),
+      );
+
+      final exception = await captureFrom(client, '/summary');
+
+      expect(exception, isA<UnauthorizedException>());
+      expect(exception.code, 'UNAUTHORIZED');
+    });
+
     test('404', () async {
       final (client: client, adapter: _) = clientThatReturns(
         (_) async => _json({

@@ -88,6 +88,7 @@ class FailureCardWidget extends StatelessWidget {
 
   IconData get _icon => switch (failure) {
     NetworkFailure() => Icons.wifi_off_outlined,
+    UnauthorizedFailure() => Icons.key_off_outlined,
     NotFoundFailure() => Icons.search_off_outlined,
     ValidationFailure() => Icons.error_outline,
     ConflictFailure() => Icons.merge_type_outlined,
@@ -100,6 +101,9 @@ class FailureCardWidget extends StatelessWidget {
 
   String get _title => switch (failure) {
     NetworkFailure() => 'Sem conexão',
+    // "Acesso negado" e não "não autorizado": para quem usa, o app é que não
+    // foi aceito, e não há nada a fazer na tela — a chave vem do build.
+    UnauthorizedFailure() => 'Acesso negado',
     NotFoundFailure() => 'Não encontrado',
     ValidationFailure() => 'Dados inválidos',
     ConflictFailure() => 'Conflito',

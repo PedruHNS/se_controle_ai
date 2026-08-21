@@ -68,6 +68,12 @@ AppException _fromResponse(DioException exception) {
       cause: exception,
       stackTrace: stackTrace,
     ),
+    401 => UnauthorizedException(
+      message: message,
+      code: code,
+      cause: exception,
+      stackTrace: stackTrace,
+    ),
     404 => NotFoundException(
       message: message,
       code: code,

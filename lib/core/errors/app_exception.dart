@@ -145,6 +145,20 @@ final class SerializationException extends AppException {
   });
 }
 
+/// 401 — a chave de API não foi enviada, ou não confere.
+///
+/// Não é "sessão expirada": o backend não tem login nem sessão. É a chave
+/// gravada no binário pelo `--dart-define`, então corrigir passa por
+/// recompilar o app, não por entrar de novo em algum lugar.
+final class UnauthorizedException extends AppException {
+  const UnauthorizedException({
+    required super.message,
+    super.code,
+    super.cause,
+    super.stackTrace,
+  });
+}
+
 /// Status ou situação que não se encaixa em nenhum caso acima.
 final class UnexpectedResponseException extends AppException {
   const UnexpectedResponseException({

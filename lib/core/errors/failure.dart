@@ -45,6 +45,12 @@ sealed class Failure {
       issues: exception.issues,
       exception: exception,
     ),
+    UnauthorizedException() => UnauthorizedFailure(
+      // A mensagem do backend é "Chave de API ausente ou inválida", que descreve
+      // o problema para quem opera, não para quem usa. Aqui vale a do app.
+      code: exception.code,
+      exception: exception,
+    ),
     NotFoundException() => NotFoundFailure(
       message: exception.message,
       code: exception.code,
@@ -104,6 +110,21 @@ final class ValidationFailure extends Failure {
     }
     return null;
   }
+}
+
+/// 401 — o app não se identificou para a API.
+///
+/// **Não é retentável**, e é a diferença que importa: repetir a mesma
+/// requisição com a mesma chave dá o mesmo 401 para sempre. O botão "tentar de
+/// novo" aqui seria uma promessa falsa.
+final class UnauthorizedFailure extends Failure {
+  const UnauthorizedFailure({
+    super.message =
+        'O app não conseguiu se identificar para o servidor. '
+        'A chave de acesso está ausente ou incorreta.',
+    super.code,
+    super.exception,
+  });
 }
 
 /// 404 — não existe, ou foi apagado em outra tela.

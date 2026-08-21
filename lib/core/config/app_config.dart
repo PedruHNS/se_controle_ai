@@ -34,6 +34,21 @@ abstract final class AppConfig {
   static String get apiBaseUrl =>
       _envBaseUrl.isNotEmpty ? _envBaseUrl : _defaultBaseUrl;
 
+  /// Chave que a API exige no header `x-api-key`, gravada no binário em tempo
+  /// de build:
+  ///
+  /// ```
+  /// flutter run --dart-define=API_KEY=<a chave>
+  /// ```
+  ///
+  /// Vazia por padrão, e é o certo: o backend na sua máquina sobe sem tranca,
+  /// e um valor de exemplo aqui só serviria para ser esquecido no lugar do
+  /// verdadeiro. Vazia, o header simplesmente não é enviado.
+  ///
+  /// **Não é login.** Não há usuário nem sessão do outro lado — corrigir uma
+  /// chave errada passa por recompilar, não por entrar de novo.
+  static const apiKey = String.fromEnvironment('API_KEY');
+
   static const connectTimeout = Duration(seconds: 30);
   static const receiveTimeout = Duration(seconds: 30);
   static const sendTimeout = Duration(seconds: 15);

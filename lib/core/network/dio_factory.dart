@@ -15,13 +15,22 @@ Dio buildDio() {
       receiveTimeout: AppConfig.receiveTimeout,
       sendTimeout: AppConfig.sendTimeout,
       contentType: 'application/json',
+      // Só entra quando existe. Vazio, mandar `x-api-key: ''` faria o backend
+      // recusar com 401 em vez de tratar como ausente — e é o mesmo 401, mas
+      // por um motivo que não é o real.
+      headers: {
+        if (AppConfig.apiKey.isNotEmpty) 'x-api-key': AppConfig.apiKey,
+      },
     ),
   );
 
   if (AppConfig.logHttp) {
     dio.interceptors.add(
       PrettyDioLogger(
-        requestHeader: true,
+        // Desligado desde que o header carrega a chave: com ele ligado, cada
+        // requisição despejava o segredo no console em debug — e console vira
+        // captura de tela, issue e cópia em chat.
+        requestHeader: false,
         requestBody: true,
         responseBody: true,
         responseHeader: false,
