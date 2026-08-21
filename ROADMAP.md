@@ -1,7 +1,18 @@
 # Roadmap — se_controle_ai
 
+> ## 🔴 PENDÊNCIA URGENTE — a `API_KEY` de produção está exposta
+>
+> Vazou numa captura de tela em 21/08/2026, durante o deploy. Trocar exige as
+> **duas pontas**: gerar outra no `.env` da VPS e **recompilar o app** com ela,
+> porque a chave é gravada no binário pelo `--dart-define`. O passo a passo está
+> no README do `expense-tracker-api`.
+>
+> Enquanto não for trocada, ela é a única coisa protegendo os dados — não há
+> autenticação, e ela só chega na Fase 9.
+
 App Flutter do controle de gastos, cliente da API `expense-tracker-api`
-(Node + Express + Postgres, rodando em Docker na mesma máquina).
+(Node + Express + Postgres, rodando em Docker na mesma máquina — e, desde
+21/08, também numa VPS em `https://secontroleai.duckdns.org`).
 
 ## Onde estamos
 
