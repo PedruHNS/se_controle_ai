@@ -165,8 +165,8 @@ o eixo vertical.
 no backend. As telas entraram assim mesmo — "em desenvolvimento" numa, estado
 vazio explicado na outra — porque item de menu que não faz nada ao ser tocado é
 pior do que um que diz por quê. As duas já têm spec do lado do backend — tags em
-`docs/specs/06-tags.md` (Etapa 7) e notificações em `docs/specs/07-notificacoes.md`
-(Etapa 8) —, e do lado do app notificações viraram a **Fase 9**. Tags continuam
+`docs/specs/06-tags.md` (Etapa 6) e notificações em `docs/specs/07-notificacoes.md`
+(Etapa 7) —, e do lado do app notificações viraram a **Fase 9**. Tags continuam
 sem fase: são cadastro simples, e entram junto com o endpoint.
 
 **O corpo da home virou `CustomScrollView`.** A faixa de "voltar para o mês atual"
@@ -415,7 +415,10 @@ trabalho novo, mais duas decisões (máscara ao vivo entra ou não; offline glob
 fica aqui ou na Fase 10) e a troca do package Android, que tem prazo.
 
 As Fases 9 (notificações) e 10 (offline-first) continuam **bloqueadas pelo
-backend**: dependem das Etapas 8 e 9 de lá, que por sua vez esperam a 6.
+backend**: dependem das Etapas 7 e 8 de lá. Em 21/08 o backend jogou o
+fechamento (integração e deploy) de Etapa 6 para Etapa 9, o que **desbloqueia
+antes** — as duas etapas de que estas fases dependem deixaram de esperar a
+suíte de integração e passaram a ser as próximas da fila, logo depois de tags.
 
 Com as Fases 5 e 6, **as duas dívidas que vinham desde a Fase 3 foram pagas**: o
 409 do CAR-07 foi exercitado ao vivo (excluir cartão com gasto vinculado devolve
@@ -903,7 +906,7 @@ sem issue como porta de entrada.
 
 
 ### Fase 9 — Notificações · ░░░░░░░░░░ não iniciada
-Depende da **Etapa 8 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
+Depende da **Etapa 7 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
 e não começa antes dela: quem decide *quando* notificar é o servidor.
 
 **Por que não dá para resolver só no app.** Com o app fechado não existe timer
