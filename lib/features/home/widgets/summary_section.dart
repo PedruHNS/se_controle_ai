@@ -14,6 +14,7 @@ class SummarySection extends StatelessWidget {
     required this.totalCents,
     this.emptyMessage,
     this.onTap,
+    this.maxItems,
     super.key,
   });
 
@@ -30,6 +31,15 @@ class SummarySection extends StatelessWidget {
   /// é só um rótulo — é o caso do débito, que ainda não tem tela própria.
   final VoidCallback? onTap;
 
+  /// Teto de linhas exibidas. Quando nulo, mostra todas.
+  ///
+  /// O total do cabeçalho continua sendo o do mês inteiro, não a soma do que
+  /// aparece — é o número que importa, e recalculá-lo sobre a fatia truncada
+  /// faria a seção contradizer o card de saldo logo acima. Por isso o rodapé
+  /// diz quantas linhas ficaram de fora: sem ele, os itens não somam o total e
+  /// a diferença parece erro de conta.
+  final int? maxItems;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -37,6 +47,12 @@ class SummarySection extends StatelessWidget {
     if (items.isEmpty && emptyMessage == null) {
       return const SizedBox.shrink();
     }
+
+    final limit = maxItems;
+    final visible = limit == null || items.length <= limit
+        ? items
+        : items.take(limit).toList();
+    final hidden = items.length - visible.length;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -90,7 +106,19 @@ class SummarySection extends StatelessWidget {
             )
           else ...[
             const Divider(height: 1),
-            for (final item in items) LineItemTile(item: item),
+            for (final item in visible) LineItemTile(item: item),
+            if (hidden > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: Text(
+                  hidden == 1
+                      ? 'e mais 1 lançamento'
+                      : 'e mais $hidden lançamentos',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
           ],
         ],

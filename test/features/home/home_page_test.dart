@@ -66,7 +66,7 @@ void main() {
 
       expect(find.text('Ganhos'), findsOneWidget);
       expect(find.text('Salário'), findsOneWidget);
-      expect(find.text('Débito e dinheiro'), findsOneWidget);
+      expect(find.text('Dinheiro e crédito'), findsOneWidget);
       expect(find.text('Aluguel'), findsOneWidget);
     });
 

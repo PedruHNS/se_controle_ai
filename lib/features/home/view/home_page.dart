@@ -188,12 +188,17 @@ class _SummaryContent extends StatelessWidget {
           // já feita em Ganhos.
           const SizedBox(height: 16),
           SummarySection(
-            title: 'Débito e dinheiro',
+            title: 'Dinheiro e crédito',
             icon: Icons.payments_outlined,
             items: summary.debit.items,
             totalCents: summary.debit.totalCents,
             emptyMessage: 'Nenhum gasto no débito. Toque para adicionar um.',
             onTap: () => context.pushNamed(AppRoutes.expenses),
+            // O resumo é panorama, não lista: quatro linhas cabem na tela sem
+            // empurrar as faturas dos cartões para fora. Quem quer todas toca
+            // no cabeçalho. A ordem vem do backend, do lançamento mais recente
+            // para o mais antigo, então o que acabou de ser cadastrado aparece.
+            maxItems: 4,
           ),
           for (final invoice in summary.creditCards) ...[
             const SizedBox(height: 16),
