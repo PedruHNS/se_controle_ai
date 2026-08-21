@@ -20,6 +20,7 @@ void main() {
     setupIncomeTestInjector();
     setupCreditCardTestInjector();
     setupExpenseTestInjector();
+    setupTagTestInjector();
   });
 
   // O appRouter é global e guarda a pilha entre testes.
@@ -88,14 +89,15 @@ void main() {
     expect(find.byType(IncomeListPage), findsOneWidget);
   });
 
-  testWidgets('Tags leva ao aviso de tela em desenvolvimento', (tester) async {
+  testWidgets('Tags leva à tela de tags', (tester) async {
     await openDrawer(tester);
 
     await tester.tap(item('Tags'));
     await tester.pumpAndSettle();
 
     expect(find.byType(TagListPage), findsOneWidget);
-    expect(find.text('Em desenvolvimento'), findsOneWidget);
+    // Deixou de ser placeholder na Etapa 6: a lista vem do backend.
+    expect(find.text('Moradia'), findsOneWidget);
   });
 
   testWidgets('o sino da AppBar leva às notificações, ainda vazias', (

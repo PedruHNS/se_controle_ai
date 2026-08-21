@@ -190,12 +190,55 @@ void stubTagList(
   Result<List<TagModel>, Failure>? result,
   Duration? delay,
 }) {
-  final answer =
-      result ?? Success(tagListJson.map(TagModel.fromJson).toList());
-  when(mock.list).thenAnswer((_) async {
+  final todas = tagListJson.map(TagModel.fromJson).toList();
+
+  // O dobrê filtra como o backend filtra: sem `includeArchived`, arquivada não
+  // vem. Um stub que devolvesse tudo sempre esconderia o bug de o seletor de
+  // lançamento oferecer tag aposentada.
+  when(
+    () => mock.list(includeArchived: any(named: 'includeArchived')),
+  ).thenAnswer((invocation) async {
     if (delay != null) await Future<void>.delayed(delay);
-    return answer;
+    if (result != null) return result;
+
+    final incluir =
+        invocation.namedArguments[const Symbol('includeArchived')] as bool? ??
+        false;
+
+    return Success(
+      incluir ? todas : todas.where((tag) => !tag.archived).toList(),
+    );
   });
+}
+
+/// Stub de exclusão e restauração.
+///
+/// [archived] escolhe o desfecho da TAG-08: tag sem uso é apagada, tag em uso é
+/// arquivada, e a tela diz coisas diferentes para cada um.
+void stubTagDelete(
+  MockTagRepository mock, {
+  bool archived = false,
+  Result<TagDeleteOutcome, Failure>? result,
+}) {
+  when(
+    () => mock.delete(any()),
+  ).thenAnswer((_) async => result ?? Success((archived: archived)));
+  when(() => mock.restore(any())).thenAnswer((_) async => const Success(true));
+}
+
+/// Stub de edição de tag.
+void stubTagUpdate(MockTagRepository mock, {Result<bool, Failure>? result}) {
+  // `any` em Patch precisa de fallback registrado — mocktail não sabe
+  // construir um valor de tipo próprio sozinho.
+  registerFallbackValue(const Patch<String>.keep());
+
+  when(
+    () => mock.update(
+      any(),
+      name: any(named: 'name'),
+      color: any(named: 'color'),
+    ),
+  ).thenAnswer((_) async => result ?? const Success(true));
 }
 
 /// Stub de criação de tag, para o caminho "criar sem sair do formulário".

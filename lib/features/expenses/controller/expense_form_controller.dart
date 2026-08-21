@@ -185,8 +185,7 @@ class ExpenseFormController extends BaseController {
     // tão bloqueante quanto falhar nos cartões.
     final tagsLoaded = tagList.when(
       (list) {
-        _tags = list;
-        _tagsSignal.value = list;
+        _setTags(list);
         return true;
       },
       (failure) {
@@ -206,10 +205,24 @@ class ExpenseFormController extends BaseController {
     final result = await _repository.getById(id);
 
     result.when((expense) {
+      // O seletor traz só as ativas, mas o gasto em edição pode apontar para
+      // uma arquivada depois de ele ter sido criado. Sem ela na lista, o
+      // dropdown teria um valor sem item correspondente — que é assertion no
+      // Flutter, não um campo vazio. Entra só nesse caso, e some assim que a
+      // pessoa escolher outra.
+      if (!_tags.any((tag) => tag.id == expense.tag.id)) {
+        _setTags([..._tags, expense.tag]..sort((a, b) => a.name.compareTo(b.name)));
+      }
+
       _fill(expense);
       _syncCreditCardValidators();
       _ready.value = true;
     }, (failure) => _failure.value = failure);
+  }
+
+  void _setTags(List<TagModel> list) {
+    _tags = list;
+    _tagsSignal.value = list;
   }
 
   /// Nova tentativa dos `GET` que a tela precisa para abrir.
@@ -234,8 +247,7 @@ class ExpenseFormController extends BaseController {
 
         return refreshed.when(
           (list) {
-            _tags = list;
-            _tagsSignal.value = list;
+            _setTags(list);
             control<String>(tagId).updateValue(id);
             return null;
           },

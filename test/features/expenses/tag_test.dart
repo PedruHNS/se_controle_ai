@@ -6,6 +6,9 @@ import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
 
+import 'package:se_controle_ai/data/models/expense_model.dart';
+
+import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
 
@@ -87,6 +90,46 @@ void main() {
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
         ),
+      );
+    });
+
+    // O seletor traz só as ativas, mas um gasto antigo pode apontar para uma
+    // arquivada. Sem ela na lista, o dropdown teria valor sem item
+    // correspondente — que no Flutter é assertion, não campo vazio.
+    test('editando gasto com tag arquivada, ela entra na lista', () async {
+      stubExpenseDetail(
+        repository,
+        result: Success(
+          ExpenseModel.fromJson({
+            ...aluguelJson,
+            'tag': {
+              'id': arquivadaTagId,
+              'name': 'Assinaturas',
+              'color': null,
+            },
+          }),
+        ),
+      );
+
+      await controller.start(id: 'gasto-1');
+
+      expect(controller.ready.value, isTrue);
+      expect(
+        controller.tags.value.map((t) => t.id),
+        contains(arquivadaTagId),
+      );
+      expect(
+        controller.control<String>(ExpenseFormController.tagId).value,
+        arquivadaTagId,
+      );
+    });
+
+    test('tag arquivada não aparece no cadastro novo', () async {
+      await controller.start();
+
+      expect(
+        controller.tags.value.map((t) => t.id),
+        isNot(contains(arquivadaTagId)),
       );
     });
 

@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/models/tag_model.dart';
+
 /// O que o diálogo devolve quando a pessoa confirma.
-class NewTag {
-  const NewTag({required this.name, required this.color});
+class TagFormResult {
+  const TagFormResult({required this.name, required this.color});
 
   final String name;
 
   /// `#RRGGBB` ou nulo. A cor é opcional e puramente cosmética (TAG-02).
+  ///
+  /// Nulo é um valor, não "não informado": na edição ele significa **limpar a
+  /// cor**, e é por isso que quem chama traduz para `Patch.clear()`.
   final String? color;
 }
 
@@ -26,26 +31,35 @@ const _palette = <String>[
   '#FFA726',
 ];
 
-/// Cria uma tag sem sair do formulário de gasto.
+/// Cria ou edita uma tag em diálogo.
 ///
-/// Devolve o [NewTag] confirmado, ou null se a pessoa cancelou. Quem chama é
-/// que fala com o repositório — o diálogo não conhece rede, só coleta.
-Future<NewTag?> showTagCreateDialog(BuildContext context) => showDialog<NewTag>(
-  context: context,
-  builder: (context) => const _TagCreateDialog(),
-);
+/// Serve os dois lugares que precisam disso: a tela de tags e o formulário de
+/// gasto, onde criar sem sair da tela evita abandonar o cadastro pela metade.
+/// Passe [tag] para editar; sem ele, é criação.
+///
+/// Devolve o [TagFormResult] confirmado, ou null se a pessoa cancelou. Quem
+/// chama é que fala com o repositório — o diálogo não conhece rede, só coleta.
+Future<TagFormResult?> showTagFormDialog(BuildContext context, {TagModel? tag}) =>
+    showDialog<TagFormResult>(
+      context: context,
+      builder: (context) => _TagFormDialog(tag: tag),
+    );
 
-class _TagCreateDialog extends StatefulWidget {
-  const _TagCreateDialog();
+class _TagFormDialog extends StatefulWidget {
+  const _TagFormDialog({this.tag});
+
+  final TagModel? tag;
 
   @override
-  State<_TagCreateDialog> createState() => _TagCreateDialogState();
+  State<_TagFormDialog> createState() => _TagFormDialogState();
 }
 
-class _TagCreateDialogState extends State<_TagCreateDialog> {
-  final _controller = TextEditingController();
-  String? _color;
+class _TagFormDialogState extends State<_TagFormDialog> {
+  late final _controller = TextEditingController(text: widget.tag?.name ?? '');
+  late String? _color = widget.tag?.color;
   String? _error;
+
+  bool get _editing => widget.tag != null;
 
   @override
   void dispose() {
@@ -63,20 +77,20 @@ class _TagCreateDialogState extends State<_TagCreateDialog> {
       return;
     }
 
-    Navigator.of(context).pop(NewTag(name: name, color: _color));
+    Navigator.of(context).pop(TagFormResult(name: name, color: _color));
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nova categoria'),
+      title: Text(_editing ? 'Editar categoria' : 'Nova categoria'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _controller,
-            autofocus: true,
+            autofocus: !_editing,
             textCapitalization: TextCapitalization.sentences,
             onSubmitted: (_) => _confirm(),
             onChanged: (_) {
@@ -114,7 +128,10 @@ class _TagCreateDialogState extends State<_TagCreateDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancelar'),
         ),
-        FilledButton(onPressed: _confirm, child: const Text('Criar')),
+        FilledButton(
+          onPressed: _confirm,
+          child: Text(_editing ? 'Salvar' : 'Criar'),
+        ),
       ],
     );
   }

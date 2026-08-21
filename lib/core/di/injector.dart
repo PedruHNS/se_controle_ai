@@ -17,6 +17,7 @@ import '../../features/incomes/controller/income_detail_controller.dart';
 import '../../features/incomes/controller/income_form_controller.dart';
 import '../../features/incomes/controller/income_list_controller.dart';
 import '../../features/projection/controller/projection_controller.dart';
+import '../../features/tags/controller/tag_list_controller.dart';
 import '../network/api_client.dart';
 import '../network/dio_factory.dart';
 
@@ -59,6 +60,12 @@ void setupInjector() {
 
   getIt.registerLazySingleton<TagRepository>(
     () => HttpTagRepository(getIt<ApiClient>()),
+  );
+
+  // Lista com dispose pelo get_it, como as outras.
+  getIt.registerLazySingleton<TagListController>(
+    () => TagListController(getIt<TagRepository>()),
+    dispose: (e) => e.dispose(),
   );
 
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do

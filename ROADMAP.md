@@ -13,7 +13,7 @@ encerramento, gasto parcelado tem reparcelamento e quitação, cartões têm CRU
 a edição parcial do CAR-08, a projeção mostra para onde o saldo caminha, e um
 menu lateral na home leva a todas elas.
 
-`flutter analyze` sem issue · **382 testes, todos passando** · ganhos, cartões e
+`flutter analyze` sem issue · **399 testes, todos passando** · ganhos, cartões e
 gastos verificados contra o backend real em Docker, incluindo as recusas de 422,
 as duas direções do `PATCH` e o 409 do CAR-07.
 
@@ -30,6 +30,12 @@ novo obrigaria a abandonar o cadastro pela metade, o que seria pior que o texto
 livre. O ganho ganhou o mesmo seletor, opcional. Entrou junto um campo de
 **observação**, texto livre e opcional, que aparece só no detalhe do gasto:
 nada o consulta, então mostrá-lo na lista roubaria espaço do que agrupa.
+
+A **tela de tags** deixou de ser placeholder e virou CRUD completo: lista com
+contagem de uso, criar, editar e excluir em diálogo, e uma seção de arquivadas
+com restaurar. Sem tela de detalhe nem formulário de página inteira — a tag tem
+dois campos e nenhum histórico, e uma tela cheia para isso seria navegação sem
+conteúdo.
 
 O único teste vermelho que havia — `app_router_test` procurando uma linha
 "Cartões" que nunca chegou a existir na home — foi reescrito na Fase 4 para
@@ -224,7 +230,9 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `features/home/widgets/` | `BalanceCard`, `SummarySection` (com o teto de linhas `maxItems`), `CreditCardInvoiceCard`, `LineItemTile` |
 | `data/models/tag_model.dart` | A tag, com o parse tolerante de `#RRGGBB` para `Color` |
 | `data/repositories/tag_repository.dart` | As quatro operações de `/tags` |
-| `features/expenses/widgets/tag_create_dialog.dart` | Cria tag sem sair do formulário, com paleta fixa em vez de seletor livre de cor |
+| `features/tags/view/tag_list_page.dart` | O CRUD de tags, com a seção de arquivadas e o restaurar |
+| `features/tags/controller/tag_list_controller.dart` | Estado da lista; o `delete` devolve se arquivou ou apagou |
+| `features/tags/widgets/tag_form_dialog.dart` | Cria e edita tag, com paleta fixa em vez de seletor livre de cor. Serve a tela de tags e o formulário de gasto |
 | `features/projection/` | Controller, tela e o `ProjectionChart` — barras do acumulado, sem biblioteca |
 | `data/models/income_model.dart` · `income_version_model.dart` | O ganho e suas vigências |
 | `data/repositories/income_repository.dart` | As sete rotas de `/incomes`, com reajuste e correção separados |
@@ -265,6 +273,7 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `fixtures/expense_fixture.dart` | JSON real de `/expenses`: aluguel com dois valores vigentes, gasto no cartão, avulso, e um parcelado antes e depois de reparcelado |
 | `features/expenses/expense_installment_test.dart` | O que só o parcelado tem: plano, reparcelamento, quitação, e o formulário que troca de campos |
 | `features/projection/projection_test.dart` | Horizonte, guarda de corrida e o aviso do primeiro mês no vermelho |
+| `features/tags/tag_list_test.dart` | A tela de tags: seções, contagem de uso, o aviso de "vai arquivar" antes de confirmar, e o restaurar |
 | `features/expenses/tag_test.dart` | O model da tag, o seletor obrigatório que bloqueia o salvamento, e o criar-sem-sair-do-formulário — inclusive o 409 de nome repetido, que fica no diálogo e não derruba a tela |
 | `fixtures/tag_fixture.dart` | JSON real de `/tags`: as tags que a migration criou a partir das categorias |
 | `features/home/summary_section_test.dart` | O teto de linhas da seção: ordem preservada sem reordenar, rodapé no singular e no plural, limite exato sem rodapé, e o total que não é recalculado sobre a fatia visível |
@@ -371,16 +380,21 @@ explícito — não são dois caminhos para "editar valor".
 | Método | Rota | Semântica |
 |---|---|---|
 | POST | `/tags` | `{name, color?}`. Nome repetido ignorando caixa é 409 |
-| GET | `/tags` | Ordenado por nome |
+| GET | `/tags?includeArchived=` | Por nome, com `usageCount`. Sem o parâmetro, só as ativas |
 | PATCH | `/tags/:id` | Nome e cor; `null` limpa a cor |
-| DELETE | `/tags/:id` | **409 se algum lançamento usa a tag** |
+| DELETE | `/tags/:id` | Sem uso apaga; em uso **arquiva**. 200 com `{archived}` |
+| POST | `/tags/:id/restore` | Traz a arquivada de volta |
 
 **A tag é a categoria, e é obrigatória no gasto.** Não existem os dois
 conceitos: `category`, que era texto livre, foi removida. No ganho a tag é
-opcional — exigir rótulo para lançar salário obrigaria a inventar um. Excluir
-tag em uso é recusado, ao contrário do que a spec original previa: com
-`tag_id NOT NULL`, cascatear deixaria o gasto num estado que o schema não
-admite. É o mesmo arranjo do CAR-07 do cartão.
+opcional — exigir rótulo para lançar salário obrigaria a inventar um.
+
+**Excluir tag em uso arquiva, não apaga nem recusa.** A tag continua nos
+lançamentos que já a usam e sai das escolhas de lançamento novo — usá-la em
+gasto ou ganho novo é 422. Isso tem uma consequência para o app: o seletor pede
+só as ativas, mas **ao editar um gasto cuja tag foi arquivada depois, ela
+precisa entrar na lista** — um `DropdownButtonFormField` com valor sem item
+correspondente é assertion do Flutter, não campo vazio.
 
 ### Cartões
 | Método | Rota |

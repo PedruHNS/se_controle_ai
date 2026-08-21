@@ -15,6 +15,7 @@ import 'package:se_controle_ai/features/incomes/controller/income_detail_control
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_list_controller.dart';
 import 'package:se_controle_ai/features/projection/controller/projection_controller.dart';
+import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 
 import 'mocks.dart';
 
@@ -66,11 +67,21 @@ MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
   final repository = mock ?? MockTagRepository();
   stubTagList(repository);
   stubTagCreate(repository);
+  stubTagUpdate(repository);
+  stubTagDelete(repository);
 
   if (getIt.isRegistered<TagRepository>()) {
     getIt.unregister<TagRepository>();
   }
-  getIt.registerSingleton<TagRepository>(repository);
+  if (getIt.isRegistered<TagListController>()) {
+    getIt.unregister<TagListController>();
+  }
+
+  getIt
+    ..registerSingleton<TagRepository>(repository)
+    ..registerFactory<TagListController>(
+      () => TagListController(getIt<TagRepository>()),
+    );
 
   return repository;
 }
