@@ -37,6 +37,12 @@ com restaurar. Sem tela de detalhe nem formulário de página inteira — a tag 
 dois campos e nenhum histórico, e uma tela cheia para isso seria navegação sem
 conteúdo.
 
+**Excluir tag em uso arquiva.** A tag continua nos lançamentos que já a usam e
+sai das opções de lançamento novo, com o diálogo avisando disso **antes** de
+confirmar — decidir sem saber o desfecho é decidir no escuro. Editar continua
+valendo para trás (TAG-03): renomear muda o rótulo em todos os meses, inclusive
+nos fechados, e vale também para tag arquivada.
+
 O único teste vermelho que havia — `app_router_test` procurando uma linha
 "Cartões" que nunca chegou a existir na home — foi reescrito na Fase 4 para
 andar pelo menu lateral, que é por onde o caminho existe de verdade.
@@ -175,14 +181,14 @@ título passou a `Month.shortLabel` (`ago/2026`), a AppBar perdeu os 16px de
 ser cortado. `home_page_test` mede isso a 360dp, no caso irmão do que já guardava
 o eixo vertical.
 
-**Tags e notificações são telas de aviso, não features.** Nenhuma das duas existe
-no backend. As telas entraram assim mesmo — "em desenvolvimento" numa, estado
-vazio explicado na outra — porque item de menu que não faz nada ao ser tocado é
-pior do que um que diz por quê. As duas já têm spec do lado do backend — tags em
-`docs/specs/06-tags.md` (Etapa 6) e notificações em `docs/specs/07-notificacoes.md`
-(Etapa 7) —, e do lado do app notificações viraram a **Fase 9**. Tags entraram
-em 21/08, junto com a Etapa 6 do backend, sem virar fase própria — como
-previsto, foram cadastro simples que veio junto com o endpoint.
+**Notificações ainda é tela de aviso; tags deixou de ser.** As duas entraram no
+menu antes de existirem no backend, com estado vazio explicado, porque item de
+menu que não faz nada ao ser tocado é pior do que um que diz por quê.
+
+Tags virou tela de verdade em 21/08, junto com a Etapa 6 do backend
+(`docs/specs/06-tags.md`) — sem virar fase própria, como previsto: foi cadastro
+simples que veio junto com o endpoint. Notificações continua esperando a Etapa 7
+(`docs/specs/07-notificacoes.md`) e, do lado do app, é a **Fase 9**.
 
 **O corpo da home virou `CustomScrollView`.** A faixa de "voltar para o mês atual"
 é um `PinnedHeaderSliver`: fixa abaixo da AppBar e medida pela altura do próprio
@@ -250,7 +256,6 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `features/expenses/controller/` | `ExpenseListController`, `ExpenseFormController` (cadastro + edição), `ExpenseDetailController` |
 | `features/expenses/view/` | Lista, formulário e detalhe |
 | `features/expenses/widgets/` | `ExpenseTile`, `InstallmentsCard` e os quatro diálogos: valor, encerramento, reparcelamento e quitação |
-| `features/tags/view/tag_list_page.dart` | Só o aviso de "em desenvolvimento" — não há endpoint de tags |
 | `features/notifications/view/notification_list_page.dart` | Só o estado vazio — o servidor ainda não manda notificação |
 
 **Um model por arquivo, sem barrel.** Cada consumidor importa o arquivo da classe
@@ -1050,6 +1055,16 @@ forem encontradas no meio da implementação:
   não servidor lento** — no simulador iOS,
   `--dart-define=API_BASE_URL=http://localhost:3333` não depende de DHCP e evita
   o problema de vez.
+- **Tag arquivada precisa entrar no seletor ao editar um gasto antigo.** O
+  seletor pede só as ativas, mas um gasto pode apontar para uma tag arquivada
+  depois de ele ter sido criado. `DropdownButtonFormField` com valor sem item
+  correspondente é **assertion do Flutter**, não campo vazio — a tela quebra em
+  vez de abrir em branco. O `ExpenseFormController` acrescenta a tag do gasto à
+  lista quando ela não está lá.
+- **Dobrê de repositório que ignora filtro esconde bug.** O stub de `/tags` só
+  passou a valer quando começou a respeitar `includeArchived` como o backend
+  respeita: devolvendo tudo sempre, ele nunca pegaria o seletor oferecendo tag
+  aposentada.
 - **`/summary` recebe o mês por query string, não por path.** `/summary/2026-08`
   responde 404.
 - **`amountCents`, `history` e `installments` são nulos conforme o tipo.** Ler o
