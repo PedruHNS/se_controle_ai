@@ -5,7 +5,9 @@ import 'package:signals/signals_flutter.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/expense_model.dart';
@@ -42,27 +44,34 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
         label: const Text('Novo gasto'),
       ),
       body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
+        builder: (context) {
+          final state = _controller.state.value;
+
+          return StateTransition(
+            stateKey: state.runtimeType,
+            child: switch (state) {
+              Loading() => const Center(child: CircularProgressIndicator()),
+              Failed(failure: final failure) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FailureCardWidget(
+                    failure: failure,
+                    onRetry: _controller.load,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Loaded(data: final expenses) => _ExpenseList(
-            expenses: expenses,
-            onRefresh: _controller.refresh,
-            onOpen: (expense) => _openAndReload(
-              context.pushNamed(
-                AppRoutes.expenseDetail,
-                pathParameters: {RouteParams.id: expense.id},
+              Loaded(data: final expenses) => _ExpenseList(
+                expenses: expenses,
+                onRefresh: _controller.refresh,
+                onOpen: (expense) => _openAndReload(
+                  context.pushNamed(
+                    AppRoutes.expenseDetail,
+                    pathParameters: {RouteParams.id: expense.id},
+                  ),
+                ),
               ),
-            ),
-          ),
+            },
+          );
         },
       ),
     );
@@ -106,33 +115,12 @@ class _ExpenseList extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (expenses.isEmpty) {
-      return RefreshIndicator(
+      return EmptyStateWidget(
+        icon: Icons.payments_outlined,
+        title: 'Nenhum gasto cadastrado',
+        message:
+            'Comece pelo que se repete todo mês — aluguel, streaming, escola.',
         onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
-            Icon(
-              Icons.payments_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Nenhum gasto cadastrado',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Comece pelo que se repete todo mês — aluguel, streaming, escola.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
       );
     }
 

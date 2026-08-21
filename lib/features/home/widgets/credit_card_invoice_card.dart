@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/credit_card_invoice_model.dart';
@@ -100,7 +102,7 @@ class _LimitUsage extends StatelessWidget {
 
     final color = switch (usage) {
       > 1 => theme.colorScheme.error,
-      > 0.8 => Colors.orange,
+      > 0.8 => theme.appColors.warning,
       _ => theme.colorScheme.primary,
     };
 

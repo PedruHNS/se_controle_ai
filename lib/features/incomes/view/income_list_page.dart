@@ -5,7 +5,9 @@ import 'package:signals/signals_flutter.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/income_model.dart';
@@ -42,27 +44,34 @@ class _IncomeListPageState extends State<IncomeListPage> {
         label: const Text('Novo ganho'),
       ),
       body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
+        builder: (context) {
+          final state = _controller.state.value;
+
+          return StateTransition(
+            stateKey: state.runtimeType,
+            child: switch (state) {
+              Loading() => const Center(child: CircularProgressIndicator()),
+              Failed(failure: final failure) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FailureCardWidget(
+                    failure: failure,
+                    onRetry: _controller.load,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Loaded(data: final incomes) => _IncomeList(
-            incomes: incomes,
-            onRefresh: _controller.refresh,
-            onOpen: (income) => _openAndReload(
-              context.pushNamed(
-                AppRoutes.incomeDetail,
-                pathParameters: {RouteParams.id: income.id},
+              Loaded(data: final incomes) => _IncomeList(
+                incomes: incomes,
+                onRefresh: _controller.refresh,
+                onOpen: (income) => _openAndReload(
+                  context.pushNamed(
+                    AppRoutes.incomeDetail,
+                    pathParameters: {RouteParams.id: income.id},
+                  ),
+                ),
               ),
-            ),
-          ),
+            },
+          );
         },
       ),
     );
@@ -105,33 +114,11 @@ class _IncomeList extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (incomes.isEmpty) {
-      return RefreshIndicator(
+      return EmptyStateWidget(
+        icon: Icons.trending_up,
+        title: 'Nenhum ganho cadastrado',
+        message: 'Comece pelo salário — o resumo do mês depende dele.',
         onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
-            Icon(
-              Icons.trending_up,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Nenhum ganho cadastrado',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Comece pelo salário — o resumo do mês depende dele.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
       );
     }
 

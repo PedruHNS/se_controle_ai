@@ -7,6 +7,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/expense_model.dart';
@@ -102,52 +103,59 @@ class _ExpenseDetailPageState extends State<ExpenseDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Gasto'), centerTitle: true),
       body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
+        builder: (context) {
+          final state = _controller.state.value;
+
+          return StateTransition(
+            stateKey: state.runtimeType,
+            child: switch (state) {
+              Loading() => const Center(child: CircularProgressIndicator()),
+              Failed(failure: final failure) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FailureCardWidget(
+                    failure: failure,
+                    onRetry: _controller.load,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Loaded(data: final expense) => _ExpenseDetail(
-            expense: expense,
-            cardLabel: _controller.cardLabel.value,
-            working: _controller.working.value,
-            onRefresh: _controller.refresh,
-            onEdit: _edit,
-            onAdjust: () => showExpenseAmountDialog(
-              context,
-              controller: _controller,
-              expense: expense,
-              mode: ExpenseAmountMode.adjust,
-            ),
-            onCorrect: () => showExpenseAmountDialog(
-              context,
-              controller: _controller,
-              expense: expense,
-              mode: ExpenseAmountMode.correct,
-            ),
-            onClose: () => showExpenseClosureDialog(
-              context,
-              controller: _controller,
-              expense: expense,
-            ),
-            onReschedule: () => showExpenseRescheduleDialog(
-              context,
-              controller: _controller,
-              expense: expense,
-            ),
-            onSettle: () => showExpenseSettlementDialog(
-              context,
-              controller: _controller,
-              expense: expense,
-            ),
-            onDelete: () => _confirmDelete(expense),
-          ),
+              Loaded(data: final expense) => _ExpenseDetail(
+                expense: expense,
+                cardLabel: _controller.cardLabel.value,
+                working: _controller.working.value,
+                onRefresh: _controller.refresh,
+                onEdit: _edit,
+                onAdjust: () => showExpenseAmountDialog(
+                  context,
+                  controller: _controller,
+                  expense: expense,
+                  mode: ExpenseAmountMode.adjust,
+                ),
+                onCorrect: () => showExpenseAmountDialog(
+                  context,
+                  controller: _controller,
+                  expense: expense,
+                  mode: ExpenseAmountMode.correct,
+                ),
+                onClose: () => showExpenseClosureDialog(
+                  context,
+                  controller: _controller,
+                  expense: expense,
+                ),
+                onReschedule: () => showExpenseRescheduleDialog(
+                  context,
+                  controller: _controller,
+                  expense: expense,
+                ),
+                onSettle: () => showExpenseSettlementDialog(
+                  context,
+                  controller: _controller,
+                  expense: expense,
+                ),
+                onDelete: () => _confirmDelete(expense),
+              ),
+            },
+          );
         },
       ),
     );

@@ -97,7 +97,8 @@ void setupInjector() {
   // O detalhe recebe o id pelo `start`, e não pelo registro: id é dado de rota,
   // e quem o conhece é a view.
   getIt.registerFactory<IncomeFormController>(
-    () => IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
+    () =>
+        IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
   );
 
   getIt.registerFactory<IncomeDetailController>(

@@ -211,7 +211,9 @@ class ExpenseFormController extends BaseController {
       // Flutter, não um campo vazio. Entra só nesse caso, e some assim que a
       // pessoa escolher outra.
       if (!_tags.any((tag) => tag.id == expense.tag.id)) {
-        _setTags([..._tags, expense.tag]..sort((a, b) => a.name.compareTo(b.name)));
+        _setTags(
+          [..._tags, expense.tag]..sort((a, b) => a.name.compareTo(b.name)),
+        );
       }
 
       _fill(expense);
@@ -241,23 +243,20 @@ class ExpenseFormController extends BaseController {
   Future<String?> createTag({required String name, String? color}) async {
     final created = await _tagRepository.create(name: name, color: color);
 
-    return created.when(
-      (id) async {
-        final refreshed = await _tagRepository.list();
+    return created.when((id) async {
+      final refreshed = await _tagRepository.list();
 
-        return refreshed.when(
-          (list) {
-            _setTags(list);
-            control<String>(tagId).updateValue(id);
-            return null;
-          },
-          // A tag existe no servidor, mas a lista local não sabe. Reabrir
-          // resolve; travar o formulário por isso seria desproporcional.
-          (failure) => failure.message,
-        );
-      },
-      (failure) => failure.message,
-    );
+      return refreshed.when(
+        (list) {
+          _setTags(list);
+          control<String>(tagId).updateValue(id);
+          return null;
+        },
+        // A tag existe no servidor, mas a lista local não sabe. Reabrir
+        // resolve; travar o formulário por isso seria desproporcional.
+        (failure) => failure.message,
+      );
+    }, (failure) => failure.message);
   }
 
   /// A tag escolhida, ou null enquanto nenhuma foi. A view usa para pintar o

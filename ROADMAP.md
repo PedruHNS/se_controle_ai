@@ -13,7 +13,7 @@ encerramento, gasto parcelado tem reparcelamento e quitação, cartões têm CRU
 a edição parcial do CAR-08, a projeção mostra para onde o saldo caminha, e um
 menu lateral na home leva a todas elas.
 
-`flutter analyze` sem issue · **399 testes, todos passando** · ganhos, cartões e
+`flutter analyze` sem issue · **413 testes, todos passando** · ganhos, cartões e
 gastos verificados contra o backend real em Docker, incluindo as recusas de 422,
 as duas direções do `PATCH` e o 409 do CAR-07.
 
@@ -22,6 +22,11 @@ Em 21/08 o SDK subiu de 3.44 para 3.47.1 (Dart 3.13.1) — o `pubspec` já pedia
 débito da home passou a mostrar só as quatro linhas mais recentes, com o backend
 entregando a lista já ordenada (ver a convenção de ordem abaixo), e o
 `_defaultBaseUrl` foi corrigido depois que a rede local trocou de sub-rede.
+
+**A Fase 7 fechou no mesmo dia**: tema claro/escuro seguindo o sistema,
+transição entre os estados das telas, o estado vazio extraído para um widget só
+e o identificador do template trocado por `com.secontroleai.app` — nos dois
+sistemas, porque o iOS estava com o mesmo problema.
 
 **Ainda em 21/08 entraram as tags**, com a Etapa 6 do backend. A categoria em
 texto livre do gasto virou uma **tag obrigatória**, escolhida num seletor que
@@ -202,6 +207,9 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | Arquivo | O que faz |
 |---|---|
 | `main.dart` · `app.dart` | Entrada: injector antes do `runApp`, MaterialApp.router |
+| `core/theme/app_theme.dart` | Os dois temas do mesmo seed, e a `ThemeExtension` do alerta que o `ColorScheme` não tem |
+| `core/shared/widgets/empty_state_widget.dart` | Estado vazio com o scroll e o pull-to-refresh embutidos |
+| `core/shared/widgets/state_transition.dart` | Fade entre carregando, erro e conteúdo. Pede `stateKey` porque sem chave o `AnimatedSwitcher` é inerte |
 | `core/config/app_config.dart` | baseUrl por plataforma + `--dart-define=API_BASE_URL`, timeouts, `logHttp` |
 | `core/network/dio_factory.dart` | Monta o Dio: BaseOptions, `PrettyDioLogger` quando `logHttp` |
 | `core/errors/app_exception.dart` | O que a infra **lança** — técnico: status, código, causa, stack |
@@ -270,6 +278,9 @@ precisa de `CreditCardInvoiceModel` importa `credit_card_invoice_model.dart`.
 | `fixtures/test_injector.dart` | Registra as dependências das telas com os fakes; idempotente entre testes |
 | `fixtures/income_fixture.dart` | JSON de `/incomes`: salário, salário reajustado, 13º e o avulso por competência |
 | `fixtures/mocks.dart` | Os mocks de repositório e os stubs padrão (`stubMonthly`, `stubIncomeList`, `stubCreditCardList`…), mais o `capturedUpdateBody` que anota o corpo do `PATCH` |
+| `core/theme/app_theme_test.dart` | Os dois temas, a extensão de cor e a elevação zerada do card |
+| `core/shared/empty_state_test.dart` | O gesto de recarregar sobrevivendo à lista vazia |
+| `core/shared/state_transition_test.dart` | Que a transição de fato acontece — inclusive entre dois estados que renderizam o mesmo widget, que é o caso que a versão sem `stateKey` deixava passar |
 | `core/utils/iso_date_test.dart` | 6 casos do formato de data, incluindo entrada fora do formato |
 | `fixtures/credit_card_fixture.dart` | JSON real de `/credit-cards`: cartão completo, cartão sem os opcionais, e sem competência |
 | `core/shared/patch_test.dart` | Os três estados do `Patch` e o `diff` que decide entre eles |
@@ -448,7 +459,7 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 4 — Gastos fixos: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 5 — Gastos parcelados: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 6 — Projeção: **concluída** |
-| ▓▓░░░░░░░░ | Fase 7 — Acabamento: **parcialmente feita** |
+| ▓▓▓▓▓▓▓▓▓▓ | Fase 7 — Acabamento: **concluída** |
 | ░░░░░░░░░░ | Fases 8 a 10 — não iniciadas |
 
 A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
@@ -907,9 +918,9 @@ uma reforma, e a ressalva do saldo inicial.
 é verificado só por existir na árvore; comparar pixel exigiria golden test, que
 o projeto ainda não usa em lugar nenhum.
 
-### Fase 7 — Acabamento · ▓▓░░░░░░░░ parcialmente feita
-Levantada item a item em 21/08 contra o código: parte do que estava listado já
-tinha entrado junto com as fases anteriores.
+### Fase 7 — Acabamento · ▓▓▓▓▓▓▓▓▓▓ concluída
+Levantada item a item em 21/08 contra o código — parte do que estava listado já
+tinha entrado com as fases anteriores — e fechada no mesmo dia.
 
 **Já feito, sem ter sido creditado aqui:**
 
@@ -922,30 +933,49 @@ tinha entrado junto com as fases anteriores.
 - [x] **Erro de backend por tela** — `FailureCardWidget` com `switch` exaustivo
   nos nove tipos de `Failure`, e `isRetryable` decidindo se cabe "Tentar de novo"
 
-**O que falta:**
+**Feito nesta fase:**
 
-- [ ] **Tema claro/escuro.** É o item de maior efeito e o mais barato: os
-  widgets já usam `colorScheme.onSurfaceVariant`, `.primary` e `.error` em vez
-  de cor fixa, então falta declarar o `darkTheme` no `app.dart` — que hoje tem
-  só `theme:` — e decidir se a preferência é do sistema ou guardada
-- [ ] **Animações de transição.** Nenhuma rota usa `pageBuilder` nem
-  `CustomTransitionPage`; todas caem na transição padrão da plataforma
-- [ ] **Extrair o estado vazio para um widget único.** O bloco está repetido
-  inline em cada lista. Trocar o `Icon` por ilustração, se for o caso, vem junto
-- [ ] **Trocar o package Android.** Ainda é `app.b4a.mangatrix.se_controle_ai`,
-  sobra do template (ver Armadilhas). É o único item da fase com prazo: depois
-  de publicar, deixa de ser barato
-- [ ] **Decidir a máscara de moeda.** O `MoneyFieldWidget` já tem prefixo
-  `R$ `, teclado numérico, filtro de caracteres e o `MoneyValueAccessor` fazendo
-  a ponte centavos↔texto. O que não existe é reformatar **enquanto** digita, e
-  isso é deliberado: o `reactive_forms` só devolve valor ao campo quando a
-  mudança não veio dele, justamente para não interromper a digitação. Ou o item
-  morre, ou vira "máscara ao vivo" assumindo esse custo
-- [ ] **Decidir onde entra o offline global.** Por tela está resolvido; o que
-  não existe é sinal no nível do app — nenhum `connectivity_plus`, nenhum banner
-  persistente, e nada que separe "sem internet" de "servidor não responde neste
-  endereço", que foi o que fez um IP errado aparecer como "Sem conexão". Pode
-  ser aqui ou na Fase 10, que já trata do assunto a fundo
+- [x] **Tema claro/escuro.** Os dois saem do mesmo seed por `fromSeed`, que
+  deriva o esquema inteiro — inclusive os pares `on*`, que são o que garante
+  contraste. Segue o sistema (`ThemeMode.system`) em vez de guardar
+  preferência: guardar exige armazenamento local, que só chega na Fase 10.
+
+  Duas coisas que só apareceram ao montar a tela no escuro: `Colors.orange`
+  fixo em dois lugares — comprometimento acima de 80% e fatura acima de 80% do
+  limite — que no escuro vibra e compete com o vermelho do erro, e a elevação
+  padrão do card, que no Material 3 **clareia a superfície** e transformaria a
+  home num degradê de cinzas. O laranja virou `AppColors.warning`, uma
+  `ThemeExtension` com valor por tema; o card perdeu a elevação e ganhou borda.
+- [x] **Transição entre estados.** As rotas continuam com a transição padrão
+  da plataforma, de propósito (ver abaixo); o que ganhou animação foi a troca
+  entre carregando, erro e conteúdo, que antes acontecia no mesmo frame e lia
+  como piscada. `StateTransition` em oito telas.
+- [x] **Estado vazio extraído** para `EmptyStateWidget`, que embrulha o scroll
+  e o `RefreshIndicator` junto — não só o miolo. A lista vazia é justamente
+  onde o pull-to-refresh some sem querer, e deixar isso a cargo de quem chama é
+  convidar a esquecer: foi o que tinha acontecido na projeção, que era a única
+  tela vazia sem o gesto. Agora tem.
+- [x] **Identificador trocado** para `com.secontroleai.app`, nos dois: Android
+  (`namespace`, `applicationId` e a árvore de pastas do `MainActivity.kt`) e
+  **iOS**, que também estava com o do template e que este roadmap não
+  mencionava. Conferido no APK compilado, não só no fonte.
+
+**Decidido e fechado:**
+
+- [x] **A máscara de moeda ao vivo não entra.** O campo já tem prefixo `R$ `,
+  teclado numérico, filtro de caracteres e formatação ao preencher por código.
+  Reformatar enquanto digita briga com a decisão do `reactive_forms` de não
+  interromper a digitação, e costuma dar cursor pulando. Reabrir só com
+  reclamação concreta de quem usa.
+- [x] **O offline global espera a Fase 10.** Por tela já está resolvido com o
+  `FailureCardWidget`. Um banner de conectividade agora seria reescrito lá, que
+  é onde base local e outbox entram.
+
+**Uma coisa que foi decidida contra o texto original desta fase:** as rotas
+continuam com a transição padrão. Trocar por `CustomTransitionPage` **remove o
+gesto de voltar deslizando no iOS**, que é fornecido pelo
+`CupertinoPageTransition` — seria trocar função por enfeite. O que faltava de
+verdade era a transição de estado dentro das telas, e é ela que entrou.
 
 ### Fase 8 — Qualidade · ░░░░░░░░░░ não iniciada
 Testes de model (parse do JSON real), de repositório (Dio mockado), de
@@ -1069,8 +1099,19 @@ forem encontradas no meio da implementação:
   responde 404.
 - **`amountCents`, `history` e `installments` são nulos conforme o tipo.** Ler o
   campo errado dá `null` silencioso, não erro.
-- **O package Android é `app.b4a.mangatrix.se_controle_ai`** — sobra do template
-  que gerou o projeto. Trocar agora é barato; depois de publicar, não.
+- ~~**O package Android é `app.b4a.mangatrix.se_controle_ai`**~~ — **resolvido
+  em 21/08:** virou `com.secontroleai.app`. O iOS estava com o mesmo problema e
+  não constava aqui — vale a lição de que identificador de template costuma
+  estar nos **dois** lados.
+- **Elevação de card clareia a superfície no tema escuro.** É do Material 3, não
+  bug: `surfaceTint` sobe com a elevação. Numa tela que empilha card sobre
+  fundo, isso vira degradê de cinzas. O `AppTheme` zera a elevação e usa borda.
+- **`AnimatedSwitcher` sem chave não anima nada** — nem entre tipos diferentes
+  de widget. Sem `key`, ele trata o filho novo como o mesmo de antes, e a
+  transição some **em silêncio**, sem erro nenhum. E chavear pelo tipo do
+  widget também engana: `Loading` e `Failed` renderizam os dois um `Center`.
+  Quem sabe que o estado mudou é o `ViewState`, por isso o `StateTransition`
+  pede um `stateKey`.
 - **O backend não tem autenticação nem noção de usuário.** Hoje é single-user na
   máquina local. Qualquer plano de publicar o app exige resolver isso primeiro.
 

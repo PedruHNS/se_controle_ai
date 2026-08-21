@@ -39,11 +39,13 @@ const _palette = <String>[
 ///
 /// Devolve o [TagFormResult] confirmado, ou null se a pessoa cancelou. Quem
 /// chama é que fala com o repositório — o diálogo não conhece rede, só coleta.
-Future<TagFormResult?> showTagFormDialog(BuildContext context, {TagModel? tag}) =>
-    showDialog<TagFormResult>(
-      context: context,
-      builder: (context) => _TagFormDialog(tag: tag),
-    );
+Future<TagFormResult?> showTagFormDialog(
+  BuildContext context, {
+  TagModel? tag,
+}) => showDialog<TagFormResult>(
+  context: context,
+  builder: (context) => _TagFormDialog(tag: tag),
+);
 
 class _TagFormDialog extends StatefulWidget {
   const _TagFormDialog({this.tag});

@@ -23,6 +23,7 @@ abstract interface class IncomeRepository {
     required String description,
     required int amountCents,
     required String startMonth,
+
     /// TAG-07: opcional no ganho, ao contrário do gasto.
     String? tagId,
     bool recurring = true,

@@ -144,30 +144,32 @@ class _ExpenseForm extends StatelessWidget {
               final tags = controller.tags.value;
 
               return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ReactiveDropdownField<String>(
-                    formControlName: ExpenseFormController.tagId,
-                    isExpanded: true,
-                    validationMessages: {
-                      ValidationMessage.required: (_) => 'Escolha a categoria.',
-                      ExpenseFormController.backendError: (error) => '\$error',
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Categoria',
-                      border: OutlineInputBorder(),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: ReactiveDropdownField<String>(
+                      formControlName: ExpenseFormController.tagId,
+                      isExpanded: true,
+                      validationMessages: {
+                        ValidationMessage.required: (_) =>
+                            'Escolha a categoria.',
+                        ExpenseFormController.backendError: (error) =>
+                            '\$error',
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Categoria',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final tag in tags)
+                          DropdownMenuItem(
+                            value: tag.id,
+                            child: _TagChipLabel(tag: tag),
+                          ),
+                      ],
                     ),
-                    items: [
-                      for (final tag in tags)
-                        DropdownMenuItem(
-                          value: tag.id,
-                          child: _TagChipLabel(tag: tag),
-                        ),
-                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: IconButton.filledTonal(

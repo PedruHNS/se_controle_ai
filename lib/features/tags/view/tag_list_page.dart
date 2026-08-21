@@ -5,7 +5,9 @@ import '../../../core/di/injector.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/tag_list_controller.dart';
 import '../widgets/tag_form_dialog.dart';
@@ -112,24 +114,31 @@ class _TagListPageState extends State<TagListPage> {
         ),
       ),
       body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
+        builder: (context) {
+          final state = _controller.state.value;
+
+          return StateTransition(
+            stateKey: state.runtimeType,
+            child: switch (state) {
+              Loading() => const Center(child: CircularProgressIndicator()),
+              Failed(failure: final failure) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FailureCardWidget(
+                    failure: failure,
+                    onRetry: _controller.load,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Loaded(data: final tags) => _TagList(
-            tags: tags,
-            onRefresh: _controller.refresh,
-            onEdit: _edit,
-            onDelete: _confirmDelete,
-            onRestore: _restore,
-          ),
+              Loaded(data: final tags) => _TagList(
+                tags: tags,
+                onRefresh: _controller.refresh,
+                onEdit: _edit,
+                onDelete: _confirmDelete,
+                onRestore: _restore,
+              ),
+            },
+          );
         },
       ),
     );
@@ -156,34 +165,13 @@ class _TagList extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (tags.isEmpty) {
-      return RefreshIndicator(
+      return EmptyStateWidget(
+        icon: Icons.sell_outlined,
+        title: 'Nenhuma tag cadastrada',
+        message:
+            'Todo gasto precisa de uma. Cadastre a primeira para poder '
+            'lançar.',
         onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
-            Icon(
-              Icons.sell_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Nenhuma tag cadastrada',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Todo gasto precisa de uma. Cadastre a primeira para poder '
-              'lançar.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
       );
     }
 

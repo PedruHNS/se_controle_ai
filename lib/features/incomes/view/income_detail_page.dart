@@ -5,6 +5,7 @@ import '../../../core/di/injector.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/income_model.dart';
@@ -83,40 +84,47 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ganho'), centerTitle: true),
       body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
+        builder: (context) {
+          final state = _controller.state.value;
+
+          return StateTransition(
+            stateKey: state.runtimeType,
+            child: switch (state) {
+              Loading() => const Center(child: CircularProgressIndicator()),
+              Failed(failure: final failure) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FailureCardWidget(
+                    failure: failure,
+                    onRetry: _controller.load,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Loaded(data: final income) => _IncomeDetail(
-            income: income,
-            working: _controller.working.value,
-            onRefresh: _controller.refresh,
-            onAdjust: () => showIncomeAmountDialog(
-              context,
-              controller: _controller,
-              income: income,
-              mode: IncomeAmountMode.adjust,
-            ),
-            onCorrect: () => showIncomeAmountDialog(
-              context,
-              controller: _controller,
-              income: income,
-              mode: IncomeAmountMode.correct,
-            ),
-            onClose: () => showIncomeClosureDialog(
-              context,
-              controller: _controller,
-              income: income,
-            ),
-            onDelete: () => _confirmDelete(income),
-          ),
+              Loaded(data: final income) => _IncomeDetail(
+                income: income,
+                working: _controller.working.value,
+                onRefresh: _controller.refresh,
+                onAdjust: () => showIncomeAmountDialog(
+                  context,
+                  controller: _controller,
+                  income: income,
+                  mode: IncomeAmountMode.adjust,
+                ),
+                onCorrect: () => showIncomeAmountDialog(
+                  context,
+                  controller: _controller,
+                  income: income,
+                  mode: IncomeAmountMode.correct,
+                ),
+                onClose: () => showIncomeClosureDialog(
+                  context,
+                  controller: _controller,
+                  income: income,
+                ),
+                onDelete: () => _confirmDelete(income),
+              ),
+            },
+          );
         },
       ),
     );

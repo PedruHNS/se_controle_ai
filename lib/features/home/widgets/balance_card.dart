@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 import '../../../core/utils/money.dart';
 import '../../../data/models/monthly_summary_model.dart';
 
@@ -134,7 +136,7 @@ class _CommittedBar extends StatelessWidget {
 
     final color = switch (percent) {
       > 100 => theme.colorScheme.error,
-      > 80 => Colors.orange,
+      > 80 => theme.appColors.warning,
       _ => theme.colorScheme.primary,
     };
 

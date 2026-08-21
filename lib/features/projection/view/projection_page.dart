@@ -3,7 +3,9 @@ import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/month_projection_model.dart';
@@ -48,21 +50,30 @@ class _ProjectionPageState extends State<ProjectionPage> {
           ),
           Expanded(
             child: SignalBuilder(
-              builder: (context) => switch (_controller.state.value) {
-                Loading() => const Center(child: CircularProgressIndicator()),
-                Failed(failure: final failure) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: FailureCardWidget(
-                      failure: failure,
-                      onRetry: _controller.load,
+              builder: (context) {
+                final state = _controller.state.value;
+
+                return StateTransition(
+                  stateKey: state.runtimeType,
+                  child: switch (state) {
+                    Loading() => const Center(
+                      child: CircularProgressIndicator(),
                     ),
-                  ),
-                ),
-                Loaded(data: final projection) => _Projection(
-                  projection: projection,
-                  onRefresh: _controller.refresh,
-                ),
+                    Failed(failure: final failure) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: FailureCardWidget(
+                          failure: failure,
+                          onRetry: _controller.load,
+                        ),
+                      ),
+                    ),
+                    Loaded(data: final projection) => _Projection(
+                      projection: projection,
+                      onRefresh: _controller.refresh,
+                    ),
+                  },
+                );
               },
             ),
           ),
@@ -92,7 +103,14 @@ class _Projection extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (projection.isEmpty) {
-      return const Center(child: Text('Sem meses para projetar.'));
+      // Ganhou o pull-to-refresh na Fase 7: era um Center solto, e a tela
+      // vazia era a única do app sem o gesto.
+      return EmptyStateWidget(
+        icon: Icons.show_chart,
+        title: 'Sem meses para projetar',
+        message: 'Cadastre um ganho ou um gasto para o saldo ter para onde ir.',
+        onRefresh: onRefresh,
+      );
     }
 
     final negative = _firstNegative;

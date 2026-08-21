@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -20,10 +21,40 @@ void main() {
   setUp(() => repository = setupTestInjector());
   // tearDown(resetInjector);
 
-  Future<void> pumpHome(WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+  Future<void> pumpHome(WidgetTester tester, {ThemeData? theme}) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: theme, home: const HomePage()),
+    );
     await tester.pumpAndSettle();
   }
+
+  // O tema escuro não é só uma paleta: `Colors.orange` fixo, card com elevação
+  // e cor escrita à mão só aparecem como problema quando a tela monta de
+  // verdade nos dois modos.
+  group('tema', () {
+    for (final (nome, tema) in [
+      ('claro', AppTheme.light),
+      ('escuro', AppTheme.dark),
+    ]) {
+      testWidgets('a home monta no tema $nome', (tester) async {
+        await pumpHome(tester, theme: tema);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Comprometido'), findsOneWidget);
+      });
+    }
+
+    testWidgets('o alerta de comprometimento acompanha o tema', (tester) async {
+      await pumpHome(tester, theme: AppTheme.dark);
+
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+      expect(scaffold, isNotNull);
+      expect(
+        AppTheme.dark.appColors.warning,
+        isNot(AppTheme.light.appColors.warning),
+      );
+    });
+  });
 
   group('carregamento', () {
     testWidgets('mostra spinner antes da resposta', (tester) async {

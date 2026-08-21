@@ -6,6 +6,7 @@ import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
@@ -78,27 +79,34 @@ class _CreditCardExpensesPageState extends State<CreditCardExpensesPage> {
         ],
       ),
       body: SignalBuilder(
-        builder: (context) => switch (_controller.state.value) {
-          Loading() => const Center(child: CircularProgressIndicator()),
-          Failed(failure: final failure) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FailureCardWidget(
-                failure: failure,
-                onRetry: _controller.load,
+        builder: (context) {
+          final state = _controller.state.value;
+
+          return StateTransition(
+            stateKey: state.runtimeType,
+            child: switch (state) {
+              Loading() => const Center(child: CircularProgressIndicator()),
+              Failed(failure: final failure) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FailureCardWidget(
+                    failure: failure,
+                    onRetry: _controller.load,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Loaded(data: final view) => _CardExpenses(
-            view: view,
-            onRefresh: _controller.refresh,
-            onOpen: (expense) => _openAndReload(
-              context.pushNamed(
-                AppRoutes.expenseDetail,
-                pathParameters: {RouteParams.id: expense.id},
+              Loaded(data: final view) => _CardExpenses(
+                view: view,
+                onRefresh: _controller.refresh,
+                onOpen: (expense) => _openAndReload(
+                  context.pushNamed(
+                    AppRoutes.expenseDetail,
+                    pathParameters: {RouteParams.id: expense.id},
+                  ),
+                ),
               ),
-            ),
-          ),
+            },
+          );
         },
       ),
     );
