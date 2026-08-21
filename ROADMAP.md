@@ -192,7 +192,7 @@ menu que não faz nada ao ser tocado é pior do que um que diz por quê.
 
 Tags virou tela de verdade em 21/08, junto com a Etapa 6 do backend
 (`docs/specs/06-tags.md`) — sem virar fase própria, como previsto: foi cadastro
-simples que veio junto com o endpoint. Notificações continua esperando a Etapa 7
+simples que veio junto com o endpoint. Notificações continua esperando a Etapa 8
 (`docs/specs/07-notificacoes.md`) e, do lado do app, é a **Fase 9**.
 
 **O corpo da home virou `CustomScrollView`.** A faixa de "voltar para o mês atual"
@@ -460,7 +460,9 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 5 — Gastos parcelados: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 6 — Projeção: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 7 — Acabamento: **concluída** |
-| ░░░░░░░░░░ | Fases 8 a 10 — não iniciadas |
+| ░░░░░░░░░░ | Fase 8 — Qualidade: não iniciada |
+| ░░░░░░░░░░ | Fase 9 — Login e cadastro: não iniciada |
+| ░░░░░░░░░░ | Fases 10 e 11 — não iniciadas |
 
 A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
 fonte da verdade, não um cache, e só sai barata com o contrato parado.
@@ -472,14 +474,20 @@ duas decisões que estavam em aberto foram fechadas: máscara ao vivo **não
 entra**, e o offline global **espera a Fase 10**.
 
 Com isso, **todas as telas que o backend suporta existem e estão polidas** — o
-que falta no app não depende mais de trabalho de app, e sim das Etapas 7 e 8 do
-backend.
+que falta no app não depende mais de trabalho de app — tirando a Fase 8, que é
+teste, tudo espera as Etapas 7, 8 e 9 do backend.
 
-As Fases 9 (notificações) e 10 (offline-first) continuam **bloqueadas pelo
-backend**: dependem das Etapas 7 e 8 de lá. Em 21/08 o backend jogou o
-fechamento (integração e deploy) de Etapa 6 para Etapa 9, o que **desbloqueia
-antes** — as duas etapas de que estas fases dependem deixaram de esperar a
-suíte de integração e passaram a ser as próximas da fila, logo depois de tags.
+As Fases 9, 10 e 11 continuam **bloqueadas pelo backend**, e dependem das
+Etapas 7, 8 e 9 de lá, nessa ordem.
+
+Em 21/08 a autenticação deixou de ser decisão aberta e entrou como **Etapa 7 do
+backend e Fase 9 daqui**, empurrando notificações e offline-first uma casa cada.
+Ela entra cedo de propósito: obriga toda tabela a ganhar dono, e esse custo só
+cresce com o número de tabelas.
+
+No mesmo dia o backend jogou o fechamento (integração e deploy) para o fim, o
+que **desbloqueia antes** — as etapas de que estas fases dependem deixaram de
+esperar a suíte de integração.
 
 Com as Fases 5 e 6, **as duas dívidas que vinham desde a Fase 3 foram pagas**: o
 409 do CAR-07 foi exercitado ao vivo (excluir cartão com gasto vinculado devolve
@@ -985,8 +993,42 @@ controller (repositório fake) e de widget nas telas principais. `flutter analyz
 sem issue como porta de entrada.
 
 
-### Fase 9 — Notificações · ░░░░░░░░░░ não iniciada
-Depende da **Etapa 7 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
+### Fase 9 — Login e cadastro · ░░░░░░░░░░ não iniciada
+Depende da **Etapa 7 do backend**, que é a próxima de lá. Deixou de ser decisão
+aberta em 21/08.
+
+O que a fase entrega:
+
+- Telas de **login** e de **cadastro**, e a decisão de qual delas o app abre
+  quando não há sessão
+- Guarda de rota no `go_router`: sem token, qualquer rota redireciona para o
+  login — e é aqui que o `redirect` do router finalmente ganha uso
+- Token guardado no aparelho. **`flutter_secure_storage`**, e não
+  `shared_preferences`: um token que vale semanas em texto plano no disco é o
+  tipo de coisa que só dá problema uma vez
+- O interceptor do Dio mandando `Authorization: Bearer`, no lugar do
+  `x-api-key`
+- **401 passa a significar outra coisa.** Hoje quer dizer "a chave do build está
+  errada" e a `UnauthorizedFailure` não é retentável de propósito. Com sessão,
+  401 passa a ser "o token expirou" — e a resposta certa deixa de ser mostrar
+  erro e passa a ser mandar para o login. É mudança de comportamento, não campo
+  novo
+- Botão de sair, que apaga o token local
+
+**Sem refresh token**, acompanhando a decisão do backend. A consequência
+aparece aqui: quando o token vence, a pessoa faz login de novo, e ponto. Não há
+renovação silenciosa. É aceitável enquanto o token for de vida longa, e é
+justamente por isso que ele é de vida longa.
+
+**Uma coisa que fica pior antes de melhorar:** hoje o app abre direto na home.
+Com login, abre numa tela de espera enquanto lê o token do disco — e essa tela
+precisa existir de verdade, senão pisca o login antes da home a cada abertura.
+
+**Pronto quando:** duas contas diferentes, no mesmo aparelho, veem gastos
+diferentes — e nenhuma vê a tag da outra.
+
+### Fase 10 — Notificações · ░░░░░░░░░░ não iniciada
+Depende da **Etapa 8 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
 e não começa antes dela: quem decide *quando* notificar é o servidor.
 
 **Por que não dá para resolver só no app.** Com o app fechado não existe timer
@@ -1014,7 +1056,7 @@ O que a fase entrega:
 **Pronto quando:** com o app **fechado**, uma fatura que vence em três dias
 chega como notificação, e tocá-la abre o cartão certo.
 
-### Fase 10 — Offline-first · ░░░░░░░░░░ não iniciada
+### Fase 11 — Offline-first · ░░░░░░░░░░ não iniciada
 **A última fase, e é de propósito.** O app hoje só funciona conectado: toda tela
 pergunta ao backend e mostra `FailureCardWidget` quando ele não responde.
 
@@ -1227,9 +1269,20 @@ Descobertas implementando a Fase 2:
 
 ## Decisões abertas
 
-1. **Autenticação e multi-usuário** — precisa existir? Muda o backend, não só o app.
+1. ~~**Autenticação e multi-usuário**~~ — **resolvida em 21/08: entra, e é a
+   próxima.** Multiusuário de verdade: cada pessoa se cadastra e vê só o que é
+   seu. Vira a **Etapa 7 do backend** e a **Fase 9 daqui**.
+
+   Entra cedo, e não no fim, porque obriga toda tabela a ganhar `user_id` e toda
+   consulta a filtrar por dono — feita agora são 8 tabelas, feita depois de
+   notificações e offline seriam 14, mais o job e o delta reescritos.
+
+   **Sem refresh token** no primeiro corte. O token é de vida longa, e o custo
+   está registrado nas duas pontas: token roubado vale até expirar, e sair do
+   app não invalida nada no servidor. Acrescentar refresh depois é uma rota a
+   mais, não uma reescrita.
 2. ~~**Offline**~~ — **resolvido em 19/08: entra, mas por último.** Vira a
-   **Fase 10**, depois de o app estar pronto. O motivo de não ser agora está lá;
+   **Fase 11**, depois de o app estar pronto. O motivo de não ser agora está lá;
    o resumo é que offline-first não é um cache que se liga no fim, é uma segunda
    fonte da verdade — e enquanto o domínio ainda muda a cada fase, cada tela
    nova precisaria ser escrita duas vezes.
