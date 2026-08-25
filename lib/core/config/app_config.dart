@@ -5,7 +5,7 @@ abstract final class AppConfig {
   /// Endereço do backend, gravado no binário em tempo de build:
   ///
   /// ```
-  /// flutter run   --dart-define=API_BASE_URL=http://192.168.0.14:3333
+  /// flutter run   --dart-define=API_BASE_URL=http://192.168.1.9:3333
   /// flutter build apk --dart-define=API_BASE_URL=https://api.exemplo.com
   /// ```
   static const _envBaseUrl = String.fromEnvironment('API_BASE_URL');
@@ -23,7 +23,7 @@ abstract final class AppConfig {
   /// `android/app/src/main/res/xml/network_security_config.xml`, que precisa
   /// autorizar HTTP para o mesmo host. Ou passe `--dart-define` e ignore este
   /// valor.
-  static const _defaultBaseUrl = 'http://192.168.0.14:3333';
+  static const _defaultBaseUrl = 'http://192.168.1.9:3333';
 
   /// Com aparelho ligado no USB, isto também funciona depois de
   /// `adb reverse tcp:3333 tcp:3333` — e não depende de Wi-Fi nem de DHCP:

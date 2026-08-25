@@ -11,6 +11,17 @@
             "type": "dart"
         },
         {
+            // Backend pelo cabo USB: exige `adb reverse tcp:3333 tcp:3333`
+            // uma vez por conexão do aparelho. Não depende de Wi-Fi nem do IP
+            // da máquina, que é DHCP e muda sozinho.
+            "name": "se_controle_ai (USB / adb reverse)",
+            "request": "launch",
+            "type": "dart",
+            "toolArgs": [
+                "--dart-define=API_BASE_URL=http://localhost:3333"
+            ]
+        },
+        {
             "name": "se_controle_ai (profile mode)",
             "request": "launch",
             "type": "dart",
