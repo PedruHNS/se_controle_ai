@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -18,7 +19,10 @@ void main() {
     repository = MockCreditCardRepository();
     stubCreditCardList(repository);
     stubCreditCardOperations(repository);
-    controller = CreditCardListController(repository);
+    controller = CreditCardListController(
+      repository,
+      SelectedMonthController(),
+    );
   });
 
   tearDown(() => controller.dispose());

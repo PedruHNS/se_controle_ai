@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
+import '../../../core/month/selected_month_controller.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
@@ -35,6 +36,12 @@ class ExpenseDetailPage extends StatefulWidget {
 
 class _ExpenseDetailPageState extends State<ExpenseDetailPage> {
   final _controller = getIt<ExpenseDetailController>();
+
+  /// A competência que a home selecionou: é ela que decide qual valor aparece
+  /// em destaque e qual parcela está em curso. As **operações** continuam
+  /// ancoradas em hoje — reajustar ou encerrar fala de tempo real, não do mês
+  /// que se está olhando.
+  final _selectedMonth = getIt<SelectedMonthController>();
 
   @override
   void initState() {
@@ -105,6 +112,7 @@ class _ExpenseDetailPageState extends State<ExpenseDetailPage> {
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
+          final month = _selectedMonth.month.value;
 
           return StateTransition(
             stateKey: state.runtimeType,
@@ -121,6 +129,7 @@ class _ExpenseDetailPageState extends State<ExpenseDetailPage> {
               ),
               Loaded(data: final expense) => _ExpenseDetail(
                 expense: expense,
+                month: month,
                 cardLabel: _controller.cardLabel.value,
                 working: _controller.working.value,
                 onRefresh: _controller.refresh,
@@ -165,6 +174,7 @@ class _ExpenseDetailPageState extends State<ExpenseDetailPage> {
 class _ExpenseDetail extends StatelessWidget {
   const _ExpenseDetail({
     required this.expense,
+    required this.month,
     required this.cardLabel,
     required this.working,
     required this.onRefresh,
@@ -178,6 +188,10 @@ class _ExpenseDetail extends StatelessWidget {
   });
 
   final ExpenseModel expense;
+
+  /// A competência exibida — a selecionada na home.
+  final String month;
+
   final String? cardLabel;
   final bool working;
   final Future<void> Function() onRefresh;
@@ -189,16 +203,16 @@ class _ExpenseDetail extends StatelessWidget {
   final VoidCallback onSettle;
   final VoidCallback onDelete;
 
-  /// O valor que a tela mostra em destaque: o cobrado hoje, ou o último quando
-  /// o gasto já acabou ou ainda não começou.
+  /// O valor que a tela mostra em destaque: o cobrado no mês exibido, ou o
+  /// último quando o gasto já acabou ou ainda não começou.
   int? get _amountCents =>
-      expense.amountCentsIn(Month.current()) ?? expense.latestAmountCents;
+      expense.amountCentsIn(month) ?? expense.latestAmountCents;
 
   /// A linha de baixo do cabeçalho, que muda com o tipo: um parcelado se
   /// descreve pelo plano ("3/10 · total de R$ 3.000,00"), um fixo pelo período.
   String get _periodLine {
     if (expense.isInstallment) {
-      final label = expense.installmentLabelIn(Month.current());
+      final label = expense.installmentLabelIn(month);
       final total = expense.totalCents;
       return [
         if (label != null) 'Parcela $label',
@@ -362,7 +376,7 @@ class _ExpenseDetail extends StatelessWidget {
             const SizedBox(height: 16),
             InstallmentsCard(
               installments: expense.installments,
-              currentMonth: Month.current(),
+              currentMonth: month,
             ),
           ],
           const SizedBox(height: 24),

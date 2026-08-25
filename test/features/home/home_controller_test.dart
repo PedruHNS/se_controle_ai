@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -16,7 +17,7 @@ void main() {
 
   setUp(() {
     repository = summaryRepositoryMock();
-    controller = HomeController(repository);
+    controller = HomeController(repository, SelectedMonthController());
   });
 
   tearDown(() => controller.dispose());
@@ -36,7 +37,10 @@ void main() {
       final slowRepository = summaryRepositoryMock(
         delay: const Duration(milliseconds: 100),
       );
-      final slowController = HomeController(slowRepository);
+      final slowController = HomeController(
+        slowRepository,
+        SelectedMonthController(),
+      );
       addTearDown(slowController.dispose);
 
       expect(slowController.state.value, isA<Loading<MonthlySummaryModel>>());
@@ -131,7 +135,10 @@ void main() {
       final failing = summaryRepositoryMock(
         result: const Error(NetworkFailure()),
       );
-      final controllerInError = HomeController(failing);
+      final controllerInError = HomeController(
+        failing,
+        SelectedMonthController(),
+      );
       addTearDown(controllerInError.dispose);
       await Future<void>.delayed(Duration.zero);
 

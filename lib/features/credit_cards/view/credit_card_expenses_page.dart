@@ -183,7 +183,11 @@ class _CardExpenses extends StatelessWidget {
             // cartão quer saber o que está pendurado nele, inclusive o que já
             // foi encerrado.
             for (final expense in view.expenses)
-              ExpenseTile(expense: expense, onTap: () => onOpen(expense)),
+              ExpenseTile(
+                expense: expense,
+                month: view.month,
+                onTap: () => onOpen(expense),
+              ),
           ],
         ],
       ),

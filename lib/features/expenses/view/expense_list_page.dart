@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
+import '../../../core/month/selected_month_controller.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
@@ -25,6 +26,11 @@ class ExpenseListPage extends StatefulWidget {
 class _ExpenseListPageState extends State<ExpenseListPage> {
   final _controller = getIt<ExpenseListController>();
 
+  /// O mês que a home selecionou. A lista em si não depende dele — a busca é
+  /// sem `?month`, de propósito —, mas o valor de cada linha e o total do rodapé
+  /// dependem: é o mês que responde "quanto disto sai".
+  final _selectedMonth = getIt<SelectedMonthController>();
+
   /// Recarrega ao voltar do formulário ou do detalhe: as duas telas podem ter
   /// criado, reajustado ou apagado, e a lista não fica sabendo sozinha.
   Future<void> _openAndReload(Future<Object?> navigation) async {
@@ -46,6 +52,9 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
+          // Lido aqui dentro, e não no `build`, para o total se refazer sozinho
+          // se o mês trocar com esta tela montada.
+          final month = _selectedMonth.month.value;
 
           return StateTransition(
             stateKey: state.runtimeType,
@@ -62,6 +71,7 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
               ),
               Loaded(data: final expenses) => _ExpenseList(
                 expenses: expenses,
+                month: month,
                 onRefresh: _controller.refresh,
                 onOpen: (expense) => _openAndReload(
                   context.pushNamed(
@@ -81,34 +91,34 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
 class _ExpenseList extends StatelessWidget {
   const _ExpenseList({
     required this.expenses,
+    required this.month,
     required this.onRefresh,
     required this.onOpen,
   });
 
   final List<ExpenseModel> expenses;
+
+  /// A competência selecionada na home.
+  final String month;
+
   final Future<void> Function() onRefresh;
   final void Function(ExpenseModel expense) onOpen;
 
-  String get _month => Month.current();
-
-  /// Quanto sai na competência corrente — o mesmo número que a home mostra
+  /// Quanto sai na competência exibida — o mesmo número que a home mostra
   /// para este mês.
   ///
   /// Sai do `amountCentsIn` e não do `amountCents` porque este último vem nulo
   /// na listagem sem `?month`. Somar o campo direto daria zero.
   int get _monthTotalCents => expenses.fold(
     0,
-    (total, expense) => total + (expense.amountCentsIn(_month) ?? 0),
+    (total, expense) => total + (expense.amountCentsIn(month) ?? 0),
   );
 
   /// A parte que se repete: só os gastos sem fim marcado. A diferença para o
   /// total do mês é o que sai uma vez só — o presente, a consulta avulsa.
   int get _recurringTotalCents => expenses
       .where((expense) => expense.endMonth == null)
-      .fold(
-        0,
-        (total, expense) => total + (expense.amountCentsIn(_month) ?? 0),
-      );
+      .fold(0, (total, expense) => total + (expense.amountCentsIn(month) ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +151,7 @@ class _ExpenseList extends StatelessWidget {
               children: [
                 ListTile(
                   title: Text(
-                    'Sai em ${Month.label(_month)}',
+                    'Sai em ${Month.label(month)}',
                     style: theme.textTheme.titleSmall,
                   ),
                   trailing: Text(
@@ -174,7 +184,11 @@ class _ExpenseList extends StatelessWidget {
           }
 
           final expense = expenses[index];
-          return ExpenseTile(expense: expense, onTap: () => onOpen(expense));
+          return ExpenseTile(
+            expense: expense,
+            month: month,
+            onTap: () => onOpen(expense),
+          );
         },
       ),
     );

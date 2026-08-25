@@ -1,4 +1,5 @@
 import 'package:se_controle_ai/core/di/injector.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
@@ -33,8 +34,29 @@ import 'mocks.dart';
 /// Os controllers são `registerFactory` aqui, e não o `lazySingleton` da
 /// produção: cada teste precisa de um controller novo, senão o estado de um vaza
 /// para o próximo. Devolve o mock para o teste ajustar o `when`.
+/// O mês selecionado, compartilhado por todas as telas do teste.
+///
+/// **Singleton, e não `registerFactory` como os controllers de tela.** Aqui a
+/// regra se inverte: se cada tela recebesse a sua instância, o teste passaria a
+/// exercitar exatamente o bug que este controller fecha — home num mês, gastos
+/// em outro. É registrado de novo a cada `setUp`, então o mês de um teste não
+/// vaza para o seguinte.
+///
+/// Sem `dispose:` de propósito: o get_it liberaria os signals na hora do
+/// unregister, e um controller do teste anterior que ainda tivesse referência
+/// estouraria ao ler um signal morto.
+void setupSelectedMonth() {
+  if (getIt.isRegistered<SelectedMonthController>()) {
+    getIt.unregister<SelectedMonthController>();
+  }
+
+  getIt.registerSingleton<SelectedMonthController>(SelectedMonthController());
+}
+
 MockSummaryRepository setupTestInjector() {
   final repository = summaryRepositoryMock();
+
+  setupSelectedMonth();
 
   if (getIt.isRegistered<SummaryRepository>()) {
     getIt.unregister<SummaryRepository>();
@@ -52,11 +74,17 @@ MockSummaryRepository setupTestInjector() {
   getIt
     ..registerSingleton<SummaryRepository>(repository)
     ..registerFactory<HomeController>(
-      () => HomeController(getIt<SummaryRepository>()),
+      () => HomeController(
+        getIt<SummaryRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
     )
     // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
     ..registerFactory<ProjectionController>(
-      () => ProjectionController(getIt<SummaryRepository>()),
+      () => ProjectionController(
+        getIt<SummaryRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
     )
     // O tema não é de feature nenhuma, mas o menu lateral o resolve — e o menu
     // aparece em todo teste que monta a home. Sem isto, qualquer tela com
@@ -99,6 +127,8 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   final repository = mock ?? incomeRepositoryMock();
   setupTagTestInjector();
 
+  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
+
   if (getIt.isRegistered<IncomeRepository>()) {
     getIt.unregister<IncomeRepository>();
   }
@@ -136,6 +166,8 @@ MockCreditCardRepository setupCreditCardTestInjector({
 }) {
   final repository = mock ?? creditCardRepositoryMock();
 
+  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
+
   if (getIt.isRegistered<CreditCardRepository>()) {
     getIt.unregister<CreditCardRepository>();
   }
@@ -152,7 +184,10 @@ MockCreditCardRepository setupCreditCardTestInjector({
   getIt
     ..registerSingleton<CreditCardRepository>(repository)
     ..registerFactory<CreditCardListController>(
-      () => CreditCardListController(getIt<CreditCardRepository>()),
+      () => CreditCardListController(
+        getIt<CreditCardRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
     )
     ..registerFactory<CreditCardFormController>(
       () => CreditCardFormController(getIt<CreditCardRepository>()),
@@ -165,6 +200,7 @@ MockCreditCardRepository setupCreditCardTestInjector({
       () => CreditCardExpensesController(
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
+        getIt<SelectedMonthController>(),
       ),
     );
 
@@ -181,6 +217,10 @@ MockCreditCardRepository setupCreditCardTestInjector({
 MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
   final repository = mock ?? expenseRepositoryMock();
   setupTagTestInjector();
+
+  // A lista e o detalhe de gasto leem o mês para saber qual valor mostrar, e
+  // este setup é chamado por testes que não passam pela home.
+  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
 
   if (getIt.isRegistered<ExpenseRepository>()) {
     getIt.unregister<ExpenseRepository>();

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
@@ -92,6 +95,58 @@ void main() {
       // O presente é de 2026-08; fora dele o selo vira "Encerrado", dentro dele
       // "Mês único". Um dos dois tem que estar na tela.
       expect(find.textContaining(RegExp('Mês único|Encerrado')), findsWidgets);
+    });
+
+    // O bug que este teste fecha: a tela mostrava o total de `Month.current()`
+    // enquanto a home estava em outro mês. Quem olhava setembro via o total de
+    // agosto — e, com tudo começando em setembro, via R$ 0,00.
+    testWidgets('o total e as linhas seguem o mês selecionado na home', (
+      tester,
+    ) async {
+      final atual = Month.current();
+      final proximo = Month.next(atual);
+      final presenteNoProximo = <String, dynamic>{
+        ...presenteJson,
+        'startMonth': proximo,
+        'endMonth': proximo,
+        'history': <Map<String, dynamic>>[
+          {'amountCents': 18000, 'validFrom': proximo, 'validTo': proximo},
+        ],
+      };
+
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          list: Success(
+            [
+              aluguelJson,
+              presenteNoProximo,
+            ].map(ExpenseModel.fromJson).toList(),
+          ),
+        ),
+      );
+      await pumpList(tester);
+
+      // No mês corrente o presente ainda não saiu: só o aluguel conta.
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ListTile, 'Sai em ${Month.label(atual)}'),
+          matching: find.text(r'R$ 1.350,00'),
+        ),
+        findsOneWidget,
+      );
+
+      getIt<SelectedMonthController>().select(proximo);
+      await tester.pumpAndSettle();
+
+      // A tela não foi remontada nem buscou de novo — o mês trocou e o rodapé
+      // se refez sozinho, agora com o presente somado.
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ListTile, 'Sai em ${Month.label(proximo)}'),
+          matching: find.text(r'R$ 1.530,00'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('lista vazia convida a cadastrar', (tester) async {

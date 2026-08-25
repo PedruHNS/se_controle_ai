@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -25,7 +26,13 @@ void main() {
   group('controller', () {
     late CreditCardExpensesController controller;
 
-    setUp(() => controller = CreditCardExpensesController(expenses, cards));
+    setUp(
+      () => controller = CreditCardExpensesController(
+        expenses,
+        cards,
+        SelectedMonthController(),
+      ),
+    );
     tearDown(() => controller.dispose());
 
     test('busca o cartão e as duas listas', () async {

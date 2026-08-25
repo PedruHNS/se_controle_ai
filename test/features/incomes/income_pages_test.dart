@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
@@ -104,6 +106,45 @@ void main() {
             'Entra em ${Month.label(Month.current())}',
           ),
           matching: find.text(r'R$ 5.000,00'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    // Mesmo bug da lista de gastos, mesma correção: o rodapé seguia o relógio
+    // do aparelho em vez do mês escolhido na home.
+    testWidgets('o total segue o mês selecionado na home', (tester) async {
+      final atual = Month.current();
+      final proximo = Month.next(atual);
+      stubIncomeList(
+        repository,
+        result: Success(
+          [
+            salaryJson,
+            singleMonthIncomeJson(month: proximo, description: 'Bônus'),
+          ].map(IncomeModel.fromJson).toList(),
+        ),
+      );
+      await pumpList(tester);
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ListTile, 'Entra em ${Month.label(atual)}'),
+          matching: find.text(r'R$ 5.000,00'),
+        ),
+        findsOneWidget,
+      );
+
+      getIt<SelectedMonthController>().select(proximo);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(
+            ListTile,
+            'Entra em ${Month.label(proximo)}',
+          ),
+          matching: find.text(r'R$ 5.800,00'),
         ),
         findsOneWidget,
       );

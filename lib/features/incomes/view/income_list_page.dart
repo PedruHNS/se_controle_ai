@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
+import '../../../core/month/selected_month_controller.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
@@ -25,6 +26,11 @@ class IncomeListPage extends StatefulWidget {
 class _IncomeListPageState extends State<IncomeListPage> {
   final _controller = getIt<IncomeListController>();
 
+  /// O mês que a home selecionou. A lista em si não depende dele — a busca é
+  /// sem `?month`, de propósito —, mas o valor de cada linha e o total do rodapé
+  /// dependem: é o mês que responde "quanto disto entra".
+  final _selectedMonth = getIt<SelectedMonthController>();
+
   /// Recarrega ao voltar do formulário ou do detalhe: as duas telas podem ter
   /// criado, reajustado ou apagado, e a lista não fica sabendo sozinha.
   Future<void> _openAndReload(Future<Object?> navigation) async {
@@ -46,6 +52,9 @@ class _IncomeListPageState extends State<IncomeListPage> {
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
+          // Lido aqui dentro, e não no `build`, para o total se refazer sozinho
+          // se o mês trocar com esta tela montada.
+          final month = _selectedMonth.month.value;
 
           return StateTransition(
             stateKey: state.runtimeType,
@@ -62,6 +71,7 @@ class _IncomeListPageState extends State<IncomeListPage> {
               ),
               Loaded(data: final incomes) => _IncomeList(
                 incomes: incomes,
+                month: month,
                 onRefresh: _controller.refresh,
                 onOpen: (income) => _openAndReload(
                   context.pushNamed(
@@ -81,17 +91,20 @@ class _IncomeListPageState extends State<IncomeListPage> {
 class _IncomeList extends StatelessWidget {
   const _IncomeList({
     required this.incomes,
+    required this.month,
     required this.onRefresh,
     required this.onOpen,
   });
 
   final List<IncomeModel> incomes;
+
+  /// A competência selecionada na home.
+  final String month;
+
   final Future<void> Function() onRefresh;
   final void Function(IncomeModel income) onOpen;
 
-  String get _month => Month.current();
-
-  /// Quanto entra na competência corrente — o mesmo número que a home mostra
+  /// Quanto entra na competência exibida — o mesmo número que a home mostra
   /// para este mês.
   ///
   /// Sai do `amountCentsIn` e não do `amountCents` porque este último é o valor
@@ -100,14 +113,14 @@ class _IncomeList extends StatelessWidget {
   /// para o mesmo mês em duas telas do mesmo app.
   int get _monthTotalCents => incomes.fold(
     0,
-    (total, income) => total + (income.amountCentsIn(_month) ?? 0),
+    (total, income) => total + (income.amountCentsIn(month) ?? 0),
   );
 
   /// A parte que se repete: só os ganhos sem fim marcado. A diferença para o
   /// total do mês é o que entrou uma vez só — venda, presente, 13º.
   int get _recurringTotalCents => incomes
       .where((income) => income.endMonth == null)
-      .fold(0, (total, income) => total + (income.amountCentsIn(_month) ?? 0));
+      .fold(0, (total, income) => total + (income.amountCentsIn(month) ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +152,7 @@ class _IncomeList extends StatelessWidget {
               children: [
                 ListTile(
                   title: Text(
-                    'Entra em ${Month.label(_month)}',
+                    'Entra em ${Month.label(month)}',
                     style: theme.textTheme.titleSmall,
                   ),
                   trailing: Text(
@@ -172,7 +185,11 @@ class _IncomeList extends StatelessWidget {
           }
 
           final income = incomes[index];
-          return IncomeTile(income: income, onTap: () => onOpen(income));
+          return IncomeTile(
+            income: income,
+            month: month,
+            onTap: () => onOpen(income),
+          );
         },
       ),
     );
