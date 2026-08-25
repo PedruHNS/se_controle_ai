@@ -24,9 +24,6 @@ class TagListController extends BaseController {
   final _state = signal<ViewState<List<TagModel>>>(const Loading());
   final _working = signal<bool>(false);
 
-  /// Cresce a cada requisição, para descartar resposta atrasada.
-  int _requestId = 0;
-
   ReadonlySignal<ViewState<List<TagModel>>> get state => _state;
 
   /// Gravação em andamento. A view desabilita os botões para não pedir duas
@@ -37,26 +34,13 @@ class TagListController extends BaseController {
   @override
   void onInit() async {
     super.onInit();
-    await load();
+    await _load();
   }
 
-  Future<void> load({bool silent = false}) async {
-    final requestId = ++_requestId;
+  Future<void> _load() async {
+    _state.value = const Loading();
 
-    if (!silent) _state.value = const Loading();
-
-    // Só as ativas, como todo o resto do app. Arquivada é estado interno: ela
-    // segura os lançamentos antigos e some da circulação, inclusive daqui.
-    //
-    // Quem quiser uma tag arquivada de volta a recria pelo nome — o backend
-    // ressuscita a mesma linha, com o histórico junto (TAG-17). Por isso a lista
-    // não precisa mais mostrá-la para dar acesso ao restaurar.
-    //`includeArchived: false` escrito, e não omitido: na interface o parâmetro
-    // não tem valor padrão — quem tem é a implementação —, então omitir aqui
-    // manda "ausente" e deixa a intenção só no comentário.
     final result = await _repository.list(includeArchived: false);
-
-    if (requestId != _requestId) return;
 
     result.when(
       (success) => _state.value = Loaded(success),
@@ -64,7 +48,7 @@ class TagListController extends BaseController {
     );
   }
 
-  Future<void> refresh() => load(silent: false);
+  Future<void> refresh() => _load();
 
   /// Devolve a falha para quem chamou em vez de guardá-la em signal, como as
   /// outras listas fazem: o 409 de nome repetido (TAG-01) pertence ao diálogo,
@@ -74,10 +58,8 @@ class TagListController extends BaseController {
 
     final result = await _repository.create(name: name, color: color);
 
-    _working.value = false;
-
     return result.when((_) async {
-      await load(silent: true);
+      await _load();
       return null;
     }, (error) async => error);
   }
@@ -97,7 +79,7 @@ class TagListController extends BaseController {
     _working.value = false;
 
     return result.when((_) async {
-      await load(silent: true);
+      await _load();
       return null;
     }, (error) async => error);
   }
@@ -113,7 +95,7 @@ class TagListController extends BaseController {
     _working.value = false;
 
     return result.when((outcome) async {
-      await load(silent: true);
+      await _load();
       return (failure: null, archived: outcome.archived);
     }, (error) async => (failure: error, archived: false));
   }
@@ -127,7 +109,7 @@ class TagListController extends BaseController {
     _working.value = false;
 
     return result.when((_) async {
-      await load(silent: true);
+      await _load();
       return null;
     }, (error) async => error);
   }

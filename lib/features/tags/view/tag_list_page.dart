@@ -117,7 +117,6 @@ class _TagListPageState extends State<TagListPage> {
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
-
           return switch (state) {
             Loading() => ListView.separated(
               padding: .all(24),
@@ -130,7 +129,7 @@ class _TagListPageState extends State<TagListPage> {
                 padding: const EdgeInsets.all(16),
                 child: FailureCardWidget(
                   failure: failure,
-                  onRetry: _controller.load,
+                  onRetry: () => _controller.refresh(),
                 ),
               ),
             ),
@@ -167,8 +166,7 @@ class _TagList extends StatelessWidget {
         icon: Icons.sell_outlined,
         title: 'Nenhuma tag cadastrada',
         message:
-            'Todo gasto precisa de uma. Cadastre a primeira para poder '
-            'lançar.',
+            'Todo gasto precisa de uma. Cadastre a primeira para poder lançar.',
         onRefresh: onRefresh,
       );
     }
