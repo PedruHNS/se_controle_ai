@@ -17,7 +17,8 @@ void main() {
   late MockTagRepository tags;
   late ExpenseFormController controller;
 
-  ExpenseFormController build() => ExpenseFormController(repository, cards, tags);
+  ExpenseFormController build() =>
+      ExpenseFormController(repository, cards, tags);
 
   setUp(() {
     repository = expenseRepositoryMock();

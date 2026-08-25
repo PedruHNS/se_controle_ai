@@ -242,12 +242,12 @@ void stubTagUpdate(MockTagRepository mock, {Result<bool, Failure>? result}) {
 }
 
 /// Stub de criação de tag, para o caminho "criar sem sair do formulário".
-void stubTagCreate(
-  MockTagRepository mock, {
-  Result<String, Failure>? result,
-}) {
+void stubTagCreate(MockTagRepository mock, {Result<String, Failure>? result}) {
   when(
-    () => mock.create(name: any(named: 'name'), color: any(named: 'color')),
+    () => mock.create(
+      name: any(named: 'name'),
+      color: any(named: 'color'),
+    ),
   ).thenAnswer((_) async => result ?? const Success(moradiaTagId));
 }
 
@@ -545,8 +545,7 @@ void _recordExpenseUpdateBody(
     'tagId': ?named[const Symbol('tagId')] as String?,
   };
 
-  (named[const Symbol('notes')] as Patch<String>? ??
-          const Patch<String>.keep())
+  (named[const Symbol('notes')] as Patch<String>? ?? const Patch<String>.keep())
       .writeTo(body, 'notes');
   (named[const Symbol('creditCardId')] as Patch<String>? ??
           const Patch<String>.keep())

@@ -102,11 +102,7 @@ void main() {
         result: Success(
           ExpenseModel.fromJson({
             ...aluguelJson,
-            'tag': {
-              'id': arquivadaTagId,
-              'name': 'Assinaturas',
-              'color': null,
-            },
+            'tag': {'id': arquivadaTagId, 'name': 'Assinaturas', 'color': null},
           }),
         ),
       );
@@ -114,10 +110,7 @@ void main() {
       await controller.start(id: 'gasto-1');
 
       expect(controller.ready.value, isTrue);
-      expect(
-        controller.tags.value.map((t) => t.id),
-        contains(arquivadaTagId),
-      );
+      expect(controller.tags.value.map((t) => t.id), contains(arquivadaTagId));
       expect(
         controller.control<String>(ExpenseFormController.tagId).value,
         arquivadaTagId,

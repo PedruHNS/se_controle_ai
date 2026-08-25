@@ -22,9 +22,7 @@ void main() {
   // tearDown(resetInjector);
 
   Future<void> pumpHome(WidgetTester tester, {ThemeData? theme}) async {
-    await tester.pumpWidget(
-      MaterialApp(theme: theme, home: const HomePage()),
-    );
+    await tester.pumpWidget(MaterialApp(theme: theme, home: const HomePage()));
     await tester.pumpAndSettle();
   }
 

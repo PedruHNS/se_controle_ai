@@ -18,9 +18,7 @@ Dio buildDio() {
       // Só entra quando existe. Vazio, mandar `x-api-key: ''` faria o backend
       // recusar com 401 em vez de tratar como ausente — e é o mesmo 401, mas
       // por um motivo que não é o real.
-      headers: {
-        if (AppConfig.apiKey.isNotEmpty) 'x-api-key': AppConfig.apiKey,
-      },
+      headers: {if (AppConfig.apiKey.isNotEmpty) 'x-api-key': AppConfig.apiKey},
     ),
   );
 

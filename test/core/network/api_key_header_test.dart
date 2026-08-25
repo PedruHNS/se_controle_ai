@@ -29,7 +29,11 @@ void main() {
   test('o logger não imprime headers, para a chave não vazar no console', () {
     final logger = buildDio().interceptors.whereType<PrettyDioLogger>();
 
-    expect(logger, isNotEmpty, reason: 'o teste roda em debug, então ele existe');
+    expect(
+      logger,
+      isNotEmpty,
+      reason: 'o teste roda em debug, então ele existe',
+    );
     expect(logger.first.requestHeader, isFalse);
   });
 }
