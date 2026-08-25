@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/features/tags/widgets/tag_tile_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
@@ -7,10 +8,10 @@ import '../../../core/shared/patch.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
-import '../../../core/shared/widgets/state_transition.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/tag_list_controller.dart';
 import '../widgets/tag_form_dialog.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 /// Tags — o CRUD completo, sem tela de detalhe nem formulário de página
 /// inteira.
@@ -89,11 +90,6 @@ class _TagListPageState extends State<TagListPage> {
     );
   }
 
-  Future<void> _restore(TagModel tag) async {
-    final failure = await _controller.restore(tag.id);
-    _reportIfFailed(failure);
-  }
-
   void _reportIfFailed(Failure? failure) {
     if (!mounted || failure == null) return;
 
@@ -103,42 +99,48 @@ class _TagListPageState extends State<TagListPage> {
   }
 
   @override
+  void dispose() {
+    getIt.resetLazySingleton<TagListController>();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Tags'), centerTitle: true),
       floatingActionButton: SignalBuilder(
-        builder: (context) => FloatingActionButton.extended(
+        builder: (context) => FloatingActionButton(
           onPressed: _controller.working.value ? null : _create,
-          icon: const Icon(Icons.add),
-          label: const Text('Nova tag'),
+          child: const Icon(Icons.add),
         ),
       ),
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
 
-          return StateTransition(
-            stateKey: state.runtimeType,
-            child: switch (state) {
-              Loading() => const Center(child: CircularProgressIndicator()),
-              Failed(failure: final failure) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FailureCardWidget(
-                    failure: failure,
-                    onRetry: _controller.load,
-                  ),
+          return switch (state) {
+            Loading() => ListView.separated(
+              padding: .all(24),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemCount: 6,
+              itemBuilder: (_, _) => Skeletonizer(child: TagTile.esqueleto()),
+            ),
+            Failed(failure: final failure) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: FailureCardWidget(
+                  failure: failure,
+                  onRetry: _controller.load,
                 ),
               ),
-              Loaded(data: final tags) => _TagList(
-                tags: tags,
-                onRefresh: _controller.refresh,
-                onEdit: _edit,
-                onDelete: _confirmDelete,
-                onRestore: _restore,
-              ),
-            },
-          );
+            ),
+            Loaded(data: final tags) => _TagList(
+              tags: tags,
+              onRefresh: _controller.refresh,
+              onEdit: _edit,
+              onDelete: _confirmDelete,
+            ),
+          };
         },
       ),
     );
@@ -151,19 +153,15 @@ class _TagList extends StatelessWidget {
     required this.onRefresh,
     required this.onEdit,
     required this.onDelete,
-    required this.onRestore,
   });
 
   final List<TagModel> tags;
   final Future<void> Function() onRefresh;
   final void Function(TagModel tag) onEdit;
   final void Function(TagModel tag) onDelete;
-  final void Function(TagModel tag) onRestore;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (tags.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.sell_outlined,
@@ -175,115 +173,16 @@ class _TagList extends StatelessWidget {
       );
     }
 
-    // Arquivadas embaixo, em seção própria: elas não servem para lançar, então
-    // misturá-las com as ativas atrapalharia justamente quem veio cadastrar.
-    final ativas = tags.where((tag) => !tag.archived).toList();
-    final arquivadas = tags.where((tag) => tag.archived).toList();
-
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        // Espaço no fim para o FAB não cobrir a última linha.
-        padding: const EdgeInsets.only(bottom: 88),
-        children: [
-          for (final tag in ativas) ...[
-            _TagTile(tag: tag, onEdit: onEdit, onDelete: onDelete),
-            const Divider(height: 1),
-          ],
-          if (arquivadas.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-              child: Text(
-                'Arquivadas',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Text(
-                'Continuam nos lançamentos que já as usam, mas não podem ser '
-                'escolhidas em lançamento novo.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            for (final tag in arquivadas) ...[
-              _TagTile(
-                tag: tag,
-                onEdit: onEdit,
-                onDelete: onDelete,
-                onRestore: onRestore,
-              ),
-              const Divider(height: 1),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
 
-class _TagTile extends StatelessWidget {
-  const _TagTile({
-    required this.tag,
-    required this.onEdit,
-    required this.onDelete,
-    this.onRestore,
-  });
-
-  final TagModel tag;
-  final void Function(TagModel tag) onEdit;
-  final void Function(TagModel tag) onDelete;
-
-  /// Só as arquivadas têm o que restaurar.
-  final void Function(TagModel tag)? onRestore;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final restore = onRestore;
-
-    return ListTile(
-      leading: _ColorAvatar(tag: tag),
-      title: Text(
-        tag.name,
-        style: tag.archived
-            ? TextStyle(color: theme.colorScheme.onSurfaceVariant)
-            : null,
-      ),
-      subtitle: Text(
-        switch (tag.usageCount) {
-          0 => 'Sem uso',
-          1 => '1 lançamento',
-          final n => '$n lançamentos',
+      child: ListView.separated(
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        padding: .all(24),
+        itemCount: tags.length,
+        itemBuilder: (_, i) {
+          return TagTile(tag: tags[i], onEdit: onEdit, onDelete: onDelete);
         },
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-      // O toque abre a edição: não há tela de detalhe para onde ir, e a tag
-      // não tem nada a mostrar além do que já está na linha. Renomear vale
-      // para trás (TAG-03), inclusive na arquivada.
-      onTap: () => onEdit(tag),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (restore != null)
-            IconButton(
-              icon: const Icon(Icons.unarchive_outlined),
-              tooltip: 'Restaurar',
-              onPressed: () => restore(tag),
-            ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: tag.archived ? 'Excluir de vez' : 'Excluir',
-            onPressed: () => onDelete(tag),
-          ),
-        ],
       ),
     );
   }
@@ -291,29 +190,6 @@ class _TagTile extends StatelessWidget {
 
 /// O ponto de cor da tag. Sem cor, mostra a inicial — um círculo cinza
 /// sugeriria que a cor escolhida foi cinza.
-class _ColorAvatar extends StatelessWidget {
-  const _ColorAvatar({required this.tag});
-
-  final TagModel tag;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = tag.parsedColor;
-
-    if (color == null) {
-      return CircleAvatar(
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        child: Text(
-          tag.name.characters.first.toUpperCase(),
-          style: theme.textTheme.titleSmall,
-        ),
-      );
-    }
-
-    return CircleAvatar(backgroundColor: color, radius: 16);
-  }
-}
 
 /// Confirmação de exclusão, que diz **antes** o que vai acontecer.
 ///
@@ -340,8 +216,7 @@ class _DeleteDialog extends StatelessWidget {
       title: Text(emUso ? 'Arquivar tag' : 'Excluir tag'),
       content: Text(
         emUso
-            ? '$lancamentos "${tag.name}". Ela continua neles, mas sai das '
-                  'opções de gasto e ganho novos. Dá para restaurar depois.'
+            ? '$lancamentos "${tag.name}". Ela continua neles, mas sai das opções de gasto e ganho novos. caso precise voltar com essa tag apenas crie ela novamente.'
             : '"${tag.name}" não é usada por nenhum lançamento e será excluída.',
       ),
       actions: [
@@ -351,7 +226,7 @@ class _DeleteDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text(emUso ? 'Arquivar' : 'Excluir'),
+          child: Text('Excluir'),
         ),
       ],
     );
