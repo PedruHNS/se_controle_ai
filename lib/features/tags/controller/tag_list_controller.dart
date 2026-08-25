@@ -45,9 +45,16 @@ class TagListController extends BaseController {
 
     if (!silent) _state.value = const Loading();
 
-    // Esta tela é a única que mostra as arquivadas: é aqui que se restaura, e
-    // esconder a que acabou de ser arquivada faria parecer que sumiu.
-    final result = await _repository.list(includeArchived: true);
+    // Só as ativas, como todo o resto do app. Arquivada é estado interno: ela
+    // segura os lançamentos antigos e some da circulação, inclusive daqui.
+    //
+    // Quem quiser uma tag arquivada de volta a recria pelo nome — o backend
+    // ressuscita a mesma linha, com o histórico junto (TAG-17). Por isso a lista
+    // não precisa mais mostrá-la para dar acesso ao restaurar.
+    //`includeArchived: false` escrito, e não omitido: na interface o parâmetro
+    // não tem valor padrão — quem tem é a implementação —, então omitir aqui
+    // manda "ausente" e deixa a intenção só no comentário.
+    final result = await _repository.list(includeArchived: false);
 
     if (requestId != _requestId) return;
 
@@ -57,13 +64,23 @@ class TagListController extends BaseController {
     );
   }
 
-  Future<void> refresh() => load(silent: true);
+  Future<void> refresh() => load(silent: false);
 
   /// Devolve a falha para quem chamou em vez de guardá-la em signal, como as
   /// outras listas fazem: o 409 de nome repetido (TAG-01) pertence ao diálogo,
   /// que continua aberto com o texto digitado, e não à lista, que está correta.
-  Future<Failure?> create({required String name, String? color}) =>
-      _run(() => _repository.create(name: name, color: color));
+  Future<Failure?> create({required String name, String? color}) async {
+    _working.value = true;
+
+    final result = await _repository.create(name: name, color: color);
+
+    _working.value = false;
+
+    return result.when((_) async {
+      await load(silent: true);
+      return null;
+    }, (error) async => error);
+  }
 
   /// [color] é [Patch] e não `String?` pelo motivo do CAR-08: ausente não mexe,
   /// `null` limpa. Sem isso, tirar a cor de uma tag seria indistinguível de não
@@ -72,7 +89,18 @@ class TagListController extends BaseController {
     String id, {
     String? name,
     Patch<String> color = const Patch.keep(),
-  }) => _run(() => _repository.update(id, name: name, color: color));
+  }) async {
+    _working.value = true;
+
+    final result = await _repository.update(id, name: name, color: color);
+
+    _working.value = false;
+
+    return result.when((_) async {
+      await load(silent: true);
+      return null;
+    }, (error) async => error);
+  }
 
   /// Dois desfechos (TAG-08): sem uso apaga, em uso arquiva. Devolve o que
   /// aconteceu junto com a falha, para a tela dizer a frase certa — "excluída"
@@ -91,19 +119,17 @@ class TagListController extends BaseController {
   }
 
   /// Traz a arquivada de volta para as escolhas de lançamento novo.
-  Future<Failure?> restore(String id) => _run(() => _repository.restore(id));
-
-  Future<Failure?> _run(Future<dynamic> Function() action) async {
+  Future<Failure?> restore(String id) async {
     _working.value = true;
 
-    final result = await action();
+    final result = await _repository.restore(id);
 
     _working.value = false;
 
     return result.when((_) async {
       await load(silent: true);
       return null;
-    }, (Failure error) async => error);
+    }, (error) async => error);
   }
 
   @override

@@ -31,12 +31,14 @@ void main() {
       expect(find.text('Assinaturas'), findsOneWidget);
     });
 
-    // A tela é a única que mostra arquivada: é onde se restaura, e esconder a
-    // que acabou de ser arquivada faria parecer que sumiu.
-    testWidgets('busca incluindo as arquivadas', (tester) async {
+    // Arquivada é estado interno: some da circulação, inclusive desta tela.
+    // Quem quiser uma de volta a recria pelo nome, e o backend ressuscita a
+    // mesma linha com o histórico (TAG-17).
+    testWidgets('busca só as ativas', (tester) async {
       await pump(tester);
 
-      verify(() => repository.list(includeArchived: true)).called(1);
+      verify(() => repository.list(includeArchived: false)).called(1);
+      verifyNever(() => repository.list(includeArchived: true));
     });
 
     testWidgets('diz quantos lançamentos usam cada tag', (tester) async {
@@ -199,8 +201,11 @@ void main() {
 
       verify(() => repository.delete(moradiaTagId)).called(1);
       expect(
-        find.widgetWithText(SnackBar, 'Moradia foi arquivada e continua nos '
-            'lançamentos antigos.'),
+        find.widgetWithText(
+          SnackBar,
+          'Moradia foi arquivada e continua nos '
+          'lançamentos antigos.',
+        ),
         findsOneWidget,
       );
     });
