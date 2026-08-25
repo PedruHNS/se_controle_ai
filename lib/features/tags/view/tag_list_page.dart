@@ -199,9 +199,8 @@ class _TagList extends StatelessWidget {
 /// oposto do diálogo de cartão, e a razão é que aqui não há erro esperado para
 /// mostrar dentro dele — o 409 da TAG-08 deixou de existir.
 class _DeleteDialog extends StatelessWidget {
-  const _DeleteDialog({required this.tag});
-
   final TagModel tag;
+  const _DeleteDialog({required this.tag});
 
   @override
   Widget build(BuildContext context) {
