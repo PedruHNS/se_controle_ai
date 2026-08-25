@@ -10,6 +10,14 @@ part of 'injector.dart';
 /// O motivo de cada lado está nos comentários abaixo, no primeiro caso de cada
 /// tipo.
 void _registerControllers() {
+  // O tema não pertence a feature nenhuma: quem o lê é o `MaterialApp`, na raiz,
+  // e quem o troca é o menu lateral. lazySingleton porque é um por app — dois
+  // temas ao mesmo tempo não existem.
+  getIt.registerLazySingleton<ThemeController>(
+    ThemeController.new,
+    dispose: (e) => e.dispose(),
+  );
+
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
   // get_it — a página não chama `dispose` no controller. O dono da instância é o
   // container, não a tela: sair da home e voltar reaproveita o mesmo controller,

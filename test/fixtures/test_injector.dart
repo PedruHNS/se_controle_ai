@@ -14,6 +14,7 @@ import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_list_controller.dart';
+import 'package:se_controle_ai/core/theme/theme_controller.dart';
 import 'package:se_controle_ai/features/projection/controller/projection_controller.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 
@@ -44,6 +45,9 @@ MockSummaryRepository setupTestInjector() {
   if (getIt.isRegistered<ProjectionController>()) {
     getIt.unregister<ProjectionController>();
   }
+  if (getIt.isRegistered<ThemeController>()) {
+    getIt.unregister<ThemeController>();
+  }
 
   getIt
     ..registerSingleton<SummaryRepository>(repository)
@@ -53,7 +57,11 @@ MockSummaryRepository setupTestInjector() {
     // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
     ..registerFactory<ProjectionController>(
       () => ProjectionController(getIt<SummaryRepository>()),
-    );
+    )
+    // O tema não é de feature nenhuma, mas o menu lateral o resolve — e o menu
+    // aparece em todo teste que monta a home. Sem isto, qualquer tela com
+    // drawer estoura com "ThemeController is not registered".
+    ..registerFactory<ThemeController>(ThemeController.new);
 
   return repository;
 }
@@ -110,7 +118,10 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       () => IncomeListController(getIt<IncomeRepository>()),
     )
     ..registerFactory<IncomeFormController>(
-      () => IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
+      () => IncomeFormController(
+        getIt<IncomeRepository>(),
+        getIt<TagRepository>(),
+      ),
     )
     ..registerFactory<IncomeDetailController>(
       () => IncomeDetailController(getIt<IncomeRepository>()),

@@ -20,6 +20,7 @@ import '../../features/projection/controller/projection_controller.dart';
 import '../../features/tags/controller/tag_list_controller.dart';
 import '../network/api_client.dart';
 import '../network/dio_factory.dart';
+import '../theme/theme_controller.dart';
 
 /// O registro é dividido em `part`, e não em arquivos separados com import: os
 /// dois lados registram no mesmo `getIt` e usam as mesmas dependências, então

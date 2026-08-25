@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:signals/signals_flutter.dart';
 
+import '../../di/injector.dart';
 import '../../router/app_routes.dart';
+import '../../theme/theme_controller.dart';
 
 /// Menu lateral do app.
 ///
@@ -57,6 +60,70 @@ class AppDrawer extends StatelessWidget {
             icon: Icons.sell_outlined,
             label: 'Tags',
             route: AppRoutes.tags,
+          ),
+
+          // O seletor fica no fim, depois de um divisor: é ajuste do app, não
+          // um lugar para onde ir — e misturá-lo com os destinos faria a lista
+          // de navegação ter um item que não navega.
+          const Divider(height: 32),
+          const _ThemeSelector(),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// Escolha de tema, aqui mesmo no menu — sem tela de ajustes, que teria um
+/// item só.
+///
+/// **Três opções, e "Sistema" é o padrão.** Só claro e escuro tiraria o
+/// comportamento que já existia, que é acompanhar o aparelho; quem tem o
+/// sistema em automático por horário perderia isso ao encostar no seletor.
+///
+/// A escolha vale para esta sessão — ver [ThemeController].
+class _ThemeSelector extends StatelessWidget {
+  const _ThemeSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final controller = getIt<ThemeController>();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tema', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 8),
+          SignalBuilder(
+            builder: (context) => SegmentedButton<ThemeMode>(
+              // Sem rótulo escrito: três palavras não cabem na largura do menu
+              // sem quebrar, e o ícone de cada uma é conhecido. O nome fica no
+              // tooltip, para quem tiver dúvida — e para o leitor de tela.
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_outlined),
+                  tooltip: 'Sistema',
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                  tooltip: 'Claro',
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                  tooltip: 'Escuro',
+                ),
+              ],
+              selected: {controller.mode.value},
+              onSelectionChanged: (selection) =>
+                  controller.select(selection.first),
+            ),
           ),
         ],
       ),
