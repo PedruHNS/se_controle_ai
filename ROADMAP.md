@@ -461,7 +461,7 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 6 — Projeção: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 7 — Acabamento: **concluída** |
 | ░░░░░░░░░░ | Fase 8 — Qualidade: não iniciada |
-| ░░░░░░░░░░ | Fase 9 — Login e cadastro: não iniciada |
+| ░░░░░░░░░░ | Fase 9 — Login: não iniciada |
 | ░░░░░░░░░░ | Fases 10 e 11 — não iniciadas |
 
 A **Fase 10 — Offline-first** fecha a lista de propósito: ela é uma segunda
@@ -993,39 +993,68 @@ controller (repositório fake) e de widget nas telas principais. `flutter analyz
 sem issue como porta de entrada.
 
 
-### Fase 9 — Login e cadastro · ░░░░░░░░░░ não iniciada
+### Fase 9 — Login · ░░░░░░░░░░ não iniciada
 Depende da **Etapa 7 do backend**, que é a próxima de lá. Deixou de ser decisão
-aberta em 21/08.
+aberta em 21/08, e o provedor foi fechado em 25/08: **Firebase Auth, com Google e
+GitHub** (`expense-tracker-api/docs/specs/08-autenticacao.md`).
+
+**Não há mais tela de cadastro**, e é consequência da decisão, não corte de
+escopo: quem conduz cadastro, senha e recuperação é o Firebase. Sobra uma tela
+de entrar, com um botão.
 
 O que a fase entrega:
 
-- Telas de **login** e de **cadastro**, e a decisão de qual delas o app abre
-  quando não há sessão
-- Guarda de rota no `go_router`: sem token, qualquer rota redireciona para o
-  login — e é aqui que o `redirect` do router finalmente ganha uso
-- Token guardado no aparelho. **`flutter_secure_storage`**, e não
-  `shared_preferences`: um token que vale semanas em texto plano no disco é o
-  tipo de coisa que só dá problema uma vez
-- O interceptor do Dio mandando `Authorization: Bearer`, no lugar do
-  `x-api-key`
+- `firebase_core`, `firebase_auth` e `google_sign_in` — e a configuração do
+  `google-services.json`, que o `firebase_messaging` da Fase 10 vai reaproveitar
+  inteira
+- Tela de login com **dois** botões — Google e GitHub —, e a decisão do que ela
+  mostra enquanto o SDK responde
+- O Google é nativo; o **GitHub sai por `signInWithProvider`**, abre navegador e
+  volta por **deep link** — configuração de esquema de URL no Android, feita uma
+  vez e para um provedor só
+- **O fluxo de vinculação de contas** (`AUT-12`), que com dois provedores já deixou
+  de ser adiável: mesmo e-mail em provedor diferente devolve
+  `account-exists-with-different-credential`, e sem tratar isso o segundo login
+  da mesma pessoa simplesmente falha. `fetchSignInMethodsForEmail`, login pelo
+  provedor original, `linkWithCredential`
+- Guarda de rota no `go_router`: sem sessão, qualquer rota redireciona para o
+  login — e é aqui que o `redirect` do router finalmente ganha uso, alimentado
+  por `FirebaseAuth.instance.idTokenChanges()`
+- O interceptor do Dio mandando `Authorization: Bearer` com o ID token, no lugar
+  do `x-api-key`
 - **401 passa a significar outra coisa.** Hoje quer dizer "a chave do build está
   errada" e a `UnauthorizedFailure` não é retentável de propósito. Com sessão,
   401 passa a ser "o token expirou" — e a resposta certa deixa de ser mostrar
-  erro e passa a ser mandar para o login. É mudança de comportamento, não campo
-  novo
-- Botão de sair, que apaga o token local
+  erro: é pegar um token novo e repetir a requisição, calada, e só cair no login
+  quando isso também falhar
+- Botão de sair: `signOut()` e pronto
+- Tratar o **403 novo** da `AUT-11`, que é conta ainda não aprovada. É o único
+  403 do sistema e não é retentável: a tela precisa dizer que o acesso está
+  pendente, e não "erro ao entrar" — o login **funcionou**, e mandar tentar de
+  novo é o pior conselho possível aí
 
-**Sem refresh token**, acompanhando a decisão do backend. A consequência
-aparece aqui: quando o token vence, a pessoa faz login de novo, e ponto. Não há
-renovação silenciosa. É aceitável enquanto o token for de vida longa, e é
-justamente por isso que ele é de vida longa.
+**Sem armazenamento de token, e essa é a mudança grande.** O SDK do Firebase
+guarda a sessão sozinho, em armazenamento seguro da plataforma, e renova o ID
+token antes de ele vencer. Cai fora o `flutter_secure_storage`, cai fora guardar
+refresh, e **cai fora o interceptor single-flight** — que era a parte
+genuinamente difícil desta fase nos dois desenhos anteriores. O interceptor só
+chama `getIdToken()` e segue; a fila é problema do SDK.
 
 **Uma coisa que fica pior antes de melhorar:** hoje o app abre direto na home.
-Com login, abre numa tela de espera enquanto lê o token do disco — e essa tela
-precisa existir de verdade, senão pisca o login antes da home a cada abertura.
+Com login, abre numa tela de espera enquanto o SDK restaura a sessão — e essa
+tela precisa existir de verdade, senão pisca o login antes da home a cada
+abertura.
 
 **Pronto quando:** duas contas diferentes, no mesmo aparelho, veem gastos
-diferentes — e nenhuma vê a tag da outra.
+diferentes — e nenhuma vê a tag da outra. O token expirando no meio do uso não
+aparece na tela: renova e segue. E a mesma pessoa entrando por Google numa vez e
+por GitHub na outra cai na **mesma** conta, com os mesmos gastos.
+
+**Uma coisa que esta fase não resolve, e é bom saber antes:** quem entrar pelo
+GitHub com e-mail privado chega como `@users.noreply.github.com`, que é endereço
+diferente do Google — dois `uid`, duas contas, e a segunda abre vazia. Está
+registrado na `AUT-12`, e quem segura o estrago é a aprovação manual da
+`AUT-11`.
 
 ### Fase 10 — Notificações · ░░░░░░░░░░ não iniciada
 Depende da **Etapa 8 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
@@ -1156,8 +1185,9 @@ forem encontradas no meio da implementação:
   widget também engana: `Loading` e `Failed` renderizam os dois um `Center`.
   Quem sabe que o estado mudou é o `ViewState`, por isso o `StateTransition`
   pede um `stateKey`.
-- **O backend não tem autenticação nem noção de usuário.** Hoje é single-user na
-  máquina local. Qualquer plano de publicar o app exige resolver isso primeiro.
+- **O backend não tem autenticação nem noção de usuário.** Hoje é single-user, e
+  o que o protege na internet é a `x-api-key`. É a Etapa 7 de lá e a Fase 9
+  daqui — decidida, especificada e não iniciada.
 
 Descobertas já na pele, implementando a Fase 0:
 
@@ -1277,10 +1307,23 @@ Descobertas implementando a Fase 2:
    consulta a filtrar por dono — feita agora são 8 tabelas, feita depois de
    notificações e offline seriam 14, mais o job e o delta reescritos.
 
-   **Sem refresh token** no primeiro corte. O token é de vida longa, e o custo
-   está registrado nas duas pontas: token roubado vale até expirar, e sair do
-   app não invalida nada no servidor. Acrescentar refresh depois é uma rota a
-   mais, não uma reescrita.
+   **Provedor fechado em 25/08: Firebase Auth, com Google e GitHub.** O
+   caminho até aqui passou por senha com token de vida longa e por senha com
+   refresh rotativo; os dois caíram quando ficou claro que o `firebase-admin`
+   entra no backend pelo FCM da Fase 10 de qualquer jeito, e que
+   `verifyIdToken()` vem no mesmo pacote. Autenticação passou a custar perto de
+   zero em dependência nova.
+
+   O que isso apaga daqui: senha, tela de cadastro, armazenamento de token e o
+   interceptor single-flight. O que isso custa: identidade e push dependendo do
+   mesmo projeto do Firebase, e o logout valendo só depois de o token expirar —
+   até uma hora (`AUT-08`).
+
+   O segundo provedor acrescenta o **fluxo de vinculação** da `AUT-12`, porque
+   sem ele a mesma pessoa entrando pelo GitHub depois do Google simplesmente
+   falha. A **Apple ficou fora**: exige anuidade paga para ser configurada e, sem
+   build de iOS, não alcançaria ninguém que o Google já não alcance. Volta quando
+   houver App Store, onde é requisito de aprovação.
 2. ~~**Offline**~~ — **resolvido em 19/08: entra, mas por último.** Vira a
    **Fase 11**, depois de o app estar pronto. O motivo de não ser agora está lá;
    o resumo é que offline-first não é um cache que se liga no fim, é uma segunda
