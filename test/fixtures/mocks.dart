@@ -2,12 +2,14 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/patch.dart';
+import 'package:se_controle_ai/data/models/auth_user_model.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
+import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
@@ -36,6 +38,41 @@ class MockCreditCardRepository extends Mock implements CreditCardRepository {}
 class MockExpenseRepository extends Mock implements ExpenseRepository {}
 
 class MockTagRepository extends Mock implements TagRepository {}
+
+class MockAuthRepository extends Mock implements AuthRepository {}
+
+/// Quem "entrou" nos testes.
+const pedroLogado = AuthUserModel(
+  uid: 'uid-do-pedro',
+  email: 'pedro@exemplo.com',
+  displayName: 'Pedro',
+);
+
+/// Um repositório de autenticação já respondendo a tudo.
+///
+/// [changes] fica vazio por padrão: quem quiser observar login e logout
+/// acontecendo passa um `StreamController` próprio e empurra os eventos.
+MockAuthRepository authRepositoryMock({
+  AuthUserModel? current,
+  Stream<AuthUserModel?>? changes,
+  Result<AuthUserModel, Failure>? login,
+}) {
+  final mock = MockAuthRepository();
+
+  when(() => mock.current).thenReturn(current);
+  when(() => mock.changes).thenAnswer(
+    (_) => changes ?? const Stream<AuthUserModel?>.empty(),
+  );
+  when(
+    () => mock.signInWithGoogle(),
+  ).thenAnswer((_) async => login ?? const Success(pedroLogado));
+  when(() => mock.signOut()).thenAnswer((_) async => const Success(true));
+  when(
+    () => mock.idToken(forceRefresh: any(named: 'forceRefresh')),
+  ).thenAnswer((_) async => 'id-token');
+
+  return mock;
+}
 
 /// Stub de `getMonthly` para qualquer mês.
 ///

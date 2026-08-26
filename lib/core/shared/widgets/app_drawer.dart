@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
+import '../../../data/repositories/auth_repository.dart';
 import '../../di/injector.dart';
 import '../../router/app_routes.dart';
 import '../../theme/theme_controller.dart';
@@ -67,6 +69,13 @@ class AppDrawer extends StatelessWidget {
           // de navegação ter um item que não navega.
           const Divider(height: 32),
           const _ThemeSelector(),
+          const SizedBox(height: 8),
+
+          // Sair também não é destino, e fica por último de propósito: é a
+          // ação mais fácil de tocar sem querer e a mais chata de desfazer —
+          // entrar de novo custa a folha do Google inteira.
+          const Divider(height: 8),
+          const _Sair(),
           const SizedBox(height: 8),
         ],
       ),
@@ -158,6 +167,32 @@ class _DrawerItem extends StatelessWidget {
         // home já usa.
         context.pushNamed(route);
       },
+    );
+  }
+}
+
+
+/// Encerra a sessão.
+///
+/// Não navega: quem tira a pessoa daqui é o `redirect` do router, avisado pelo
+/// [AuthRefresh]. Mandar um `go` daqui criaria um segundo caminho para a mesma
+/// decisão, e os dois precisariam concordar para sempre.
+class _Sair extends StatelessWidget {
+  const _Sair();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final user = GetIt.I<AuthRepository>().current;
+
+    return ListTile(
+      key: const Key('drawer-sair'),
+      leading: Icon(Icons.logout, color: theme.colorScheme.error),
+      title: Text('Sair', style: TextStyle(color: theme.colorScheme.error)),
+      // Quem está logado, embaixo: sem isso não há nenhum lugar no app que
+      // responda "com qual conta eu entrei?".
+      subtitle: user == null ? null : Text(user.label),
+      onTap: () => GetIt.I<AuthRepository>().signOut(),
     );
   }
 }

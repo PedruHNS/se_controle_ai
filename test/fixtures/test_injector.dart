@@ -1,10 +1,12 @@
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 import 'package:se_controle_ai/data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/features/auth/controller/login_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
@@ -57,6 +59,13 @@ MockSummaryRepository setupTestInjector() {
   final repository = summaryRepositoryMock();
 
   setupSelectedMonth();
+
+  // Sessão viva por padrão. Desde que o router ganhou `redirect`, um injector
+  // sem autenticação mandaria **toda** tela de teste para o login — o que
+  // faria dezenas de testes falharem por um motivo que não é o deles. Quem
+  // quer testar o caminho deslogado chama `setupAuthTestInjector()` depois,
+  // sem usuário.
+  setupAuthTestInjector(mock: authRepositoryMock(current: pedroLogado));
 
   if (getIt.isRegistered<SummaryRepository>()) {
     getIt.unregister<SummaryRepository>();
@@ -252,6 +261,28 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
       ),
+    );
+
+  return repository;
+}
+
+
+/// A tela de login: repositório de autenticação mockado e o controller
+/// registrado como `factory`, igual ao injector de verdade.
+MockAuthRepository setupAuthTestInjector({MockAuthRepository? mock}) {
+  final repository = mock ?? authRepositoryMock();
+
+  if (getIt.isRegistered<AuthRepository>()) {
+    getIt.unregister<AuthRepository>();
+  }
+  if (getIt.isRegistered<LoginController>()) {
+    getIt.unregister<LoginController>();
+  }
+
+  getIt
+    ..registerSingleton<AuthRepository>(repository)
+    ..registerFactory<LoginController>(
+      () => LoginController(getIt<AuthRepository>()),
     );
 
   return repository;

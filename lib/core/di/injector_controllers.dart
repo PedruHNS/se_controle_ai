@@ -10,6 +10,14 @@ part of 'injector.dart';
 /// O motivo de cada lado está nos comentários abaixo, no primeiro caso de cada
 /// tipo.
 void _registerControllers() {
+  // `factory` como os formulários: a tela de login é descartável, e o
+  // `dispose` é do `State` da página. lazySingleton aqui manteria a última
+  // falha viva depois de sair e voltar — o aviso vermelho de uma tentativa que
+  // já passou reaparecendo numa tela limpa.
+  getIt.registerFactory<LoginController>(
+    () => LoginController(getIt<AuthRepository>()),
+  );
+
   // O tema não pertence a feature nenhuma: quem o lê é o `MaterialApp`, na raiz,
   // e quem o troca é o menu lateral. lazySingleton porque é um por app — dois
   // temas ao mesmo tempo não existem.

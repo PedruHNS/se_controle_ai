@@ -145,15 +145,35 @@ final class SerializationException extends AppException {
   });
 }
 
-/// 401 — a chave de API não foi enviada, ou não confere.
+/// 401 — o servidor não aceitou quem o app diz ser.
 ///
-/// Não é "sessão expirada": o backend não tem login nem sessão. É a chave
-/// gravada no binário pelo `--dart-define`, então corrigir passa por
-/// recompilar o app, não por entrar de novo em algum lugar.
+/// Duas causas, e a segunda passou a existir na Etapa 7: a `x-api-key` do
+/// binário está errada, ou o ID token está ausente, expirado ou inválido
+/// (AUT-06). O backend devolve a mesma frase para as duas de propósito — a
+/// distinção só interessaria a quem está tentando adivinhar.
+///
+/// O interceptor tenta renovar o token uma vez antes de deixar isto subir. Se
+/// chegou aqui, renovar não resolveu.
 final class UnauthorizedException extends AppException {
   const UnauthorizedException({
     required super.message,
     super.code,
+    super.cause,
+    super.stackTrace,
+  });
+}
+
+/// 403 — o cadastro existe e ainda não foi aprovado (AUT-11).
+///
+/// **O único 403 do sistema**, e por isso não é ambíguo. Cadastrar é
+/// automático — o primeiro login cria a linha —, mas entrar não é: alguém
+/// precisa preencher o `approved_at`. Não é erro de credencial e não adianta
+/// tentar de novo; é uma espera.
+final class PendingApprovalException extends AppException {
+  const PendingApprovalException({
+    required super.message,
+    super.code,
+    super.statusCode = 403,
     super.cause,
     super.stackTrace,
   });

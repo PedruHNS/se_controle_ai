@@ -8,6 +8,7 @@ import '../../data/repositories/expense_repository.dart';
 import '../../data/repositories/income_repository.dart';
 import '../../data/repositories/summary_repository.dart';
 import '../../data/repositories/tag_repository.dart';
+import '../../features/auth/controller/login_controller.dart';
 import '../../features/credit_cards/controller/credit_card_expenses_controller.dart';
 import '../../features/credit_cards/controller/credit_card_form_controller.dart';
 import '../../features/credit_cards/controller/credit_card_list_controller.dart';
@@ -48,8 +49,16 @@ final getIt = GetIt.instance;
 /// funciona igual. Aqui vêm primeiro porque é assim que se lê — rede,
 /// repositório, controller.
 void setupInjector() {
+  // Os repositórios antes do Dio, invertendo a ordem de leitura: o Dio agora
+  // depende do de autenticação, que é quem sabe o token. Não muda a execução —
+  // `lazySingleton` resolve na hora de construir —, mas deixa a dependência
+  // visível para quem lê.
+  _registerRepositories();
+
   if (!getIt.isRegistered<Dio>()) {
-    getIt.registerLazySingleton<Dio>(() => buildDio());
+    getIt.registerLazySingleton<Dio>(
+      () => buildDio(auth: getIt<AuthRepository>()),
+    );
   }
 
   if (!getIt.isRegistered<ApiClient>()) {
@@ -59,7 +68,6 @@ void setupInjector() {
     );
   }
 
-  _registerRepositories();
   _registerControllers();
 }
 

@@ -96,6 +96,7 @@ class FailureCardWidget extends StatelessWidget {
     ServerFailure() => Icons.cloud_off_outlined,
     SerializationFailure() => Icons.extension_off_outlined,
     CancelledFailure() => Icons.cancel_outlined,
+    PendingApprovalFailure() => Icons.hourglass_empty,
     AuthFailure() => Icons.person_off_outlined,
     UnexpectedFailure() => Icons.help_outline,
   };
@@ -117,6 +118,9 @@ class FailureCardWidget extends StatelessWidget {
     // "Login" e não "autenticação": o que a pessoa faz em seguida é entrar de
     // novo, e às vezes por outro provedor. Difere do UnauthorizedFailure acima,
     // que é a chave de API e não tem ação nenhuma na tela.
+    // Sem a palavra "erro": nada deu errado, a pessoa só ainda não foi
+    // liberada. Chamar isso de erro faria procurar defeito onde não há.
+    PendingApprovalFailure() => 'Aguardando aprovação',
     AuthFailure() => 'Falha no login',
     UnexpectedFailure() => 'Erro inesperado',
   };

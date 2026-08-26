@@ -1,7 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/repositories/auth_repository.dart';
+
+import '../../features/auth/view/login_page.dart';
 import '../../features/credit_cards/view/credit_card_expenses_page.dart';
 import '../../features/credit_cards/view/credit_card_form_page.dart';
 import '../../features/credit_cards/view/credit_card_list_page.dart';
@@ -16,6 +20,7 @@ import '../../features/notifications/view/notification_list_page.dart';
 import '../../features/projection/view/projection_page.dart';
 import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
+import 'auth_refresh.dart';
 
 /// Configuração de navegação do app.
 ///
@@ -29,7 +34,39 @@ final GoRouter appRouter = GoRouter(
   /// leva para lugar inesperado.
   debugLogDiagnostics: kDebugMode,
 
+  /// Sem isto o `redirect` só rodaria na próxima navegação: sair da conta
+  /// deixaria a pessoa parada na tela em que estava, olhando dados de uma
+  /// sessão que já não existe.
+  refreshListenable: AuthRefresh(GetIt.I<AuthRepository>().changes),
+
+  /// A tranca da navegação (AUT-05, do lado do app).
+  ///
+  /// Lê o repositório na hora, em vez de guardar uma cópia do usuário: duas
+  /// verdades sobre quem está logado divergiriam, e a que decide navegação é a
+  /// pior das duas para estar errada.
+  ///
+  /// **Não decide sobre aprovação.** Quem está pendente (AUT-11) *está* logado,
+  /// e o app só descobre o 403 quando uma requisição volta — o que acontece
+  /// dentro das telas, não aqui.
+  redirect: (context, state) {
+    final logado = GetIt.I<AuthRepository>().current != null;
+    final indoParaOLogin = state.matchedLocation == AppRoutes.loginPath;
+
+    if (!logado) return indoParaOLogin ? null : AppRoutes.loginPath;
+
+    // Já logado, a tela de login não tem o que fazer — inclusive quando se
+    // chega nela por link ou por `--route`, que é como ela era alcançada antes
+    // deste redirect existir.
+    return indoParaOLogin ? AppRoutes.homePath : null;
+  },
+
   routes: [
+    GoRoute(
+      path: AppRoutes.loginPath,
+      name: AppRoutes.login,
+      builder: (context, state) => const LoginPage(),
+    ),
+
     GoRoute(
       path: AppRoutes.homePath,
       name: AppRoutes.home,

@@ -103,7 +103,12 @@ abstract interface class AuthRepository {
   /// O `firebase_auth` renova sozinho quando falta menos de cinco minutos para
   /// expirar, então [forceRefresh] só serve depois de um 401 — o caso em que o
   /// servidor discorda de um token que o SDK ainda considera bom.
-  Future<String?> idToken({bool forceRefresh});
+  ///
+  /// O padrão vai na **interface**, e não só na implementação: sem ele, chamar
+  /// `idToken()` por este tipo não passa o argumento — e quem observa a chamada
+  /// de fora, um duplo de teste, vê uma invocação sem `forceRefresh` em vez de
+  /// uma com `false`.
+  Future<String?> idToken({bool forceRefresh = false});
 }
 
 class FirebaseAuthRepository implements AuthRepository {
