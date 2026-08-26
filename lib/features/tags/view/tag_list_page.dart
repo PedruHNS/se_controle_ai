@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/features/tags/widgets/create_tag_dialog_widget.dart';
 import 'package:se_controle_ai/features/tags/widgets/tag_tile_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
 import '../../../core/errors/failure.dart';
-import '../../../core/shared/patch.dart';
+
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/tag_list_controller.dart';
-import '../widgets/tag_form_dialog.dart';
+
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// Tags — o CRUD completo, sem tela de detalhe nem formulário de página
@@ -30,65 +31,57 @@ class _TagListPageState extends State<TagListPage> {
   final _controller = getIt<TagListController>();
 
   Future<void> _create() async {
-    final novo = await showTagFormDialog(context);
-    if (novo == null || !mounted) return;
-
-    final failure = await _controller.create(
-      name: novo.name,
-      color: novo.color,
-    );
-
-    _reportIfFailed(failure);
+    showDialog(context: context, builder: (context) => CreateTagDialogWidget());
   }
 
-  Future<void> _edit(TagModel tag) async {
-    final alterado = await showTagFormDialog(context, tag: tag);
-    if (alterado == null || !mounted) return;
+  // Future<void> _edit(TagModel tag) async {
+  //   final alterado = await showTagFormDialog(context, tag: tag);
+  //   if (alterado == null || !mounted) return;
 
-    // Sair sem mexer em nada seria um PATCH de corpo vazio, que o backend
-    // recusa com 400 — e prender quem só abriu e fechou seria absurdo.
-    if (alterado.name == tag.name && alterado.color == tag.color) return;
+  //   // Sair sem mexer em nada seria um PATCH de corpo vazio, que o backend
+  //   // recusa com 400 — e prender quem só abriu e fechou seria absurdo.
+  //   if (alterado.name == tag.name && alterado.color == tag.color) return;
 
-    final failure = await _controller.update(
-      tag.id,
-      name: alterado.name == tag.name ? null : alterado.name,
-      // Patch e não `String?`: aqui `null` significa "tirei a cor", e sem essa
-      // distinção limpar seria indistinguível de não ter tocado.
-      color: Patch<String>.diff(alterado.color, tag.color),
-    );
+  //   final failure = await _controller.update(
+  //     tag.id,
+  //     name: alterado.name == tag.name ? null : alterado.name,
+  //     // Patch e não `String?`: aqui `null` significa "tirei a cor", e sem essa
+  //     // distinção limpar seria indistinguível de não ter tocado.
+  //     color: Patch<String>.diff(alterado.color, tag.color),
+  //   );
 
-    _reportIfFailed(failure);
-  }
+  //   _reportIfFailed(failure);
+  // }
 
-  Future<void> _confirmDelete(TagModel tag) async {
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (context) => _DeleteDialog(tag: tag),
-    );
+  // Future<void> _confirmDelete(TagModel tag) async {
+  //   final confirmou = await showDialog<bool>(
+  //     context: context,
+  //     builder: (context) => _DeleteDialog(tag: tag),
+  //   );
 
-    if (confirmou != true || !mounted) return;
+  //   if (confirmou != true || !mounted) return;
 
-    final resultado = await _controller.delete(tag.id);
+  //   final resultado = await _controller.delete(tag.id);
 
-    if (!mounted) return;
+  //   if (!mounted) return;
 
-    if (resultado.failure != null) {
-      _reportIfFailed(resultado.failure);
-      return;
-    }
+  //   if (resultado.failure != null) {
+  //     _reportIfFailed(resultado.failure);
+  //     return;
+  //   }
 
-    // "Excluída" e "arquivada" não são a mesma notícia, e quem apertou Excluir
-    // precisa saber que a tag continua existindo nos lançamentos antigos.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          resultado.archived
-              ? '${tag.name} foi arquivada e continua nos lançamentos antigos.'
-              : '${tag.name} foi excluída.',
-        ),
-      ),
-    );
-  }
+  //   // "Excluída" e "arquivada" não são a mesma notícia, e quem apertou Excluir
+  //   // precisa saber que a tag continua existindo nos lançamentos antigos.
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(
+  //       content: Text(
+  //         resultado.archived
+  //             ? '${tag.name} foi arquivada e continua nos lançamentos antigos.'
+  //             : '${tag.name} foi excluída.',
+  //       ),
+  //     ),
+  //   );
+  // }
 
   void _reportIfFailed(Failure? failure) {
     if (!mounted || failure == null) return;
@@ -136,8 +129,8 @@ class _TagListPageState extends State<TagListPage> {
             Loaded(data: final tags) => _TagList(
               tags: tags,
               onRefresh: _controller.refresh,
-              onEdit: _edit,
-              onDelete: _confirmDelete,
+              onEdit: (tag) {},
+              onDelete: (tag) {},
             ),
           };
         },

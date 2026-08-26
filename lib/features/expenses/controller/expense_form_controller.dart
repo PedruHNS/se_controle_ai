@@ -210,11 +210,9 @@ class ExpenseFormController extends BaseController {
       // dropdown teria um valor sem item correspondente — que é assertion no
       // Flutter, não um campo vazio. Entra só nesse caso, e some assim que a
       // pessoa escolher outra.
-      if (!_tags.any((tag) => tag.id == expense.tag.id)) {
-        _setTags(
-          [..._tags, expense.tag]..sort((a, b) => a.name.compareTo(b.name)),
-        );
-      }
+      // if (!_tags.any((tag) => tag.id == expense.tag.id)) {
+      //   _setTags([..._tags, expense.tag]..sort(TagModel.byName));
+      // }
 
       _fill(expense);
       _syncCreditCardValidators();
@@ -243,19 +241,18 @@ class ExpenseFormController extends BaseController {
   Future<String?> createTag({required String name, String? color}) async {
     final created = await _tagRepository.create(name: name, color: color);
 
-    return created.when((id) async {
-      final refreshed = await _tagRepository.list();
-
-      return refreshed.when(
-        (list) {
-          _setTags(list);
-          control<String>(tagId).updateValue(id);
-          return null;
-        },
-        // A tag existe no servidor, mas a lista local não sabe. Reabrir
-        // resolve; travar o formulário por isso seria desproporcional.
-        (failure) => failure.message,
-      );
+    return created.when((tag) {
+      // A tag volta inteira do `POST`, então o seletor se atualiza aqui mesmo.
+      // Recarregar o `GET /tags` era uma segunda ida ao servidor para buscar o
+      // que a primeira já tinha devolvido — e uma que podia falhar sozinha,
+      // deixando a tag criada fora de uma lista que não sabia dela.
+      //
+      // Descarta o mesmo `id` antes de inserir porque criar com o nome de uma
+      // arquivada ressuscita aquela tag (TAG-17): o que volta pode ser uma
+      // linha que a lista já conhece.
+      _setTags([..._tags.where((item) => item.id != tag.id), tag]..sort());
+      control<String>(tagId).updateValue(tag.id);
+      return null;
     }, (failure) => failure.message);
   }
 

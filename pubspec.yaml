@@ -42,6 +42,7 @@ dependencies:
   pretty_dio_logger: ^1.4.0
   reactive_forms: 18.2.2
   skeletonizer: ^2.1.3
+  another_flushbar: ^2.2.4
 
 dev_dependencies:
   flutter_test:

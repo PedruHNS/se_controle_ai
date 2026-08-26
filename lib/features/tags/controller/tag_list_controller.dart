@@ -1,3 +1,5 @@
+import 'package:reactive_forms/reactive_forms.dart';
+import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
@@ -16,13 +18,23 @@ import '../../../data/repositories/tag_repository.dart';
 /// Diferente das outras listas, aqui não há competência: tag não é versionada
 /// (TAG-03), então não existe "as tags de agosto" — renomear muda o rótulo em
 /// todo o histórico, e isso é intencional.
-class TagListController extends BaseController {
+class TagListController extends BaseController with MessageMixin {
   TagListController(this._repository);
 
   final TagRepository _repository;
 
   final _state = signal<ViewState<List<TagModel>>>(const Loading());
   final _working = signal<bool>(false);
+
+  final _colorSelected = signal<String?>(null);
+  set setColorSelected(String hex) => _colorSelected.value = hex;
+  ReadonlySignal<String?> get getColorSelected => _colorSelected;
+
+  final form = FormGroup({
+    'title': FormControl<String>(
+      validators: [Validators.maxLength(200), Validators.required],
+    ),
+  });
 
   ReadonlySignal<ViewState<List<TagModel>>> get state => _state;
 
@@ -35,6 +47,15 @@ class TagListController extends BaseController {
   void onInit() async {
     super.onInit();
     await _load();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _state.dispose();
+    _working.dispose();
+    _colorSelected.dispose();
+    form.dispose();
   }
 
   Future<void> _load() async {
@@ -53,15 +74,21 @@ class TagListController extends BaseController {
   /// Devolve a falha para quem chamou em vez de guardá-la em signal, como as
   /// outras listas fazem: o 409 de nome repetido (TAG-01) pertence ao diálogo,
   /// que continua aberto com o texto digitado, e não à lista, que está correta.
-  Future<Failure?> create({required String name, String? color}) async {
-    _working.value = true;
 
-    final result = await _repository.create(name: name, color: color);
+  Future<void> create() async {
+    final result = await _repository.create(
+      name: form.control('title').value,
+      color: _colorSelected.value,
+    );
 
-    return result.when((_) async {
-      await _load();
-      return null;
-    }, (error) async => error);
+    final current = _state.value;
+    if (current is! Loaded<List<TagModel>>) return;
+
+    return result.when((tag) async {
+      final newList = [...current.data, tag]..sort();
+
+      _state.value = Loaded(newList);
+    }, (error) async => toastErro(error.message));
   }
 
   /// [color] é [Patch] e não `String?` pelo motivo do CAR-08: ausente não mexe,
@@ -112,12 +139,5 @@ class TagListController extends BaseController {
       await _load();
       return null;
     }, (error) async => error);
-  }
-
-  @override
-  void dispose() {
-    _state.dispose();
-    _working.dispose();
-    super.dispose();
   }
 }

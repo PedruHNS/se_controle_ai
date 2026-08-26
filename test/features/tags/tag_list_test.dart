@@ -74,6 +74,23 @@ void main() {
 
       verify(() => repository.create(name: 'Mercado', color: null)).called(1);
     });
+
+    // O `POST` devolve a tag inteira, e é ela que entra na lista. O `list` da
+    // abertura é o único: recarregar seria pedir ao servidor o que ele acabou
+    // de responder.
+    testWidgets('a tag criada aparece na lista sem recarregar', (tester) async {
+      await pump(tester);
+
+      await tester.tap(find.text('Nova tag'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.text('Criar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mercado'), findsOneWidget);
+      verify(() => repository.list(includeArchived: false)).called(1);
+    });
   });
 
   group('edição', () {

@@ -10,7 +10,6 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/expense_form_controller.dart';
-import '../../tags/widgets/tag_form_dialog.dart';
 
 /// Cadastro e edição de gasto.
 ///
@@ -499,13 +498,13 @@ Future<void> _createTag(
   BuildContext context,
   ExpenseFormController controller,
 ) async {
-  final novo = await showTagFormDialog(context);
-  if (novo == null) return;
+  // final novo = await showTagFormDialog(context);
+  // if (novo == null) return;
 
-  final erro = await controller.createTag(name: novo.name, color: novo.color);
-  if (erro == null || !context.mounted) return;
+  // final erro = await controller.createTag(name: novo.name, color: novo.color);
+  // if (erro == null || !context.mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
+  // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
 }
 
 /// O nome da tag com um ponto da cor dela na frente. Tag sem cor mostra só o

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:reactive_forms/reactive_forms.dart';
+import 'package:se_controle_ai/core/di/injector.dart';
+import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
+import 'package:signals/signals_hooks.dart';
 
 import '../../../data/models/tag_model.dart';
-import 'tag_form_dialog.dart';
+
 
 /// Paleta fixa em vez de seletor livre de cor.
 ///
@@ -15,36 +19,30 @@ import 'tag_form_dialog.dart';
 /// acha os verdes juntos. As oito primeiras do arranjo antigo continuam aqui,
 /// com os mesmos códigos — tag já cadastrada segue casando com um círculo da
 /// paleta em vez de aparecer sem seleção ao abrir a edição.
-const _palette = <String>[
-  // Vermelhos e rosas
+const _palette = [
   '#EF5350',
   '#E53935',
   '#EC407A',
   '#D81B60',
-  // Roxos
   '#AB47BC',
   '#8E24AA',
   '#7E57C2',
   '#5C6BC0',
-  // Azuis
   '#42A5F5',
   '#1E88E5',
   '#29B6F6',
   '#00ACC1',
-  // Verdes
   '#26A69A',
   '#00897B',
   '#66BB6A',
   '#43A047',
   '#9CCC65',
   '#C0CA33',
-  // Amarelos e laranjas
   '#FFCA28',
   '#FFA726',
   '#FB8C00',
   '#FF7043',
   '#F4511E',
-  // Neutros, para quem quer marcar sem gritar
   '#8D6E63',
   '#78909C',
 ];
@@ -58,38 +56,30 @@ const _palette = <String>[
 ///
 /// Passe [tag] para editar; sem ele, é criação.
 class CreateTagDialogWidget extends StatefulWidget {
-  const CreateTagDialogWidget({super.key, this.tag});
-
   final TagModel? tag;
+  const CreateTagDialogWidget({super.key, this.tag});
 
   @override
   State<CreateTagDialogWidget> createState() => _CreateTagDialogWidgetState();
 }
 
 class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
-  late final _controller = TextEditingController(text: widget.tag?.name ?? '');
-  late String? _color = widget.tag?.color;
+  final controller = getIt<TagListController>();
+
   String? _error;
 
   bool get _editing => widget.tag != null;
 
   @override
   void dispose() {
-    _controller.dispose();
     super.dispose();
   }
 
-  void _confirm() {
-    final name = _controller.text.trim();
-
+  void _confirm() async {
     // A mesma regra do backend (TAG-01), verificada aqui só para não gastar uma
     // ida ao servidor com o caso mais provável de erro.
-    if (name.isEmpty) {
-      setState(() => _error = 'Informe o nome.');
-      return;
-    }
-
-    Navigator.of(context).pop(TagFormResult(name: name, color: _color));
+    await controller.create();
+    Navigator.of(context).pop();
   }
 
   @override
@@ -100,51 +90,54 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
       // sistema aumentada, as quatro fileiras de cores não cabem junto com o
       // campo de nome.
       content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: !_editing,
-              textCapitalization: TextCapitalization.sentences,
-              onSubmitted: (_) => _confirm(),
-              onChanged: (_) {
-                if (_error != null) setState(() => _error = null);
-              },
-              decoration: InputDecoration(
-                labelText: 'Nome',
-                hintText: 'Mercado, saúde, pets',
-                border: const OutlineInputBorder(),
-                errorText: _error,
+        padding: .all(8),
+        child: ReactiveForm(
+          formGroup: controller.form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ReactiveTextField(
+                formControlName: 'title',
+                decoration: InputDecoration(
+                  labelText: 'Nome',
+                  hintText: 'Mercado, saúde, pets',
+                  border: const OutlineInputBorder(),
+                  errorText: _error,
+                ),
+                validationMessages: {
+                  ValidationMessage.required: (_) =>
+                      'Esse campo é obrigatório.',
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Cor (opcional)',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final hex in _palette)
-                  _ColorDot(
-                    // A chave é o próprio hex: é o que o teste usa para tocar
-                    // numa cor específica sem depender da posição dela na
-                    // paleta, que muda toda vez que uma cor nova entra.
-                    key: ValueKey(hex),
-                    hex: hex,
-                    selected: _color == hex,
-                    // Tocar na cor já escolhida desmarca: é como se tira a cor
-                    // sem precisar de um botão "nenhuma".
-                    onTap: () =>
-                        setState(() => _color = _color == hex ? null : hex),
-                  ),
-              ],
-            ),
-          ],
+
+              const SizedBox(height: 16),
+              Text(
+                'Cor (opcional)',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              SignalBuilder(
+                builder: (context) {
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final hex in _palette)
+                        _ColorDot(
+                          key: ValueKey(hex), // usado no test de widget
+                          hex: hex,
+                          selected: controller.getColorSelected.value == hex,
+                          // Tocar na cor já escolhida desmarca: é como se tira a cor
+                          // sem precisar de um botão "nenhuma".
+                          onTap: () => controller.setColorSelected = hex,
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -176,10 +169,6 @@ class _ColorDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Color(int.parse('FF${hex.substring(1)}', radix: 16));
-
-    // O check acompanha a cor do círculo, e não é branco fixo: com a paleta
-    // maior entraram tons claros — o amarelo, o lima —, e branco sobre eles
-    // fica invisível justamente no momento em que precisa ser visto.
     final checkColor =
         ThemeData.estimateBrightnessForColor(color) == Brightness.dark
         ? Colors.white

@@ -24,11 +24,18 @@ abstract interface class TagRepository {
   /// pede as duas.
   Future<Result<List<TagModel>, Failure>> list({bool includeArchived});
 
-  /// Devolve o `id` gerado, que é tudo que o `201` traz.
+  /// Devolve a tag inteira, no mesmo formato dos itens de [list].
+  ///
+  /// É o que dispensa o refresh: quem criou insere o que voltou na lista que já
+  /// tem em mãos, em vez de pedir o `GET /tags` de novo só para ver o que
+  /// acabou de digitar.
+  ///
+  /// Criar com o nome de uma arquivada ressuscita aquela tag (TAG-17), e aí ela
+  /// volta com o `usageCount` que acumulou — por isso o campo não é sempre 0.
   ///
   /// Nome repetido ignorando maiúscula volta 409 (TAG-01), que vira
   /// [ConflictFailure] — é o caso de quem digita "moradia" já tendo "Moradia".
-  Future<Result<String, Failure>> create({required String name, String? color});
+  Future<Result<TagModel, Failure>> create({required String name, String? color});
 
   /// Edição parcial com a semântica do CAR-08: campo ausente não muda nada,
   /// `null` limpa a cor. O nome não é anulável, por isso vai como `String?`.
@@ -71,7 +78,7 @@ class HttpTagRepository implements TagRepository {
   }
 
   @override
-  Future<Result<String, Failure>> create({
+  Future<Result<TagModel, Failure>> create({
     required String name,
     String? color,
   }) async {
@@ -80,7 +87,10 @@ class HttpTagRepository implements TagRepository {
         '/tags',
         data: {'name': name, 'color': ?color},
       );
-      return Success(Decode.object(response.data)['id'] as String);
+      // O `201` traz a tag pronta. O `restored` também vem no corpo e é
+      // ignorado aqui: nenhuma tela distingue "criada" de "restaurada" ainda, e
+      // o que ela precisaria dizer não muda o que a lista mostra.
+      return Success(TagModel.fromJson(Decode.object(response.data)));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {

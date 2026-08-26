@@ -242,13 +242,17 @@ void stubTagUpdate(MockTagRepository mock, {Result<bool, Failure>? result}) {
 }
 
 /// Stub de criação de tag, para o caminho "criar sem sair do formulário".
-void stubTagCreate(MockTagRepository mock, {Result<String, Failure>? result}) {
+///
+/// Devolve a tag inteira, como o `201` faz: é dela que a lista se atualiza sem
+/// recarregar, então um stub que devolvesse só o `id` esconderia justamente o
+/// que os testes de criação verificam.
+void stubTagCreate(MockTagRepository mock, {Result<TagModel, Failure>? result}) {
   when(
     () => mock.create(
       name: any(named: 'name'),
       color: any(named: 'color'),
     ),
-  ).thenAnswer((_) async => result ?? const Success(moradiaTagId));
+  ).thenAnswer((_) async => result ?? Success(TagModel.fromJson(tagCriadaJson)));
 }
 
 void stubCreditCardList(

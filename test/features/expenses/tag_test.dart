@@ -138,17 +138,46 @@ void main() {
       expect(controller.generalFailure.value, isA<NetworkFailure>());
     });
 
-    test('criar tag recarrega a lista e já seleciona a nova', () async {
+    // O `POST` devolve a tag inteira, então o seletor se atualiza com ela: sem
+    // isso era preciso um segundo `GET /tags` para exibir o que o servidor
+    // acabou de responder.
+    test('criar tag entra no seletor e já fica selecionada, sem novo GET', () async {
       await controller.start();
+      // O `GET` da abertura já aconteceu; daqui para a frente não deve haver
+      // outro.
+      clearInteractions(tags);
 
       final erro = await controller.createTag(name: 'Mercado', color: null);
 
       expect(erro, isNull);
       expect(
         controller.control<String>(ExpenseFormController.tagId).value,
-        moradiaTagId,
+        criadaTagId,
       );
+      expect(controller.tags.value.map((t) => t.name), contains('Mercado'));
       verify(() => tags.create(name: 'Mercado', color: null)).called(1);
+      verifyNever(() => tags.list(includeArchived: any(named: 'includeArchived')));
+    });
+
+    // A lista local tem que ficar igual à que o servidor devolveria: ordenada
+    // por nome, sem diferenciar caixa, como o `ORDER BY name` do Postgres.
+    test('a tag nova entra na posição certa', () async {
+      await controller.start();
+      stubTagCreate(
+        tags,
+        result: Success(
+          TagModel.fromJson({...tagCriadaJson, 'name': 'Farmácia'}),
+        ),
+      );
+
+      await controller.createTag(name: 'Farmácia', color: null);
+
+      expect(controller.tags.value.map((t) => t.name), [
+        'Farmácia',
+        'Moradia',
+        'Outros',
+        'Transporte',
+      ]);
     });
 
     // Nome repetido é 409 (TAG-01). O erro é do diálogo, não da tela: o

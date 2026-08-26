@@ -41,3 +41,18 @@ const moradiaTagId = '1519d248-272f-407c-9853-87fcfb7ff789';
 
 /// Uma segunda tag, para os testes que trocam a tag de um gasto.
 const outraTagId = '2aa154c8-9549-4ed4-bdd6-3254d91cca84';
+
+/// A resposta de `POST /tags`: a tag inteira, no formato de um item da lista,
+/// mais o `restored`. Nasce com `usageCount: 0` — nenhum lançamento pode
+/// apontar para ela ainda.
+const tagCriadaJson = <String, dynamic>{
+  'id': 'c4f8d1b6-5e0a-4c7f-9b32-8a1d6e40f275',
+  'name': 'Mercado',
+  'color': null,
+  'archived': false,
+  'usageCount': 0,
+  'restored': false,
+};
+
+/// A tag que o `create` do mock devolve.
+const criadaTagId = 'c4f8d1b6-5e0a-4c7f-9b32-8a1d6e40f275';
