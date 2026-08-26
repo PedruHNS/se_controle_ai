@@ -74,6 +74,13 @@ sealed class Failure {
       message: 'O app não entendeu a resposta do servidor.',
       exception: exception,
     ),
+    AuthProviderException() => AuthFailure(
+      // A mensagem já vem pronta de quem traduziu o erro do provedor: os
+      // códigos do Firebase descrevem o SDK, não o que a pessoa deve fazer.
+      message: exception.message,
+      code: exception.code,
+      exception: exception,
+    ),
     UnexpectedResponseException() => UnexpectedFailure(
       code: exception.code,
       exception: exception,
@@ -172,6 +179,16 @@ final class CancelledFailure extends Failure {
     super.message = 'Requisição cancelada.',
     super.exception,
   });
+}
+
+/// O login não aconteceu: o provedor recusou, ou o e-mail já entra por outro
+/// caminho (AUT-12).
+///
+/// Não é retentável no sentido de repetir a mesma requisição — o que resolve é
+/// entrar de novo, e às vezes por outro provedor. A diferença não muda a tela:
+/// nos dois casos o botão à mão é o de login.
+final class AuthFailure extends Failure {
+  const AuthFailure({required super.message, super.code, super.exception});
 }
 
 /// Não caiu em nenhum caso acima.

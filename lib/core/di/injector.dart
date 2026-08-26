@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/credit_card_repository.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../../data/repositories/income_repository.dart';

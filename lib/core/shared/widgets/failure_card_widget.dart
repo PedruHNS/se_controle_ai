@@ -96,6 +96,7 @@ class FailureCardWidget extends StatelessWidget {
     ServerFailure() => Icons.cloud_off_outlined,
     SerializationFailure() => Icons.extension_off_outlined,
     CancelledFailure() => Icons.cancel_outlined,
+    AuthFailure() => Icons.person_off_outlined,
     UnexpectedFailure() => Icons.help_outline,
   };
 
@@ -113,6 +114,10 @@ class FailureCardWidget extends StatelessWidget {
     // o app, não que o JSON não bateu com o model.
     SerializationFailure() => 'Versão incompatível',
     CancelledFailure() => 'Cancelado',
+    // "Login" e não "autenticação": o que a pessoa faz em seguida é entrar de
+    // novo, e às vezes por outro provedor. Difere do UnauthorizedFailure acima,
+    // que é a chave de API e não tem ação nenhuma na tela.
+    AuthFailure() => 'Falha no login',
     UnexpectedFailure() => 'Erro inesperado',
   };
 }

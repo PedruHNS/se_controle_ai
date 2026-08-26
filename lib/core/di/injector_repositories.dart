@@ -7,6 +7,16 @@ part of 'injector.dart';
 /// traduz HTTP em `Result`. Não há o que liberar, e ter dois do mesmo tipo não
 /// quebraria nada; é singleton por economia, não por regra.
 void _registerRepositories() {
+  // Fora do padrão dos demais, e por dois motivos: não fala com a nossa API, e
+  // é o único que outra peça de infraestrutura consome — o interceptor do Dio
+  // pede o token a ele antes de cada requisição.
+  getIt.registerLazySingleton<AuthRepository>(
+    () => FirebaseAuthRepository(
+      FirebaseAuth.instance,
+      PlatformGoogleIdentity(),
+    ),
+  );
+
   getIt.registerLazySingleton<SummaryRepository>(
     () => SummaryRepositoryImpl(getIt<ApiClient>()),
   );

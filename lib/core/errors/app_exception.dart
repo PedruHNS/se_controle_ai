@@ -159,6 +159,21 @@ final class UnauthorizedException extends AppException {
   });
 }
 
+/// O provedor de identidade recusou ou falhou — Google, GitHub, o Firebase Auth.
+///
+/// Não é o 401 de [UnauthorizedException], e a distância entre os dois é grande:
+/// lá o app tinha credencial e ela não serviu; aqui nem chegamos a ter token
+/// para mandar. Os desfechos também são opostos — um pede recompilar com a
+/// chave certa, o outro pede entrar de novo.
+final class AuthProviderException extends AppException {
+  const AuthProviderException({
+    required super.message,
+    super.code,
+    super.cause,
+    super.stackTrace,
+  });
+}
+
 /// Status ou situação que não se encaixa em nenhum caso acima.
 final class UnexpectedResponseException extends AppException {
   const UnexpectedResponseException({
