@@ -57,12 +57,7 @@ class _TagListPageState extends State<TagListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Tags'), centerTitle: true),
-      floatingActionButton: SignalBuilder(
-        builder: (context) => FloatingActionButton(
-          onPressed: _controller.state.value is! Loaded ? null : _create,
-          child: const Icon(Icons.add),
-        ),
-      ),
+
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
@@ -90,6 +85,16 @@ class _TagListPageState extends State<TagListPage> {
             ),
           };
         },
+      ),
+
+      floatingActionButton: SignalBuilder(
+        builder: (context) => Visibility(
+          visible: _controller.state.value is Loaded,
+          child: FloatingActionButton(
+            onPressed: _create,
+            child: const Icon(Icons.add),
+          ),
+        ),
       ),
     );
   }

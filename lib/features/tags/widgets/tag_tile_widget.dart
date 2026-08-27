@@ -74,16 +74,6 @@ class TagTile extends StatelessWidget {
 
 enum _Acao { editar, excluir }
 
-/// Os três pontinhos no fim da linha.
-///
-/// **Um item só para sair de circulação, e quem decide o desfecho é o
-/// backend** (TAG-08): `DELETE` numa tag em uso arquiva, numa tag sem uso apaga.
-///
-/// O menu não tenta adivinhar qual dos dois vai acontecer. Quem conta é o
-/// diálogo de confirmação — que já muda o título entre "Arquivar tag" e
-/// "Excluir tag" pelo uso — e, depois, a mensagem com o desfecho real. Duplicar
-/// esse palpite aqui só criaria um rótulo que erra quando o `usageCount` está
-/// velho.
 class _MenuDeAcoes extends StatelessWidget {
   const _MenuDeAcoes({
     required this.tag,
