@@ -22,10 +22,10 @@ class AuthUserModel {
   /// identifica a pessoa no provedor, o outro identifica a pessoa aqui.
   final String uid;
 
-  /// Nulos de verdade, não por precaução: o GitHub entrega
-  /// `@users.noreply.github.com` ou nada quando a pessoa mantém o e-mail
-  /// privado. É o mesmo motivo de as colunas serem anuláveis no backend, e é o
-  /// argumento que fez a AUT-11 ser aprovação por linha em vez de allowlist.
+  /// Anuláveis porque o token **não garante nenhum dos dois**: são claims
+  /// opcionais, e quem decide mandá-los é o provedor. O Google costuma mandar
+  /// os três, mas costume não é contrato — e as colunas do backend são
+  /// anuláveis pelo mesmo motivo.
   final String? email;
   final String? displayName;
   final String? photoUrl;

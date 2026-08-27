@@ -5,7 +5,7 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 26/08/2026 (terceira revisão).*
+*Atualizado em 27/08/2026 (quarta revisão).*
 
 Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 7 concluídas, Fase 9 em andamento** ·
 a home mostra o resumo do mês, ganhos e gastos fixos têm CRUD completo com
@@ -14,22 +14,42 @@ quitação, cartões têm CRUD com a edição parcial do CAR-08, a projeção mo
 para onde o saldo caminha, um menu lateral na home leva a todas elas — e agora
 o app entra pelo Firebase antes de qualquer uma.
 
-**442 testes passando, 27 falhando** · as 27 são todas da tela de tags, de uma
-refatoração de diálogo em andamento, e não têm relação com autenticação. O
-`flutter analyze` aponta 3 avisos, da mesma refatoração.
+**480 testes passando, 2 falhando** · `flutter analyze` sem nenhum aviso. As
+duas falhas são da tela de tags e dependem de decisão de produto, não de
+conserto: `a ressuscitada substitui a linha` cobra a deduplicação do TAG-17 no
+`create` (criar com o nome de uma arquivada devolve uma linha que a lista já
+tem, e hoje ela entra duas vezes), e `sem lista carregada, cai no refresh` cobra
+que criar sem lista em mãos caia num `GET` — hoje o `create` desiste antes de
+falar com o repositório.
 
-**Uma dívida aberta e conhecida:** `tag_list_controller.dart` ordena a lista
-depois de criar com `..sort()` **sem comparador**. `TagModel` não é
-`Comparable`, então isso estoura em runtime no clique de criar tag —
-`..sort(TagModel.byName)` resolve, e o comparador já existe no model. É a causa
-de 5 das 27 falhas; as outras 22 são testes de widget ainda apontando para o
-`tag_form_dialog`, que a refatoração removeu.
+**A refatoração de tags fechou em 27/08**, e com ela a dívida do comparador que
+esta seção registrava. `TagModel` não é `Comparable` e **nunca teve** um
+`byName` — a ordenação alfabética virou `TextOrder.alfabetica`, em
+`lib/core/utils/text_order.dart`, que dobra caixa e acento e desempata pelo
+texto original. Sem ela, `..sort()` cru estourava `type 'TagModel' is not a
+subtype of type 'Comparable'` no clique de criar tag, e `'Água'` ia parar depois
+de `'Transporte'`.
 
-**Duas correções de sincronia nesta revisão.** A versão declarada aqui era
+**Duas correções de sincronia na revisão anterior.** A versão declarada aqui era
 Flutter 3.47.1 / Dart 3.13.1; a instalada é **3.44.9 / 3.12.2**, e o `pubspec`
 pede `sdk: ^3.12.2`, que a instalada satisfaz. E o cabeçalho dizia "Fases 0 a
 6" enquanto a tabela de fases já marcava a 7 como concluída — a tabela estava
 certa.
+
+**Em 27/08 os toasts do app passaram a aparecer.** A `Globals.navigatorKey` não
+estava presa a widget nenhum, então o `currentContext` que o `MessageMixin`
+consulta era sempre nulo e toda Flushbar era construída e descartada em
+silêncio, sem erro nem log. A chave foi ligada no `GoRouter` — quem cria o
+Navigator raiz é ele, e `MaterialApp.router` não aceita `navigatorKey`.
+
+**No mesmo dia a edição de tag deixou de ser remendo.** `PATCH /tags/:id` virou
+`POST /tags/:id`, que **substitui**: nome e cor vão sempre os dois, e omitir um
+é 400 em vez de "não mexe". Some com isso o `Patch` do CAR-08 no caminho de tag
+— `null` na cor só pode significar "sem cor". Gasto e cartão continuam com
+`PATCH` e `Patch`, porque lá o formulário edita um punhado de campos por vez e
+devolver o resto significaria reenviar dinheiro que ninguém tocou. A resposta
+passou de 204 para 200 com a tag pronta, e criar, editar e excluir agora mexem
+na lista em memória: nenhum dos três recarrega.
 
 Em 21/08 o SDK subiu de 3.44 para 3.47.1 (Dart 3.13.1) — o `pubspec` já pedia
 `sdk: ^3.12.2`, que o 3.12.0 instalado não satisfazia. No mesmo dia a seção de
@@ -74,15 +94,23 @@ do mês para fora da barra.
 
 **Em 26/08 entrou a autenticação**, com a Etapa 7 do backend. O app deixou de
 abrir direto na home: sem sessão, qualquer rota cai no login, e toda requisição
-passa a levar `Authorization: Bearer` com o ID token do Firebase. O login é por
-**Google** — o GitHub ficou para depois, porque no Android é outro caminho
-(`signInWithProvider` com Custom Tabs) e não vale misturá-lo com o primeiro
-login funcionando.
+passa a levar `Authorization: Bearer` com o ID token do Firebase. O login é
+**só pelo Google**, e desde 27/08 isso é decisão e não etapa: o GitHub saiu do
+corte antes de virar código. Ele custava um caminho inteiro à parte
+(`signInWithProvider` com Custom Tabs, esquema de URL para o deep link voltar) e
+trazia junto o fluxo de vinculação de contas, porque e-mail privado no GitHub
+chega como `@users.noreply.github.com` e viraria uma segunda conta vazia. Com um
+provedor só, nada disso existe.
 
-Entrou junto o **403 de cadastro pendente** (AUT-11): quem loga pela primeira
-vez fica esperando aprovação, e isso não é erro — tem exceção, falha e card
-próprios, com o título "Aguardando aprovação". A `x-api-key` **continua**, ao
-lado do token e não no lugar dele: uma é tranca, a outra é identidade.
+Entrou junto — e saiu — o **403 de acesso pendente** (AUT-11). Ele teve exceção,
+falha e card próprios sob o título "Aguardando aprovação"; em **27/08 a regra
+foi retirada**, e essa tela deixou de existir em qualquer hipótese: quem se
+cadastra tem acesso ao app. Sumiram junto a `PendingApprovalException`, a
+`PendingApprovalFailure`, o caso 403 do `exception_mapper` e as duas linhas do
+card — o app não tem mais nenhum tratamento de 403, e é para não ter mesmo. A
+`x-api-key`
+**continua**, ao lado do token e não no lugar dele: uma é tranca, a outra é
+identidade.
 
 As libs de runtime em uso, mais o `mocktail` nos testes:
 
@@ -241,6 +269,8 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `core/shared/widgets/empty_state_widget.dart` | Estado vazio com o scroll e o pull-to-refresh embutidos |
 | `core/shared/widgets/state_transition.dart` | Fade entre carregando, erro e conteúdo. Pede `stateKey` porque sem chave o `AnimatedSwitcher` é inerte |
 | `core/config/app_config.dart` | baseUrl por plataforma + `--dart-define=API_BASE_URL`, timeouts, `logHttp` |
+| `core/config/globals.dart` | A `navigatorKey` do Navigator raiz — é ela que dá contexto ao toast fora da árvore — e a paleta de cores das tags |
+| `core/shared/mixin/message_mixin.dart` | `toastError` e `toastSucess`: Flushbar pela `Globals.navigatorKey`, sem precisar de `BuildContext` |
 | `core/network/dio_factory.dart` | Monta o Dio: BaseOptions, o `AuthInterceptor` e o `PrettyDioLogger` quando `logHttp` |
 | `core/network/auth_interceptor.dart` | Põe o Bearer em toda requisição e, num 401, renova à força e repete **uma** vez |
 | `core/router/auth_refresh.dart` | `ChangeNotifier` sobre o stream de sessão — é o que faz o `redirect` rodar quando alguém sai |
@@ -269,6 +299,7 @@ antes não tinham como pedir os dados de novo a não ser pelo botão do card.
 | `core/utils/money.dart` | Centavos ↔ real: `format`, `formatSigned`, `formatCompact`, `tryParse` |
 | `core/utils/month.dart` | Competência `YYYY-MM`: label, aritmética, limites do backend |
 | `core/utils/iso_date.dart` | Data `YYYY-MM-DD` → `17/08` ou `17/08/2026`, por corte de string |
+| `core/utils/text_order.dart` | `TextOrder.alfabetica`: ordem alfabética dobrando caixa e acento, desempatando pelo texto original. `TagModel` não é `Comparable`, e `..sort()` cru estourava |
 | `data/models/monthly_summary_model.dart` | `MonthlySummaryModel` — a resposta de `/summary` inteira |
 | `data/models/summary_line_item_model.dart` | `SummaryLineItemModel` — a linha usada em ganho, débito e fatura |
 | `data/models/debit_group_model.dart` | `DebitGroupModel` — total + itens do débito |
@@ -400,9 +431,9 @@ sessão. A `x-api-key` continua exigida em paralelo, e as duas não se substitue
 
 Dois status novos vieram junto. **401** deixou de significar só "a chave do
 build está errada" e passou a incluir token ausente, expirado ou inválido — o
-interceptor renova e repete uma vez antes de deixá-lo subir. **403** é o único
-do sistema e quer dizer uma coisa só: cadastro recebido, acesso ainda não
-aprovado (AUT-11). Não é retentável e não se resolve no app.
+interceptor renova e repete uma vez antes de deixá-lo subir. **403 não existe**:
+houve um, de 26 a 27/08, para o cadastro à espera de aprovação (AUT-11), e saiu
+com a regra. "Não é você" é 401, "não é seu" é 404, e não há terceiro caso.
 
 E **nenhum corpo de resposta ganhou `userId`**: o dono é implícito, porque é
 sempre quem está perguntando.
@@ -447,8 +478,8 @@ explícito — não são dois caminhos para "editar valor".
 | Método | Rota | Semântica |
 |---|---|---|
 | POST | `/tags` | `{name, color?}` → **a tag inteira** + `restored`. Nome repetido ignorando caixa é 409; nome de arquivada ressuscita aquela linha (TAG-17) e volta com o `usageCount` que ela acumulou |
-| GET | `/tags?includeArchived=` | Por nome, com `usageCount`. Sem o parâmetro, só as ativas |
-| PATCH | `/tags/:id` | Nome e cor; `null` limpa a cor |
+| GET | `/tags?includeArchived=` | Por nome, com `usageCount`. Sem o parâmetro, só as ativas — e o app deixou de mandá-lo em 27/08, porque a seção de arquivadas saiu da tela |
+| POST | `/tags/:id` | **Substitui**: nome e cor sempre os dois, `null` limpa a cor. Devolve a tag no formato do item de listagem, com `usageCount`, para a tela trocar a linha sem recarregar. Era `PATCH` até 27/08 |
 | DELETE | `/tags/:id` | Sem uso apaga; em uso **arquiva**. 200 com `{archived}` |
 | POST | `/tags/:id/restore` | Traz a arquivada de volta |
 
@@ -512,7 +543,7 @@ primeira tela já valide a stack inteira antes de existir formulário.
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 6 — Projeção: **concluída** |
 | ▓▓▓▓▓▓▓▓▓▓ | Fase 7 — Acabamento: **concluída** |
 | ░░░░░░░░░░ | Fase 8 — Qualidade: não iniciada |
-| ▓▓▓▓▓▓▓░░░ | Fase 9 — Login: **em andamento** — Google, token e guarda de rota prontos; falta GitHub |
+| ▓▓▓▓▓▓▓▓▓░ | Fase 9 — Login: **em andamento** — Google provado em aparelho, token e guarda de rota prontos; falta o SHA-1 de release |
 | ░░░░░░░░░░ | Fases 10 e 11 — não iniciadas |
 
 A **Fase 11 — Offline-first** fecha a lista de propósito: ela é uma segunda
@@ -1044,10 +1075,13 @@ controller (repositório fake) e de widget nas telas principais. `flutter analyz
 sem issue como porta de entrada.
 
 
-### Fase 9 — Login · ▓▓▓▓▓▓▓░░░ em andamento
+### Fase 9 — Login · ▓▓▓▓▓▓▓▓▓░ em andamento
 A **Etapa 7 do backend** ficou pronta em 26/08 e desbloqueou esta fase, que
-começou no mesmo dia. O provedor foi fechado em 25/08: **Firebase Auth, com
-Google e GitHub** (`expense-tracker-api/docs/specs/08-autenticacao.md`).
+começou no mesmo dia. Em 27/08 aconteceram três coisas: o login foi provado em
+aparelho, a AUT-11 foi retirada — cadastrar virou entrar, e a tela de
+"Aguardando aprovação" deixou de existir — e o **GitHub saiu do corte**. O
+provedor foi fechado em 25/08 e é **Firebase Auth**; o login é **só pelo
+Google** (`expense-tracker-api/docs/specs/08-autenticacao.md`).
 
 **O que já está em pé** (commits `6dfedd5`, `f2d3268` e `255d28b`):
 
@@ -1064,26 +1098,33 @@ Google e GitHub** (`expense-tracker-api/docs/specs/08-autenticacao.md`).
       repete uma vez
 - [x] `redirect` no `go_router`, alimentado pelo `AuthRefresh`
 - [x] Botão de sair no menu, com a conta atual embaixo
-- [x] O **403 da AUT-11** com exceção, falha e card próprios
-- [x] **39 testes novos**: 13 no repositório, 8 no controller, 7 na tela, 6 no
+- [x] **38 testes novos**: 12 no repositório, 8 no controller, 7 na tela, 6 no
       interceptor e 5 no redirect
+- [x] **O login provado em aparelho, em 27/08.** A folha do Google abre, a conta
+      é escolhida, o token chega ao backend: 401 sem ele, 403 de pendente com
+      ele antes da aprovação, 200 depois. Era o único ponto que teste nenhum
+      alcança — SHA-1 e `google-services.json` deixaram de ser fé. O 403 do meio
+      dessa sequência já não é reproduzível: a regra saiu no mesmo dia
+- [x] **Só Google (AUT-02 fechada em 27/08).** O GitHub saiu do corte sem
+      nunca ter tido código, e levou junto o deep link, o esquema de URL e o
+      fluxo de vinculação da AUT-12. O tratamento do
+      `account-exists-with-different-credential` foi removido do
+      `auth_repository`: com um provedor, o erro não tem como acontecer
+- [x] **Cadastro é acesso (AUT-11 retirada, 27/08).** Quem entra pelo provedor
+      entra no app. A tela de "Aguardando aprovação" foi **removida** — não é o
+      caminho da exceção, é caminho nenhum. No backend caíram o guard, o
+      `PendingApprovalError` e a coluna `approved_at`
+      (`009_drop_user_approval.sql`)
 
 **O que falta:**
-
-- [ ] **Provar o login num aparelho.** É o único ponto que teste nenhum
-      alcança: se a folha do Google abre de verdade. Até isso acontecer, SHA-1
-      e `google-services.json` são fé
-- [ ] **GitHub.** No Android é `signInWithProvider` com Custom Tabs — outro
-      caminho, e o mais frágil dos dois. Ficou por último de propósito
-- [ ] **O fluxo de vinculação da AUT-12.** Só faz sentido com o segundo
-      provedor existindo. Hoje o `account-exists-with-different-credential` é
-      tratado, mas só para **explicar** — diz por onde entrar, não vincula
 - [ ] **SHA-1 de release.** Sem ele o login funciona no `flutter run` e falha
       no APK publicado
 - [ ] **A tela de espera na abertura** (veja abaixo). Ainda não existe, e é o
       risco aberto desta fase
-- [ ] Tela dedicada de aprovação pendente, se o card não bastar. Exigiria o app
-      consultar o `GET /me` logo após o login, antes de navegar
+- [ ] **Não há como revogar acesso.** Nem rota, nem coluna: o `UPDATE users SET
+      approved_at = NULL` existiu por um dia e foi embora com a `009`. Quem
+      entrou, entrou. Apagar a identidade no console do Firebase impede novos
+      logins e deixa a linha e os dados no banco — é o mais perto que existe
 
 **Não há mais tela de cadastro**, e é consequência da decisão, não corte de
 escopo: quem conduz cadastro, senha e recuperação é o Firebase. Sobra uma tela
@@ -1094,16 +1135,16 @@ O que a fase entrega:
 - `firebase_core`, `firebase_auth` e `google_sign_in` — e a configuração do
   `google-services.json`, que o `firebase_messaging` da Fase 10 vai reaproveitar
   inteira
-- Tela de login com **dois** botões — Google e GitHub —, e a decisão do que ela
-  mostra enquanto o SDK responde
-- O Google é nativo; o **GitHub sai por `signInWithProvider`**, abre navegador e
-  volta por **deep link** — configuração de esquema de URL no Android, feita uma
-  vez e para um provedor só
-- **O fluxo de vinculação de contas** (`AUT-12`), que com dois provedores já deixou
-  de ser adiável: mesmo e-mail em provedor diferente devolve
-  `account-exists-with-different-credential`, e sem tratar isso o segundo login
-  da mesma pessoa simplesmente falha. `fetchSignInMethodsForEmail`, login pelo
-  provedor original, `linkWithCredential`
+- Tela de login com **um** botão — Google —, e a decisão do que ela mostra
+  enquanto o SDK responde. Chegou a ser planejada com dois; o GitHub saiu em
+  27/08
+- O Google é nativo: SDK do aparelho, sem navegador, sem deep link e sem
+  esquema de URL para configurar. Essa cauda toda era do GitHub, e foi embora
+  com ele
+- ~~**O fluxo de vinculação de contas** (`AUT-12`)~~ — **fora do corte com o
+  segundo provedor.** Ele existia para o caso de o mesmo e-mail entrar por dois
+  caminhos; com um caminho só, `account-exists-with-different-credential` não
+  tem como acontecer. Volta junto com o dia em que houver um segundo botão
 - Guarda de rota no `go_router`: sem sessão, qualquer rota redireciona para o
   login — e é aqui que o `redirect` do router finalmente ganha uso. Ficou
   alimentado por `authStateChanges()`, e não por `idTokenChanges()`: o que a
@@ -1121,10 +1162,11 @@ O que a fase entrega:
   erro: é pegar um token novo e repetir a requisição, calada, e só cair no login
   quando isso também falhar
 - Botão de sair: `signOut()` e pronto
-- Tratar o **403 novo** da `AUT-11`, que é conta ainda não aprovada. É o único
-  403 do sistema e não é retentável: a tela precisa dizer que o acesso está
-  pendente, e não "erro ao entrar" — o login **funcionou**, e mandar tentar de
-  novo é o pior conselho possível aí
+- ~~Tratar o **403 novo** da `AUT-11`~~, que era conta sem acesso liberado. Foi
+  feito e desfeito: a regra saiu em 27/08 e o tratamento saiu com ela. O
+  raciocínio de então continua valendo para o dia em que existir um 403 de
+  verdade — o login **funcionou**, e mandar tentar de novo seria o pior conselho
+  possível ali
 
 **Sem armazenamento de token, e essa é a mudança grande.** O SDK do Firebase
 guarda a sessão sozinho, em armazenamento seguro da plataforma, e renova o ID
@@ -1149,14 +1191,16 @@ aberto da fase, a conferir na primeira abertura em aparelho com sessão salva.
 
 **Pronto quando:** duas contas diferentes, no mesmo aparelho, veem gastos
 diferentes — e nenhuma vê a tag da outra. O token expirando no meio do uso não
-aparece na tela: renova e segue. E a mesma pessoa entrando por Google numa vez e
-por GitHub na outra cai na **mesma** conta, com os mesmos gastos.
+aparece na tela: renova e segue.
 
-**Uma coisa que esta fase não resolve, e é bom saber antes:** quem entrar pelo
-GitHub com e-mail privado chega como `@users.noreply.github.com`, que é endereço
-diferente do Google — dois `uid`, duas contas, e a segunda abre vazia. Está
-registrado na `AUT-12`, e quem segura o estrago é a aprovação manual da
-`AUT-11`.
+**O risco de conta duplicada saiu junto com o GitHub.** Ele era concreto: quem
+entrasse pelo segundo provedor com e-mail privado chegaria como
+`@users.noreply.github.com`, endereço diferente do Google, e viraria um segundo
+`uid` com um app vazio — o sintoma de "meus gastos sumiram" sem que nada tivesse
+dado errado. Com um provedor, um e-mail é um `uid`. **A única coisa a não fazer
+é desligar o "One account per email address" no console do Firebase**: hoje ele
+não muda nada, e é por isso mesmo que é fácil desligar sem pensar e só descobrir
+no dia do segundo botão.
 
 ### Fase 10 — Notificações · ░░░░░░░░░░ não iniciada
 Depende da **Etapa 8 do backend** (veja `expense-tracker-api/docs/specs/07-notificacoes.md`),
@@ -1430,7 +1474,7 @@ Descobertas implementando a Fase 2:
    consulta a filtrar por dono — feita agora são 8 tabelas, feita depois de
    notificações e offline seriam 14, mais o job e o delta reescritos.
 
-   **Provedor fechado em 25/08: Firebase Auth, com Google e GitHub.** O
+   **Provedor fechado em 25/08: Firebase Auth. Só o Google desde 27/08.** O
    caminho até aqui passou por senha com token de vida longa e por senha com
    refresh rotativo; os dois caíram quando ficou claro que o `firebase-admin`
    entra no backend pelo FCM da Fase 10 de qualquer jeito, e que
@@ -1442,17 +1486,17 @@ Descobertas implementando a Fase 2:
    mesmo projeto do Firebase, e o logout valendo só depois de o token expirar —
    até uma hora (`AUT-08`).
 
-   O segundo provedor acrescenta o **fluxo de vinculação** da `AUT-12`, porque
-   sem ele a mesma pessoa entrando pelo GitHub depois do Google simplesmente
-   falha. A **Apple ficou fora**: exige anuidade paga para ser configurada e, sem
-   build de iOS, não alcançaria ninguém que o Google já não alcance. Volta quando
+   A **Apple ficou fora**: exige anuidade paga para ser configurada e, sem build
+   de iOS, não alcançaria ninguém que o Google já não alcance. Volta quando
    houver App Store, onde é requisito de aprovação.
 
-   **Em 26/08 saiu do papel**, e com um corte: o Google entrou primeiro e
-   sozinho. Com um provedor só, o `account-exists-with-different-credential`
-   não tem como acontecer, então o fluxo de vinculação continua adiado — hoje
-   ele é **explicado**, não resolvido: a tela diz por onde entrar. O GitHub e a
-   vinculação entram juntos, porque um sem o outro não faz sentido.
+   **Em 26/08 saiu do papel** com o Google sozinho, e em **27/08 o GitHub saiu
+   do corte de vez**. O que ele acrescentava era alcance quase nulo num app
+   Android, onde a conta Google já está no aparelho; o que ele cobrava era deep
+   link, esquema de URL, e-mail instável e o **fluxo de vinculação** da `AUT-12`
+   inteiro — que só existia porque haveria um segundo provedor. Um provedor
+   apaga os três problemas de uma vez, e o tratamento do
+   `account-exists-with-different-credential` foi removido do app junto.
 2. ~~**Offline**~~ — **resolvido em 19/08: entra, mas por último.** Vira a
    **Fase 11**, depois de o app estar pronto. O motivo de não ser agora está lá;
    o resumo é que offline-first não é um cache que se liga no fim, é uma segunda

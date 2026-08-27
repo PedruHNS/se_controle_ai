@@ -163,23 +163,13 @@ final class UnauthorizedException extends AppException {
   });
 }
 
-/// 403 — o cadastro existe e ainda não foi aprovado (AUT-11).
-///
-/// **O único 403 do sistema**, e por isso não é ambíguo. Cadastrar é
-/// automático — o primeiro login cria a linha —, mas entrar não é: alguém
-/// precisa preencher o `approved_at`. Não é erro de credencial e não adianta
-/// tentar de novo; é uma espera.
-final class PendingApprovalException extends AppException {
-  const PendingApprovalException({
-    required super.message,
-    super.code,
-    super.statusCode = 403,
-    super.cause,
-    super.stackTrace,
-  });
-}
+// Não há 403 aqui, e a ausência é a regra: o backend não produz nenhum. Houve
+// um entre 26 e 27/08, para o cadastro que ainda não tinha sido liberado
+// (AUT-11) — a regra saiu, e com ela a exceção e a tela de espera que a
+// acompanhava. Se um 403 chegar hoje, veio de proxy ou WAF e cai em
+// [UnexpectedResponseException], que é onde deve cair.
 
-/// O provedor de identidade recusou ou falhou — Google, GitHub, o Firebase Auth.
+/// O provedor de identidade recusou ou falhou — o Google, ou o Firebase Auth.
 ///
 /// Não é o 401 de [UnauthorizedException], e a distância entre os dois é grande:
 /// lá o app tinha credencial e ela não serviu; aqui nem chegamos a ter token

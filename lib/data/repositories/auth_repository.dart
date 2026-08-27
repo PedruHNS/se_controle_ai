@@ -195,24 +195,18 @@ class FirebaseAuthRepository implements AuthRepository {
 
   /// De erro do Firebase para exceção nossa.
   ///
-  /// Dois casos ganham nome e o resto cai num só, e isso não é preguiça: os
-  /// códigos do SDK descrevem o SDK. Mostrar `invalid-credential` na tela não
-  /// diz a ninguém o que fazer em seguida.
+  /// Um caso ganha nome e o resto cai num só, e isso não é preguiça: os códigos
+  /// do SDK descrevem o SDK. Mostrar `invalid-credential` na tela não diz a
+  /// ninguém o que fazer em seguida.
+  ///
+  /// Houve um segundo caso nomeado até 27/08: o
+  /// `account-exists-with-different-credential` da AUT-12, que é o e-mail já
+  /// entrando por outro provedor. Ele saiu junto com o GitHub — com o Google
+  /// sozinho não há segundo provedor para colidir, e o erro não tem como
+  /// acontecer. Volta com o fluxo de vinculação no dia em que houver outro
+  /// botão nesta tela.
   AppException _traduzir(FirebaseAuthException error, StackTrace stack) =>
       switch (error.code) {
-        // AUT-12. O console tem "One account per email address" ligado por
-        // padrão, e é ele que produz isto: o e-mail já entrou por outro
-        // provedor. Juntar as duas contas exigiria um fluxo de vinculação que
-        // está fora do corte — então o honesto é dizer por onde entrar.
-        'account-exists-with-different-credential' => AuthProviderException(
-          message:
-              'Esta conta já entra por outro provedor. '
-              'Use o mesmo que você usou da primeira vez.',
-          code: error.code,
-          cause: error,
-          stackTrace: stack,
-        ),
-
         // Vira NetworkFailure, que é retentável — e é o certo: aqui "tentar de
         // novo" é uma promessa que o app pode cumprir.
         'network-request-failed' => NetworkException(

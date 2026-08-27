@@ -74,10 +74,6 @@ sealed class Failure {
       message: 'O app não entendeu a resposta do servidor.',
       exception: exception,
     ),
-    PendingApprovalException() => PendingApprovalFailure(
-      code: exception.code,
-      exception: exception,
-    ),
     AuthProviderException() => AuthFailure(
       // A mensagem já vem pronta de quem traduziu o erro do provedor: os
       // códigos do Firebase descrevem o SDK, não o que a pessoa deve fazer.
@@ -181,21 +177,6 @@ final class SerializationFailure extends Failure {
 final class CancelledFailure extends Failure {
   const CancelledFailure({
     super.message = 'Requisição cancelada.',
-    super.exception,
-  });
-}
-
-/// 403 — entrou, mas ainda não tem acesso (AUT-11).
-///
-/// Não é falha de login: a identidade foi aceita e a linha existe no banco. O
-/// que falta é aprovação, e ela não acontece no app — hoje é um `UPDATE` na
-/// mão. Por isso não é retentável e não há botão que resolva; a tela certa é
-/// uma de espera, não um card de erro.
-final class PendingApprovalFailure extends Failure {
-  const PendingApprovalFailure({
-    super.message =
-        'Cadastro recebido. Seu acesso ainda precisa ser aprovado.',
-    super.code,
     super.exception,
   });
 }

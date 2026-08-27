@@ -74,15 +74,11 @@ AppException _fromResponse(DioException exception) {
       cause: exception,
       stackTrace: stackTrace,
     ),
-    // O backend só produz 403 para cadastro pendente (AUT-11). Ainda assim a
-    // condição olha o `code`: se um proxy ou um WAF passar a devolver 403 por
-    // conta própria, isso não pode virar tela de "aguardando aprovação".
-    403 when code == 'PENDING_APPROVAL' => PendingApprovalException(
-      message: message,
-      code: code,
-      cause: exception,
-      stackTrace: stackTrace,
-    ),
+    // Sem caso para 403: o backend não produz nenhum. Houve um, de 26 a 27/08,
+    // para o cadastro à espera de aprovação (AUT-11), e saiu com a regra —
+    // entrar pelo provedor passou a ser acesso. Um 403 que chegue agora veio de
+    // proxy ou WAF, e cair no caso inesperado é o desfecho certo: não é uma
+    // situação que o app saiba explicar.
     404 => NotFoundException(
       message: message,
       code: code,

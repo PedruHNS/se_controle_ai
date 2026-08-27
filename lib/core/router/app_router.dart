@@ -54,9 +54,10 @@ final GoRouter appRouter = GoRouter(
   /// verdades sobre quem está logado divergiriam, e a que decide navegação é a
   /// pior das duas para estar errada.
   ///
-  /// **Não decide sobre aprovação.** Quem está pendente (AUT-11) *está* logado,
-  /// e o app só descobre o 403 quando uma requisição volta — o que acontece
-  /// dentro das telas, não aqui.
+  /// **Estar logado é o critério inteiro.** Houve um segundo, de 26 a 27/08:
+  /// quem estava logado podia ainda não ter acesso (AUT-11), e o app descobria
+  /// isso por um 403 dentro das telas. A regra saiu — quem entra pelo provedor
+  /// entra no app —, e aqui não sobrou nada para checar além da sessão.
   redirect: (context, state) {
     final logado = GetIt.I<AuthRepository>().current != null;
     final indoParaOLogin = state.matchedLocation == AppRoutes.loginPath;

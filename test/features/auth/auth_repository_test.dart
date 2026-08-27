@@ -80,22 +80,6 @@ void main() {
       verifyNever(() => auth.signInWithCredential(any()));
     });
 
-    test('conta que já entra por outro provedor explica por onde entrar', () async {
-      // AUT-12: o "One account per email address" do console recusa o segundo
-      // provedor no mesmo e-mail. Não há fluxo de vinculação, então a única
-      // saída útil é dizer isso.
-      when(() => google.signIn()).thenAnswer((_) async => 'token-do-google');
-      when(() => auth.signInWithCredential(any())).thenThrow(
-        FirebaseAuthException(code: 'account-exists-with-different-credential'),
-      );
-
-      final falha = (await repository.signInWithGoogle()).tryGetError();
-
-      expect(falha, isA<AuthFailure>());
-      expect(falha!.message, contains('outro provedor'));
-      expect(falha.code, 'account-exists-with-different-credential');
-    });
-
     test('sem rede vira falha retentável, e não erro de login', () async {
       // A diferença importa no botão que a tela oferece: aqui "tentar de novo"
       // é uma promessa que dá para cumprir.
