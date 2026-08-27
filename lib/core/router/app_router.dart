@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/auth_repository.dart';
+import '../config/globals.dart';
 
 import '../../features/auth/view/login_page.dart';
 import '../../features/credit_cards/view/credit_card_expenses_page.dart';
@@ -29,6 +30,14 @@ import 'auth_refresh.dart';
 /// a cada rebuild.
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.homePath,
+
+  /// A chave do Navigator raiz, para quem precisa de um `context` sem estar
+  /// dentro da árvore — hoje o [MessageMixin], que mostra Flushbar de fora de
+  /// widget nenhum. `MaterialApp.router` não aceita `navigatorKey`: quem cria o
+  /// Navigator raiz é o router, então é aqui que a chave entra. Sem isto
+  /// `Globals.navigatorKey.currentContext` é sempre nulo e todo toast do app é
+  /// construído e descartado em silêncio.
+  navigatorKey: Globals.navigatorKey,
 
   /// Loga cada navegação no console em debug. Vale muito quando um redirect
   /// leva para lugar inesperado.
