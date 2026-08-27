@@ -3,7 +3,6 @@ import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals.dart';
 
-import '../../../core/errors/failure.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
@@ -111,24 +110,38 @@ class TagListController extends BaseController with MessageMixin {
     _nav.pop();
   }
 
-  /// [color] é [Patch] e não `String?` pelo motivo do CAR-08: ausente não mexe,
-  /// `null` limpa. Sem isso, tirar a cor de uma tag seria indistinguível de não
-  /// ter tocado nela.
-  Future<Failure?> update(
-    String id, {
-    String? name,
-    Patch<String> color = const Patch.keep(),
-  }) async {
-    _working.value = true;
-
+  /// Edita por substituição e sem recarregar: o `POST` devolve a tag pronta e
+  /// ela troca a linha da lista. Nome e cor vão sempre os dois, e a tag passa a
+  /// ser o que foi mandado. `color` nulo é "sem cor" — não existe "não mexe", então
+  /// quem só renomeia manda a cor atual junto.
+  ///
+  /// Vale só para tag. Gasto e cartão continuam com [Patch] e `PATCH`, porque
+  /// lá os formulários editam um punhado de campos por vez e mandar o resto de
+  /// volta significaria reenviar dinheiro que ninguém tocou.
+  Future<void> update(String id, {required String name, String? color}) async {
+    final current = _state.value;
+    if (current is! Loaded<List<TagModel>>) return;
     final result = await _repository.update(id, name: name, color: color);
 
-    _working.value = false;
+    result.when((tag) {
+      // A resposta traz a tag pronta, então a linha é trocada aqui mesmo, sem
+      // um novo GET.
+      //
+      // A cópia não é zelo: o `signal` compara por referência, e mexer na lista
+      // que está dentro do estado o deixaria com o mesmo objeto — nada seria
+      // notificado e a tela seguiria com o nome antigo.
+      final atualizadas = [...current.data];
+      final posicao = atualizadas.indexWhere((item) => item.id == tag.id);
 
-    return result.when((_) async {
-      await _load();
-      return null;
-    }, (error) async => error);
+      if (posicao == -1) return;
+
+      atualizadas[posicao] = tag;
+      // Renomear muda o lugar na lista: sem reordenar, "Zebra" ficaria onde
+      // "Moradia" estava.
+      atualizadas.sort((a, b) => TextOrder.alfabetica(a.name, b.name));
+
+      _state.value = Loaded(atualizadas);
+    }, (error) => error);
   }
 
   Future<void> delete(TagModel tag) async {

@@ -79,9 +79,9 @@ MockAuthRepository authRepositoryMock({
   final mock = MockAuthRepository();
 
   when(() => mock.current).thenReturn(current);
-  when(() => mock.changes).thenAnswer(
-    (_) => changes ?? const Stream<AuthUserModel?>.empty(),
-  );
+  when(
+    () => mock.changes,
+  ).thenAnswer((_) => changes ?? const Stream<AuthUserModel?>.empty());
   when(
     () => mock.signInWithGoogle(),
   ).thenAnswer((_) async => login ?? const Success(pedroLogado));
@@ -273,22 +273,42 @@ void stubTagDelete(
   when(
     () => mock.delete(any()),
   ).thenAnswer((_) async => result ?? Success((archived: archived)));
-  when(() => mock.restore(any())).thenAnswer((_) async => const Success(true));
 }
 
 /// Stub de edição de tag.
-void stubTagUpdate(MockTagRepository mock, {Result<bool, Failure>? result}) {
-  // `any` em Patch precisa de fallback registrado — mocktail não sabe
-  // construir um valor de tipo próprio sozinho.
-  registerFallbackValue(const Patch<String>.keep());
-
+///
+/// Devolve a tag como o `200` devolve: a mesma linha da fixture com o nome e a
+/// cor que foram mandados, e o `usageCount` intacto — editar rótulo não mexe em
+/// quantos lançamentos usam a tag. Um stub que devolvesse `usageCount: 0`
+/// esconderia a linha voltando da edição dizendo "sem uso".
+///
+/// Sem `registerFallbackValue`: desde que a edição virou substituição, os dois
+/// parâmetros são `String`, e mocktail já sabe inventar um. O [Patch] segue nos
+/// stubs de cartão e de gasto, que continuam com `PATCH`.
+void stubTagUpdate(MockTagRepository mock, {Result<TagModel, Failure>? result}) {
   when(
     () => mock.update(
       any(),
       name: any(named: 'name'),
       color: any(named: 'color'),
     ),
-  ).thenAnswer((_) async => result ?? const Success(true));
+  ).thenAnswer((invocation) async {
+    if (result != null) return result;
+
+    final id = invocation.positionalArguments.first as String;
+    final anterior = tagListJson.firstWhere(
+      (tag) => tag['id'] == id,
+      orElse: () => tagCriadaJson,
+    );
+
+    return Success(
+      TagModel.fromJson({
+        ...anterior,
+        'name': invocation.namedArguments[const Symbol('name')],
+        'color': invocation.namedArguments[const Symbol('color')],
+      }),
+    );
+  });
 }
 
 /// Stub de criação de tag, para o caminho "criar sem sair do formulário".
@@ -296,13 +316,18 @@ void stubTagUpdate(MockTagRepository mock, {Result<bool, Failure>? result}) {
 /// Devolve a tag inteira, como o `201` faz: é dela que a lista se atualiza sem
 /// recarregar, então um stub que devolvesse só o `id` esconderia justamente o
 /// que os testes de criação verificam.
-void stubTagCreate(MockTagRepository mock, {Result<TagModel, Failure>? result}) {
+void stubTagCreate(
+  MockTagRepository mock, {
+  Result<TagModel, Failure>? result,
+}) {
   when(
     () => mock.create(
       name: any(named: 'name'),
       color: any(named: 'color'),
     ),
-  ).thenAnswer((_) async => result ?? Success(TagModel.fromJson(tagCriadaJson)));
+  ).thenAnswer(
+    (_) async => result ?? Success(TagModel.fromJson(tagCriadaJson)),
+  );
 }
 
 void stubCreditCardList(

@@ -32,6 +32,7 @@ void main() {
     stubTagList(repository);
     stubTagCreate(repository);
     stubTagDelete(repository);
+    stubTagUpdate(repository);
 
     controller = TagListController(repository: repository, nav: nav);
     // O `onInit` do BaseController dispara o primeiro `GET` no construtor, e
@@ -247,6 +248,55 @@ void main() {
       await controller.delete(moradia);
 
       verify(() => nav.pop()).called(1);
+    });
+  });
+
+
+  // A edição devolve a tag pronta, como a criação. Sem isso a tela teria que
+  // pedir a lista de novo só para ver um nome trocado.
+  group('update', () {
+    final moradia = TagModel.fromJson(tagListJson.first);
+
+    test('troca a linha sem um novo GET', () async {
+      await controller.update(moradia.id, name: 'Casa', color: '#4CAF50');
+
+      expect(carregadas().map((tag) => tag.name), isNot(contains('Moradia')));
+      expect(carregadas().map((tag) => tag.name), contains('Casa'));
+      expect(carregadas(), hasLength(3));
+      verifyNever(() => repository.list());
+    });
+
+    // Renomear muda o lugar na lista: "Casa" nasce antes de "Outros", e a linha
+    // não pode ficar onde "Moradia" estava.
+    test('reordena depois de renomear', () async {
+      await controller.update(moradia.id, name: 'Zebra', color: null);
+
+      expect(carregadas().map((tag) => tag.name), [
+        'Outros',
+        'Transporte',
+        'Zebra',
+      ]);
+    });
+
+    // Editar rótulo não mexe em quantos lançamentos usam a tag, e a linha
+    // precisa do número para avisar que excluir vai arquivar (TAG-08).
+    test('mantém o usageCount que voltou do servidor', () async {
+      await controller.update(moradia.id, name: 'Casa', color: null);
+
+      final casa = carregadas().firstWhere((tag) => tag.name == 'Casa');
+      expect(casa.usageCount, 3);
+      expect(casa.color, isNull);
+    });
+
+    test('falha não mexe na lista', () async {
+      stubTagUpdate(
+        repository,
+        result: const Error(ConflictFailure(message: 'Já existe.')),
+      );
+
+      await controller.update(moradia.id, name: 'Outros', color: null);
+
+      expect(carregadas().map((tag) => tag.name), contains('Moradia'));
     });
   });
 
