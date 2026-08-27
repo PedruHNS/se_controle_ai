@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 ///
 /// Obrigatória no gasto (TAG-06) e opcional no ganho (TAG-07).
 class TagModel {
+  final String id;
+  final String name;
+  final String? color;
+  final bool archived;
+  final int usageCount;
+
   const TagModel({
     required this.id,
     required this.name,
@@ -12,21 +18,6 @@ class TagModel {
     this.archived = false,
     this.usageCount = 0,
   });
-
-  final String id;
-  final String name;
-
-  /// `#RRGGBB` ou nulo. Puramente cosmética — nenhuma regra lê a cor (TAG-02).
-  final String? color;
-
-  /// Aposentada (TAG-08): continua nos lançamentos que já a usam, e não pode
-  /// ser escolhida em lançamento novo — o backend recusa com 422.
-  final bool archived;
-
-  /// Quantos gastos e ganhos usam a tag. Só vem em `GET /tags`; nas tags
-  /// aninhadas em gasto ou ganho é sempre 0, porque lá a contagem não faz
-  /// sentido nem é consultada.
-  final int usageCount;
 
   factory TagModel.fromJson(Map<String, dynamic> json) => TagModel(
     id: json['id'] as String,
@@ -37,9 +28,6 @@ class TagModel {
     usageCount: json['usageCount'] as int? ?? 0,
   );
 
-  /// A cor como [Color], ou nulo quando a tag não tem cor. O backend garante o
-  /// formato `#RRGGBB` por CHECK, mas um valor estranho aqui viraria exceção em
-  /// tempo de pintura — por isso o parse é tolerante.
   Color? get parsedColor {
     final value = color;
     if (value == null || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value)) {
