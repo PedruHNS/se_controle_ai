@@ -9,10 +9,10 @@ mixin MessageMixin<T extends StatelessWidget> {
     flush = Flushbar(
       boxShadows: const [
         BoxShadow(
+          color: .fromRGBO(57, 51, 96, 0.1),
           spreadRadius: 0,
           blurRadius: 40,
-          offset: Offset(0, 4),
-          // color: LibCores.s1,
+          offset: Offset(0, 1),
         ),
       ],
       backgroundColor: Colors.white,
@@ -30,7 +30,7 @@ mixin MessageMixin<T extends StatelessWidget> {
                 // color: LibCores.c2
               ),
               maxLines: 4,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
           ),
         ],
@@ -53,18 +53,18 @@ mixin MessageMixin<T extends StatelessWidget> {
     flush = Flushbar(
       boxShadows: const [
         BoxShadow(
+          color: .fromRGBO(57, 51, 96, 0.1),
           spreadRadius: 0,
           blurRadius: 40,
-          offset: Offset(0, 4),
-          // color: LibCores.s1,
+          offset: Offset(0, 1),
         ),
       ],
-      flushbarPosition: position ?? FlushbarPosition.BOTTOM,
+      flushbarPosition: position ?? .BOTTOM,
       backgroundColor: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      margin: const EdgeInsets.all(15),
+      borderRadius: .circular(12),
+      margin: const .all(15),
       messageText: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: .center,
         children: [
           const Icon(Icons.check_circle, size: 28.0, color: Colors.blue),
           const SizedBox(width: 10),
@@ -73,7 +73,7 @@ mixin MessageMixin<T extends StatelessWidget> {
               msg,
               style: const TextStyle(fontSize: 14.5, color: Colors.black),
               maxLines: 4,
-              overflow: TextOverflow.ellipsis,
+              overflow: .ellipsis,
             ),
           ),
         ],
