@@ -22,7 +22,7 @@ abstract interface class TagRepository {
   /// Sem [includeArchived], só as ativas — é o que o seletor de lançamento
   /// precisa, já que arquivada não pode ser escolhida (TAG-08). A tela de tags
   /// pede as duas.
-  Future<Result<List<TagModel>, Failure>> list({bool includeArchived});
+  Future<Result<List<TagModel>, Failure>> list();
 
   /// Devolve a tag inteira, no mesmo formato dos itens de [list].
   ///
@@ -35,7 +35,10 @@ abstract interface class TagRepository {
   ///
   /// Nome repetido ignorando maiúscula volta 409 (TAG-01), que vira
   /// [ConflictFailure] — é o caso de quem digita "moradia" já tendo "Moradia".
-  Future<Result<TagModel, Failure>> create({required String name, String? color});
+  Future<Result<TagModel, Failure>> create({
+    required String name,
+    String? color,
+  });
 
   /// Edição parcial com a semântica do CAR-08: campo ausente não muda nada,
   /// `null` limpa a cor. O nome não é anulável, por isso vai como `String?`.
@@ -60,14 +63,12 @@ class HttpTagRepository implements TagRepository {
   final ApiClient _api;
 
   @override
-  Future<Result<List<TagModel>, Failure>> list({
-    bool includeArchived = false,
-  }) async {
+  Future<Result<List<TagModel>, Failure>> list() async {
     try {
       final response = await _api.get(
         '/tags',
+
         // O backend lê a query como string, e o zod converte.
-        queryParameters: {'includeArchived': includeArchived ? 'true' : null},
       );
       return Success(Decode.listOf(response.data, TagModel.fromJson));
     } on AppException catch (exception) {

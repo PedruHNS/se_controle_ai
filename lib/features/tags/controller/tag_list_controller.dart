@@ -63,7 +63,7 @@ class TagListController extends BaseController with MessageMixin {
   Future<void> _load() async {
     _state.value = const Loading();
 
-    final result = await _repository.list(includeArchived: false);
+    final result = await _repository.list();
 
     result.when(
       (success) => _state.value = Loaded(success),
@@ -108,7 +108,6 @@ class TagListController extends BaseController with MessageMixin {
         () => toastError(err.message),
       ),
     );
-
     _nav.pop();
   }
 

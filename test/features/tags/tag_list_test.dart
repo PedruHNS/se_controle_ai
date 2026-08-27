@@ -29,9 +29,9 @@ void main() {
     });
 
     testWidgets('a arquivada não aparece', (tester) async {
-      // A seção "Arquivadas" saiu da tela na refatoração de 27/08. Como o
-      // controller pede `includeArchived: false`, a arquivada nem chega aqui —
-      // não é questão de esconder, é de não buscar.
+      // A seção "Arquivadas" saiu da tela na refatoração de 27/08. `/tags`
+      // devolve só as ativas, então a arquivada nem chega aqui — não é questão
+      // de esconder, é de não vir.
       await pump(tester);
 
       expect(find.text('Assinaturas'), findsNothing);
@@ -40,11 +40,10 @@ void main() {
     // Arquivada é estado interno: some da circulação, inclusive desta tela.
     // Quem quiser uma de volta a recria pelo nome, e o backend ressuscita a
     // mesma linha com o histórico (TAG-17).
-    testWidgets('busca só as ativas', (tester) async {
+    testWidgets('busca a lista uma vez só', (tester) async {
       await pump(tester);
 
-      verify(() => repository.list(includeArchived: false)).called(1);
-      verifyNever(() => repository.list(includeArchived: true));
+      verify(() => repository.list()).called(1);
     });
 
     testWidgets('diz quantos lançamentos usam cada tag', (tester) async {
@@ -155,7 +154,7 @@ void main() {
       // fecha o diálogo e o nome digitado continua no campo. Quem fecha de
       // verdade é coberto no teste de controller, que verifica o `pop()`.
       expect(find.widgetWithText(TagTile, 'Mercado'), findsOneWidget);
-      verify(() => repository.list(includeArchived: false)).called(1);
+      verify(() => repository.list()).called(1);
     });
 
     testWidgets('cancelar não chama o backend', (tester) async {

@@ -156,7 +156,7 @@ void main() {
       );
       expect(controller.tags.value.map((t) => t.name), contains('Mercado'));
       verify(() => tags.create(name: 'Mercado', color: null)).called(1);
-      verifyNever(() => tags.list(includeArchived: any(named: 'includeArchived')));
+      verifyNever(() => tags.list());
     });
 
     // A lista local tem que ficar igual à que o servidor devolveria: ordenada

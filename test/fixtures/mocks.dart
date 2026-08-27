@@ -246,24 +246,18 @@ void stubTagList(
   Result<List<TagModel>, Failure>? result,
   Duration? delay,
 }) {
-  final todas = tagListJson.map(TagModel.fromJson).toList();
-
-  // O dobrê filtra como o backend filtra: sem `includeArchived`, arquivada não
-  // vem. Um stub que devolvesse tudo sempre esconderia o bug de o seletor de
+  // O dublê devolve o que o backend devolve: `/tags` traz só as ativas, sem
+  // parâmetro para pedir outra coisa. A arquivada da fixture continua lá de
+  // propósito — um stub que a entregasse esconderia o bug de o seletor de
   // lançamento oferecer tag aposentada.
-  when(
-    () => mock.list(includeArchived: any(named: 'includeArchived')),
-  ).thenAnswer((invocation) async {
+  final ativas = tagListJson
+      .map(TagModel.fromJson)
+      .where((tag) => !tag.archived)
+      .toList();
+
+  when(() => mock.list()).thenAnswer((_) async {
     if (delay != null) await Future<void>.delayed(delay);
-    if (result != null) return result;
-
-    final incluir =
-        invocation.namedArguments[const Symbol('includeArchived')] as bool? ??
-        false;
-
-    return Success(
-      incluir ? todas : todas.where((tag) => !tag.archived).toList(),
-    );
+    return result ?? Success(ativas);
   });
 }
 

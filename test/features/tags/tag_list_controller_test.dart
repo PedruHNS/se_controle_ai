@@ -54,9 +54,7 @@ void main() {
 
     expect(carregadas().map((tag) => tag.name), contains('Mercado'));
     expect(carregadas().firstWhere((tag) => tag.name == 'Mercado').id, criadaTagId);
-    verifyNever(
-      () => repository.list(includeArchived: any(named: 'includeArchived')),
-    );
+    verifyNever(() => repository.list());
   });
 
   // Ordem alfabética de verdade: `compareTo` cru jogaria "aluguel" para depois
@@ -190,9 +188,7 @@ void main() {
       contains('Mercado'),
     );
     // Duas: a da abertura e a do refresh que a criação teve de pedir.
-    verify(
-      () => repository.list(includeArchived: any(named: 'includeArchived')),
-    ).called(2);
+    verify(() => repository.list()).called(2);
   });
 
   // TAG-08: excluir tem dois desfechos — sem uso apaga, em uso arquiva. A tela
@@ -204,9 +200,7 @@ void main() {
       await controller.delete(moradia);
 
       expect(carregadas().map((tag) => tag.name), ['Outros', 'Transporte']);
-      verifyNever(
-        () => repository.list(includeArchived: any(named: 'includeArchived')),
-      );
+      verifyNever(() => repository.list());
     });
 
     // O predicado errado — `(tag) => tag.id == tag.id`, com o parâmetro
