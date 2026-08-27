@@ -4,6 +4,7 @@ import 'package:signals/signals.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
+import '../../../core/utils/text_order.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
@@ -210,9 +211,12 @@ class ExpenseFormController extends BaseController {
       // dropdown teria um valor sem item correspondente — que é assertion no
       // Flutter, não um campo vazio. Entra só nesse caso, e some assim que a
       // pessoa escolher outra.
-      // if (!_tags.any((tag) => tag.id == expense.tag.id)) {
-      //   _setTags([..._tags, expense.tag]..sort(TagModel.byName));
-      // }
+      if (!_tags.any((tag) => tag.id == expense.tag.id)) {
+        _setTags(
+          [..._tags, expense.tag]
+            ..sort((a, b) => TextOrder.alfabetica(a.name, b.name)),
+        );
+      }
 
       _fill(expense);
       _syncCreditCardValidators();
@@ -250,7 +254,10 @@ class ExpenseFormController extends BaseController {
       // Descarta o mesmo `id` antes de inserir porque criar com o nome de uma
       // arquivada ressuscita aquela tag (TAG-17): o que volta pode ser uma
       // linha que a lista já conhece.
-      _setTags([..._tags.where((item) => item.id != tag.id), tag]..sort());
+      _setTags(
+        [..._tags.where((item) => item.id != tag.id), tag]
+          ..sort((a, b) => TextOrder.alfabetica(a.name, b.name)),
+      );
       control<String>(tagId).updateValue(tag.id);
       return null;
     }, (failure) => failure.message);

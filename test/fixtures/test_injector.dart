@@ -6,6 +6,7 @@ import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 import 'package:se_controle_ai/data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/auth/controller/login_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
@@ -122,10 +123,28 @@ MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
     getIt.unregister<TagListController>();
   }
 
+  // A navegação como duplo: o `NavigationService` de verdade embrulha o
+  // `appRouter`, que é único por processo — fechar um diálogo num teste mexeria
+  // na pilha do teste seguinte.
+  if (!getIt.isRegistered<NavigationService>()) {
+    getIt.registerSingleton<NavigationService>(navigationServiceMock());
+  }
+
   getIt
     ..registerSingleton<TagRepository>(repository)
-    ..registerFactory<TagListController>(
-      () => TagListController(getIt<TagRepository>()),
+    // `lazySingleton` com `dispose:`, espelhando o injector de produção — e isso
+    // deixou de ser detalhe: a `TagListPage` chama `resetLazySingleton` no seu
+    // `dispose`, e o get_it recusa isso em registro que não seja lazy. Como
+    // `factory`, todo teste de tela estourava ao desmontar, com a mensagem
+    // "There is no type Null registered as LazySingleton" — que não diz nada
+    // sobre o tipo real, porque o get_it imprime ali o parâmetro `instance`,
+    // que vem nulo.
+    ..registerLazySingleton<TagListController>(
+      () => TagListController(
+        repository: getIt<TagRepository>(),
+        nav: getIt<NavigationService>(),
+      ),
+      dispose: (controller) => controller.dispose(),
     );
 
   return repository;

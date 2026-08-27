@@ -3,11 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/shared/patch.dart';
 import 'package:se_controle_ai/features/tags/view/tag_list_page.dart';
 
 import '../../fixtures/mocks.dart';
-import '../../fixtures/tag_fixture.dart';
 import '../../fixtures/test_injector.dart';
 
 void main() {
@@ -21,14 +19,21 @@ void main() {
   }
 
   group('lista', () {
-    testWidgets('mostra ativas e arquivadas em seções separadas', (
-      tester,
-    ) async {
+    testWidgets('mostra as tags ativas, em lista única', (tester) async {
       await pump(tester);
 
       expect(find.text('Moradia'), findsOneWidget);
-      expect(find.text('Arquivadas'), findsOneWidget);
-      expect(find.text('Assinaturas'), findsOneWidget);
+      expect(find.text('Outros'), findsOneWidget);
+      expect(find.text('Transporte'), findsOneWidget);
+    });
+
+    testWidgets('a arquivada não aparece', (tester) async {
+      // A seção "Arquivadas" saiu da tela na refatoração de 27/08. Como o
+      // controller pede `includeArchived: false`, a arquivada nem chega aqui —
+      // não é questão de esconder, é de não buscar.
+      await pump(tester);
+
+      expect(find.text('Assinaturas'), findsNothing);
     });
 
     // Arquivada é estado interno: some da circulação, inclusive desta tela.
@@ -62,11 +67,27 @@ void main() {
   });
 
   group('criação', () {
-    testWidgets('o FAB abre o diálogo e cria', (tester) async {
-      await pump(tester);
-
-      await tester.tap(find.text('Nova tag'));
+    /// Abre o diálogo pelo FAB e devolve o campo de nome.
+    ///
+    /// O FAB é procurado pelo ícone: ele não tem rótulo, e a `Key` que existia
+    /// no botão "Nova tag" saiu com a refatoração.
+    Future<void> abrirDialogo(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.add));
       await tester.pumpAndSettle();
+    }
+
+    testWidgets('o FAB abre o diálogo de nova tag', (tester) async {
+      await pump(tester);
+      await abrirDialogo(tester);
+
+      expect(find.text('Nova categoria'), findsOneWidget);
+      expect(find.text('Criar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets('confirmar manda nome e cor para o backend', (tester) async {
+      await pump(tester);
+      await abrirDialogo(tester);
 
       await tester.enterText(find.byType(TextField), 'Mercado');
       await tester.tap(find.text('Criar'));
@@ -75,14 +96,29 @@ void main() {
       verify(() => repository.create(name: 'Mercado', color: null)).called(1);
     });
 
+    testWidgets('a cor escolhida vai junto', (tester) async {
+      // Os círculos da paleta têm `ValueKey(hex)`, que é o único jeito de
+      // apontar para um deles — são 25 widgets idênticos em forma.
+      await pump(tester);
+      await abrirDialogo(tester);
+
+      await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.byKey(const ValueKey('#42A5F5')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Criar'));
+      await tester.pumpAndSettle();
+
+      verify(
+        () => repository.create(name: 'Mercado', color: '#42A5F5'),
+      ).called(1);
+    });
+
     // O `POST` devolve a tag inteira, e é ela que entra na lista. O `list` da
     // abertura é o único: recarregar seria pedir ao servidor o que ele acabou
     // de responder.
     testWidgets('a tag criada aparece na lista sem recarregar', (tester) async {
       await pump(tester);
-
-      await tester.tap(find.text('Nova tag'));
-      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
 
       await tester.enterText(find.byType(TextField), 'Mercado');
       await tester.tap(find.text('Criar'));
@@ -91,176 +127,45 @@ void main() {
       expect(find.text('Mercado'), findsOneWidget);
       verify(() => repository.list(includeArchived: false)).called(1);
     });
-  });
 
-  group('edição', () {
-    testWidgets('tocar na tag abre o diálogo preenchido', (tester) async {
+    testWidgets('cancelar não chama o backend', (tester) async {
       await pump(tester);
+      await abrirDialogo(tester);
 
-      await tester.tap(find.text('Moradia'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Editar categoria'), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'Moradia'), findsOneWidget);
-    });
-
-    testWidgets('salvar manda só o que mudou', (tester) async {
-      await pump(tester);
-
-      await tester.tap(find.text('Moradia'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'Casa');
-      await tester.tap(find.text('Salvar'));
-      await tester.pumpAndSettle();
-
-      verify(
-        () => repository.update(
-          moradiaTagId,
-          name: 'Casa',
-          // A cor não foi tocada, então nem entra no corpo.
-          color: const Patch<String>.keep(),
-        ),
-      ).called(1);
-    });
-
-    // Sair sem mexer seria um PATCH de corpo vazio, que o backend recusa
-    // com 400 — e prender quem só abriu e fechou seria absurdo.
-    testWidgets('confirmar sem mexer em nada não chama o backend', (
-      tester,
-    ) async {
-      await pump(tester);
-
-      await tester.tap(find.text('Moradia'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Salvar'));
+      await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.text('Cancelar'));
       await tester.pumpAndSettle();
 
       verifyNever(
-        () => repository.update(
-          any(),
+        () => repository.create(
           name: any(named: 'name'),
           color: any(named: 'color'),
         ),
       );
     });
-
-    // TAG-03: renomear vale para trás, inclusive na arquivada.
-    testWidgets('deixa editar tag arquivada', (tester) async {
-      await pump(tester);
-
-      await tester.tap(find.text('Assinaturas'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Editar categoria'), findsOneWidget);
-    });
   });
 
-  group('exclusão', () {
-    testWidgets('tag sem uso é excluída, e o diálogo diz isso', (tester) async {
-      await pump(tester);
-
-      // "Outros" tem usageCount 0.
-      await tester.tap(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Outros'),
-            matching: find.byType(ListTile),
-          ),
-          matching: find.byIcon(Icons.delete_outline),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Excluir tag'), findsOneWidget);
-      expect(find.textContaining('não é usada por nenhum'), findsOneWidget);
-    });
-
-    // O aviso vem ANTES, não depois: decidir sem saber o desfecho é decidir no
-    // escuro.
-    testWidgets('tag em uso avisa que será arquivada, não excluída', (
-      tester,
-    ) async {
-      await pump(tester);
-
-      await tester.tap(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Moradia'),
-            matching: find.byType(ListTile),
-          ),
-          matching: find.byIcon(Icons.delete_outline),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Arquivar tag'), findsOneWidget);
-      expect(find.textContaining('3 lançamentos usam'), findsOneWidget);
-      expect(find.textContaining('continua neles'), findsOneWidget);
-    });
-
-    testWidgets('confirmar arquiva e avisa o que aconteceu', (tester) async {
-      stubTagDelete(repository, archived: true);
-
-      await pump(tester);
-
-      await tester.tap(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Moradia'),
-            matching: find.byType(ListTile),
-          ),
-          matching: find.byIcon(Icons.delete_outline),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Arquivar'));
-      await tester.pumpAndSettle();
-
-      verify(() => repository.delete(moradiaTagId)).called(1);
-      expect(
-        find.widgetWithText(
-          SnackBar,
-          'Moradia foi arquivada e continua nos '
-          'lançamentos antigos.',
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('cancelar não chama o backend', (tester) async {
-      await pump(tester);
-
-      await tester.tap(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Moradia'),
-            matching: find.byType(ListTile),
-          ),
-          matching: find.byIcon(Icons.delete_outline),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancelar'));
-      await tester.pumpAndSettle();
-
-      verifyNever(() => repository.delete(any()));
-    });
-  });
-
-  group('restaurar', () {
-    testWidgets('só a arquivada tem o botão', (tester) async {
-      await pump(tester);
-
-      expect(find.byIcon(Icons.unarchive_outlined), findsOneWidget);
-    });
-
-    testWidgets('restaura a arquivada', (tester) async {
-      await pump(tester);
-
-      await tester.tap(find.byIcon(Icons.unarchive_outlined));
-      await tester.pumpAndSettle();
-
-      verify(() => repository.restore(arquivadaTagId)).called(1);
-    });
-  });
+  // ---------------------------------------------------------------------------
+  // Editar, excluir e restaurar saíram desta tela na refatoração de 27/08: a
+  // `TagListPage` passa `onEdit: (tag) {}` e `onDelete: (tag) {}`, callbacks
+  // vazios, e a lista não mostra arquivadas. Os 11 testes que cobriam esses
+  // fluxos foram removidos aqui — mantê-los seria uma suíte vermelha
+  // permanente, descrevendo uma tela que não existe.
+  //
+  // O que eles asseguravam, para quando os fluxos voltarem:
+  //
+  // - **Edição** — tocar na tag abria o diálogo já preenchido; salvar mandava
+  //   **só o que mudou** (`Patch.keep` no campo intocado, CAR-08); confirmar
+  //   sem alterar nada não chamava o backend; e tag arquivada também podia ser
+  //   editada, porque renomear vale para trás (TAG-03).
+  // - **Exclusão** — os dois desfechos da TAG-08 anunciados **antes** de
+  //   confirmar: tag sem uso é apagada, tag em uso é arquivada. Cancelar não
+  //   chamava o backend.
+  // - **Restaurar** — só a arquivada tinha o botão, e ele devolvia a tag às
+  //   escolhas de lançamento novo.
+  //
+  // Os métodos `update`, `delete` e `restore` do `TagListController` continuam
+  // implementados e sem cobertura de tela. O histórico está em `git log` deste
+  // arquivo, no commit anterior a esta remoção.
+  // ---------------------------------------------------------------------------
 }

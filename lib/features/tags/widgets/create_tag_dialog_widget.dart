@@ -6,7 +6,6 @@ import 'package:signals/signals_hooks.dart';
 
 import '../../../data/models/tag_model.dart';
 
-
 /// Paleta fixa em vez de seletor livre de cor.
 ///
 /// O backend aceita qualquer `#RRGGBB`, mas cor escolhida à mão vira rótulo
@@ -79,16 +78,13 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
     // A mesma regra do backend (TAG-01), verificada aqui só para não gastar uma
     // ida ao servidor com o caso mais provável de erro.
     await controller.create();
-    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(_editing ? 'Editar categoria' : 'Nova categoria'),
-      // Rolável porque a paleta cresceu: em tela baixa, ou com a fonte do
-      // sistema aumentada, as quatro fileiras de cores não cabem junto com o
-      // campo de nome.
+
       content: SingleChildScrollView(
         padding: .all(8),
         child: ReactiveForm(

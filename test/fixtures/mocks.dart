@@ -15,6 +15,7 @@ import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 import 'package:se_controle_ai/data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 
 import 'credit_card_fixture.dart';
 import 'expense_fixture.dart';
@@ -40,6 +41,24 @@ class MockExpenseRepository extends Mock implements ExpenseRepository {}
 class MockTagRepository extends Mock implements TagRepository {}
 
 class MockAuthRepository extends Mock implements AuthRepository {}
+
+/// A navegação como duplo.
+///
+/// Mock e não o `NavigationService` de verdade: ele embrulha o `GoRouter`
+/// global, e um teste de controller que o tocasse mexeria na pilha de navegação
+/// dos outros testes — o `appRouter` é único por processo. Com o duplo, "fechou
+/// o diálogo" vira asserção em vez de efeito colateral.
+class MockNavigationService extends Mock implements NavigationService {}
+
+/// Uma navegação que aceita tudo calada.
+MockNavigationService navigationServiceMock() {
+  final mock = MockNavigationService();
+
+  when(() => mock.pop<dynamic>(any<dynamic>())).thenReturn(null);
+  when(() => mock.pop<dynamic>()).thenReturn(null);
+
+  return mock;
+}
 
 /// Quem "entrou" nos testes.
 const pedroLogado = AuthUserModel(

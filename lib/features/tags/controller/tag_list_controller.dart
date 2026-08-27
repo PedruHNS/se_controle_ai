@@ -1,11 +1,13 @@
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
+import '../../../core/utils/text_order.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/tag_repository.dart';
 
@@ -19,9 +21,9 @@ import '../../../data/repositories/tag_repository.dart';
 /// (TAG-03), então não existe "as tags de agosto" — renomear muda o rótulo em
 /// todo o histórico, e isso é intencional.
 class TagListController extends BaseController with MessageMixin {
-  TagListController(this._repository);
-
   final TagRepository _repository;
+  final NavigationService _nav;
+  TagListController({required this._repository, required this._nav});
 
   final _state = signal<ViewState<List<TagModel>>>(const Loading());
   final _working = signal<bool>(false);
@@ -69,26 +71,41 @@ class TagListController extends BaseController with MessageMixin {
     );
   }
 
+  void _clearText() {
+    form.control('title').reset();
+    _colorSelected.value == null;
+  }
+
   Future<void> refresh() => _load();
 
-  /// Devolve a falha para quem chamou em vez de guardá-la em signal, como as
-  /// outras listas fazem: o 409 de nome repetido (TAG-01) pertence ao diálogo,
-  /// que continua aberto com o texto digitado, e não à lista, que está correta.
-
   Future<void> create() async {
+    final current = _state.value;
+    if (current is! Loaded<List<TagModel>>) return;
+
     final result = await _repository.create(
       name: form.control('title').value,
       color: _colorSelected.value,
     );
 
-    final current = _state.value;
-    if (current is! Loaded<List<TagModel>>) return;
+    result.when(
+      (tag) async {
+        final newList = [...current.data, tag]
+          ..sort((a, b) => TextOrder.alfabetica(a.name, b.name));
 
-    return result.when((tag) async {
-      final newList = [...current.data, tag]..sort();
+        _state.value = Loaded(newList);
+        await Future.delayed(
+          Duration(milliseconds: 300),
+          () => toastSucesso('tag adicionada com sucesso.'),
+        );
+      },
+      (err) async => Future.delayed(
+        Duration(milliseconds: 300),
+        () => toastErro(err.message),
+      ),
+    );
 
-      _state.value = Loaded(newList);
-    }, (error) async => toastErro(error.message));
+    _nav.pop();
+    _clearText();
   }
 
   /// [color] é [Patch] e não `String?` pelo motivo do CAR-08: ausente não mexe,
@@ -125,19 +142,5 @@ class TagListController extends BaseController with MessageMixin {
       await _load();
       return (failure: null, archived: outcome.archived);
     }, (error) async => (failure: error, archived: false));
-  }
-
-  /// Traz a arquivada de volta para as escolhas de lançamento novo.
-  Future<Failure?> restore(String id) async {
-    _working.value = true;
-
-    final result = await _repository.restore(id);
-
-    _working.value = false;
-
-    return result.when((_) async {
-      await _load();
-      return null;
-    }, (error) async => error);
   }
 }

@@ -1,7 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
-
+import 'package:se_controle_ai/core/router/app_router.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/credit_card_repository.dart';
 import '../../data/repositories/expense_repository.dart';
@@ -35,6 +36,7 @@ import '../theme/theme_controller.dart';
 /// continuarem privadas e ainda assim visíveis entre os arquivos.
 part 'injector_controllers.dart';
 part 'injector_repositories.dart';
+part 'injector_services.dart';
 
 final getIt = GetIt.instance;
 
@@ -48,12 +50,14 @@ final getIt = GetIt.instance;
 /// construir, então repositório registrado depois do controller que o usa
 /// funciona igual. Aqui vêm primeiro porque é assim que se lê — rede,
 /// repositório, controller.
-void setupInjector() {
+Future<void> setupInjector() async {
   // Os repositórios antes do Dio, invertendo a ordem de leitura: o Dio agora
   // depende do de autenticação, que é quem sabe o token. Não muda a execução —
   // `lazySingleton` resolve na hora de construir —, mas deixa a dependência
   // visível para quem lê.
+
   _registerRepositories();
+  _registerServices();
 
   if (!getIt.isRegistered<Dio>()) {
     getIt.registerLazySingleton<Dio>(

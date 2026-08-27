@@ -64,7 +64,10 @@ void _registerControllers() {
 
   // Lista com dispose pelo get_it, como as outras.
   getIt.registerLazySingleton<TagListController>(
-    () => TagListController(getIt<TagRepository>()),
+    () => TagListController(
+      repository: getIt<TagRepository>(),
+      nav: getIt<NavigationService>(),
+    ),
     dispose: (e) => e.dispose(),
   );
 

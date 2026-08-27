@@ -14,6 +14,7 @@ import '../../fixtures/tag_fixture.dart';
 /// teste de tela faria a mesma pergunta passando por diálogo, FAB e navegação.
 void main() {
   late MockTagRepository repository;
+  late MockNavigationService nav;
   late TagListController controller;
 
   /// As tags do estado carregado. Estoura se a tela não estiver em [Loaded] —
@@ -23,10 +24,11 @@ void main() {
 
   setUp(() async {
     repository = MockTagRepository();
+    nav = navigationServiceMock();
     stubTagList(repository);
     stubTagCreate(repository);
 
-    controller = TagListController(repository);
+    controller = TagListController(repository: repository, nav: nav);
     // O `onInit` do BaseController dispara o primeiro `GET` no construtor, e
     // ele precisa terminar antes de a criação ter uma lista onde entrar.
     await controller.refresh();
@@ -88,6 +90,32 @@ void main() {
     ]);
   });
 
+  // O diálogo se fecha sozinho no sucesso: quem confirmou já viu a tag entrar
+  // na lista atrás, e deixar a folha aberta pediria um segundo toque para dizer
+  // a mesma coisa.
+  test('fecha o diálogo depois de criar', () async {
+    await criar('Mercado');
+
+    verify(() => nav.pop()).called(1);
+  });
+
+  test('limpa o campo para a próxima tag', () async {
+    // Sem isto, reabrir o diálogo traz o nome da tag anterior escrito — e
+    // confirmar sem prestar atenção daria 409 (TAG-01).
+    await criar('Mercado');
+
+    expect(controller.form.control('title').value, isNull);
+  });
+
+  test('o campo limpo não fica marcado como inválido', () async {
+    // `reset()` e não `updateValue(null)`: o segundo zera o valor mas mantém o
+    // controle *touched*, e aí o `required` dispara na hora — a pessoa reabre o
+    // diálogo e vê "campo obrigatório" em vermelho sem ter digitado nada.
+    await criar('Mercado');
+
+    expect(controller.form.control('title').touched, isFalse);
+  });
+
   // TAG-17: criar com o nome de uma arquivada ressuscita aquela tag, então o
   // que volta pode ser uma linha que a lista já conhece.
   test('a ressuscitada substitui a linha, em vez de duplicá-la', () async {
@@ -122,7 +150,10 @@ void main() {
       ),
     );
 
-    final emAberto = TagListController(repository);
+    final emAberto = TagListController(
+      repository: repository,
+      nav: navigationServiceMock(),
+    );
     addTearDown(emAberto.dispose);
     emAberto.form.control('title').updateValue('Mercado');
 
