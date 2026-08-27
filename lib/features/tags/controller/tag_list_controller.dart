@@ -25,7 +25,6 @@ class TagListController extends BaseController with MessageMixin {
   TagListController({required this._repository, required this._nav});
 
   final _state = signal<ViewState<List<TagModel>>>(const Loading());
-  final _working = signal<bool>(false);
 
   final _colorSelected = signal<String?>(null);
   set setColorSelected(String hex) => _colorSelected.value = hex;
@@ -39,11 +38,6 @@ class TagListController extends BaseController with MessageMixin {
 
   ReadonlySignal<ViewState<List<TagModel>>> get state => _state;
 
-  /// Gravação em andamento. A view desabilita os botões para não pedir duas
-  /// vezes — criar a mesma tag duas vezes daria 409 na segunda (TAG-01), o que
-  /// seria um erro confuso de um clique acidental.
-  ReadonlySignal<bool> get working => _working;
-
   @override
   void onInit() async {
     super.onInit();
@@ -54,7 +48,7 @@ class TagListController extends BaseController with MessageMixin {
   void dispose() {
     super.dispose();
     _state.dispose();
-    _working.dispose();
+
     _colorSelected.dispose();
     form.dispose();
   }
@@ -110,38 +104,28 @@ class TagListController extends BaseController with MessageMixin {
     _nav.pop();
   }
 
-  /// Edita por substituição e sem recarregar: o `POST` devolve a tag pronta e
-  /// ela troca a linha da lista. Nome e cor vão sempre os dois, e a tag passa a
-  /// ser o que foi mandado. `color` nulo é "sem cor" — não existe "não mexe", então
-  /// quem só renomeia manda a cor atual junto.
-  ///
-  /// Vale só para tag. Gasto e cartão continuam com [Patch] e `PATCH`, porque
-  /// lá os formulários editam um punhado de campos por vez e mandar o resto de
-  /// volta significaria reenviar dinheiro que ninguém tocou.
   Future<void> update(String id, {required String name, String? color}) async {
     final current = _state.value;
     if (current is! Loaded<List<TagModel>>) return;
     final result = await _repository.update(id, name: name, color: color);
 
-    result.when((tag) {
-      // A resposta traz a tag pronta, então a linha é trocada aqui mesmo, sem
-      // um novo GET.
-      //
-      // A cópia não é zelo: o `signal` compara por referência, e mexer na lista
-      // que está dentro do estado o deixaria com o mesmo objeto — nada seria
-      // notificado e a tela seguiria com o nome antigo.
-      final atualizadas = [...current.data];
-      final posicao = atualizadas.indexWhere((item) => item.id == tag.id);
+    result.when(
+      (tag) {
+        final index = current.data.indexWhere((item) => item.id == tag.id);
+        final newList = current.data;
 
-      if (posicao == -1) return;
+        if (index == -1) return;
 
-      atualizadas[posicao] = tag;
-      // Renomear muda o lugar na lista: sem reordenar, "Zebra" ficaria onde
-      // "Moradia" estava.
-      atualizadas.sort((a, b) => TextOrder.alfabetica(a.name, b.name));
+        newList[index] = tag;
+        newList.sort((a, b) => TextOrder.alfabetica(a.name, b.name));
 
-      _state.value = Loaded(atualizadas);
-    }, (error) => error);
+        _state.value = Loaded(newList);
+      },
+      (err) => Future.delayed(
+        Duration(milliseconds: 300),
+        () => toastError(err.message),
+      ),
+    );
   }
 
   Future<void> delete(TagModel tag) async {
