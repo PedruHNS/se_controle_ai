@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
@@ -13,6 +14,9 @@ import '../../fixtures/tag_fixture.dart';
 /// Sem widget: o que está em jogo é a lista que o `POST` deixa em memória, e um
 /// teste de tela faria a mesma pergunta passando por diálogo, FAB e navegação.
 void main() {
+
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockTagRepository repository;
   late MockNavigationService nav;
   late TagListController controller;
@@ -27,6 +31,7 @@ void main() {
     nav = navigationServiceMock();
     stubTagList(repository);
     stubTagCreate(repository);
+    stubTagDelete(repository);
 
     controller = TagListController(repository: repository, nav: nav);
     // O `onInit` do BaseController dispara o primeiro `GET` no construtor, e
@@ -99,21 +104,42 @@ void main() {
     verify(() => nav.pop()).called(1);
   });
 
-  test('limpa o campo para a próxima tag', () async {
-    // Sem isto, reabrir o diálogo traz o nome da tag anterior escrito — e
-    // confirmar sem prestar atenção daria 409 (TAG-01).
-    await criar('Mercado');
+  // Quem chama `clearText` é o `initState` do diálogo, não o `create` — o
+  // formulário é zerado na abertura, e não no fechamento. Assim o estado está
+  // certo qualquer que tenha sido o desfecho anterior: criou, cancelou ou saiu
+  // pelo botão de voltar do sistema.
+  group('clearText', () {
+    test('limpa o campo para a próxima tag', () {
+      // Sem isto, reabrir o diálogo traz o nome da tag anterior escrito — e
+      // confirmar sem prestar atenção daria 409 (TAG-01).
+      controller.form.control('title').updateValue('Mercado');
 
-    expect(controller.form.control('title').value, isNull);
-  });
+      controller.clearText();
 
-  test('o campo limpo não fica marcado como inválido', () async {
-    // `reset()` e não `updateValue(null)`: o segundo zera o valor mas mantém o
-    // controle *touched*, e aí o `required` dispara na hora — a pessoa reabre o
-    // diálogo e vê "campo obrigatório" em vermelho sem ter digitado nada.
-    await criar('Mercado');
+      expect(controller.form.control('title').value, isNull);
+    });
 
-    expect(controller.form.control('title').touched, isFalse);
+    test('o campo limpo não fica marcado como inválido', () {
+      // `reset()` e não `updateValue(null)`: o segundo zera o valor mas mantém
+      // o controle *touched*, e aí o `required` dispara na hora — a pessoa
+      // reabre o diálogo e vê "campo obrigatório" em vermelho sem ter digitado
+      // nada.
+      controller.form.control('title').markAsTouched();
+
+      controller.clearText();
+
+      expect(controller.form.control('title').touched, isFalse);
+    });
+
+    // Limpar era só do texto: o sinal da cor ficava com o hex da tag anterior,
+    // e reabrir o diálogo mostrava um círculo já marcado.
+    test('leva a cor embora, não só o nome', () {
+      controller.setColorSelected = '#EF5350';
+
+      controller.clearText();
+
+      expect(controller.getColorSelected.value, isNull);
+    });
   });
 
   // TAG-17: criar com o nome de uma arquivada ressuscita aquela tag, então o
@@ -168,4 +194,66 @@ void main() {
       () => repository.list(includeArchived: any(named: 'includeArchived')),
     ).called(2);
   });
+
+  // TAG-08: excluir tem dois desfechos — sem uso apaga, em uso arquiva. A tela
+  // só lista ativas, então nos dois casos a linha sai daqui.
+  group('delete', () {
+    final moradia = TagModel.fromJson(tagListJson.first);
+
+    test('tira a linha da lista sem um novo GET', () async {
+      await controller.delete(moradia);
+
+      expect(carregadas().map((tag) => tag.name), ['Outros', 'Transporte']);
+      verifyNever(
+        () => repository.list(includeArchived: any(named: 'includeArchived')),
+      );
+    });
+
+    // O predicado errado — `(tag) => tag.id == tag.id`, com o parâmetro
+    // sombreando o de fora — compara cada item consigo mesmo e é sempre
+    // verdadeiro: a lista inteira ia embora junto.
+    test('tira só a que foi apontada', () async {
+      await controller.delete(moradia);
+
+      expect(carregadas(), hasLength(2));
+    });
+
+    // Mutar a lista de dentro do `Loaded` deixaria o sinal com o mesmo objeto,
+    // e sem objeto novo o `SignalBuilder` não repinta: a tag sumia da memória e
+    // continuava na tela.
+    test('publica um estado novo, e não a mesma lista mexida por dentro', () async {
+      final antes = controller.state.value;
+
+      await controller.delete(moradia);
+
+      expect(controller.state.value, isNot(same(antes)));
+      expect((antes as Loaded<List<TagModel>>).data, hasLength(3));
+    });
+
+    test('arquivada também sai da lista', () async {
+      stubTagDelete(repository, archived: true);
+
+      await controller.delete(moradia);
+
+      expect(carregadas().map((tag) => tag.name), isNot(contains('Moradia')));
+    });
+
+    test('falha não mexe na lista', () async {
+      stubTagDelete(
+        repository,
+        result: const Error(NetworkFailure(message: 'Sem conexão.')),
+      );
+
+      await controller.delete(moradia);
+
+      expect(carregadas(), hasLength(3));
+    });
+
+    test('fecha a confirmação', () async {
+      await controller.delete(moradia);
+
+      verify(() => nav.pop()).called(1);
+    });
+  });
+
 }

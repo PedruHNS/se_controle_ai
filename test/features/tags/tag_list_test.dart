@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/features/tags/view/tag_list_page.dart';
+import 'package:se_controle_ai/features/tags/widgets/tag_tile_widget.dart';
 
 import '../../fixtures/mocks.dart';
 import '../../fixtures/test_injector.dart';
@@ -113,6 +114,31 @@ void main() {
       ).called(1);
     });
 
+    // O bug relatado em 27/08: o diálogo reabria com o círculo da tag anterior
+    // ainda marcado. O nome limpava; a cor não, porque a linha que devia
+    // apagá-la era `==` em vez de `=` — comparava e jogava o resultado fora.
+    //
+    // Fecha pelo "Cancelar" e não pelo "Criar" porque o `NavigationService`
+    // daqui é dublê e o `pop()` do controller não fecha nada. Dá no mesmo: o
+    // formulário é zerado na *abertura*, então o desfecho anterior não importa.
+    testWidgets('reabrir traz o formulário em branco', (tester) async {
+      await pump(tester);
+      await abrirDialogo(tester);
+
+      await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.byKey(const ValueKey('#42A5F5')));
+      await tester.pumpAndSettle();
+      // O visto só existe no círculo escolhido.
+      expect(find.byIcon(Icons.check), findsOneWidget);
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      await abrirDialogo(tester);
+
+      expect(find.widgetWithText(TextField, 'Mercado'), findsNothing);
+      expect(find.byIcon(Icons.check), findsNothing);
+    });
+
     // O `POST` devolve a tag inteira, e é ela que entra na lista. O `list` da
     // abertura é o único: recarregar seria pedir ao servidor o que ele acabou
     // de responder.
@@ -124,7 +150,11 @@ void main() {
       await tester.tap(find.text('Criar'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mercado'), findsOneWidget);
+      // Procura dentro do [TagTile], e não a primeira ocorrência do texto: o
+      // `NavigationService` daqui é dublê, então o `pop()` do controller não
+      // fecha o diálogo e o nome digitado continua no campo. Quem fecha de
+      // verdade é coberto no teste de controller, que verifica o `pop()`.
+      expect(find.widgetWithText(TagTile, 'Mercado'), findsOneWidget);
       verify(() => repository.list(includeArchived: false)).called(1);
     });
 

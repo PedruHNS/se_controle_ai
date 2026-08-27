@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/tags/widgets/create_tag_dialog_widget.dart';
 import 'package:se_controle_ai/features/tags/widgets/tag_tile_widget.dart';
 import 'package:signals/signals_flutter.dart';
-
 import '../../../core/di/injector.dart';
-import '../../../core/errors/failure.dart';
-
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
@@ -29,66 +27,24 @@ class TagListPage extends StatefulWidget {
 
 class _TagListPageState extends State<TagListPage> {
   final _controller = getIt<TagListController>();
+  final _nav = getIt<NavigationService>();
 
   Future<void> _create() async {
-    showDialog(context: context, builder: (context) => CreateTagDialogWidget());
+    await showDialog(
+      context: context,
+      builder: (context) => CreateTagDialogWidget(),
+    );
   }
 
-  // Future<void> _edit(TagModel tag) async {
-  //   final alterado = await showTagFormDialog(context, tag: tag);
-  //   if (alterado == null || !mounted) return;
-
-  //   // Sair sem mexer em nada seria um PATCH de corpo vazio, que o backend
-  //   // recusa com 400 — e prender quem só abriu e fechou seria absurdo.
-  //   if (alterado.name == tag.name && alterado.color == tag.color) return;
-
-  //   final failure = await _controller.update(
-  //     tag.id,
-  //     name: alterado.name == tag.name ? null : alterado.name,
-  //     // Patch e não `String?`: aqui `null` significa "tirei a cor", e sem essa
-  //     // distinção limpar seria indistinguível de não ter tocado.
-  //     color: Patch<String>.diff(alterado.color, tag.color),
-  //   );
-
-  //   _reportIfFailed(failure);
-  // }
-
-  // Future<void> _confirmDelete(TagModel tag) async {
-  //   final confirmou = await showDialog<bool>(
-  //     context: context,
-  //     builder: (context) => _DeleteDialog(tag: tag),
-  //   );
-
-  //   if (confirmou != true || !mounted) return;
-
-  //   final resultado = await _controller.delete(tag.id);
-
-  //   if (!mounted) return;
-
-  //   if (resultado.failure != null) {
-  //     _reportIfFailed(resultado.failure);
-  //     return;
-  //   }
-
-  //   // "Excluída" e "arquivada" não são a mesma notícia, e quem apertou Excluir
-  //   // precisa saber que a tag continua existindo nos lançamentos antigos.
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(
-  //       content: Text(
-  //         resultado.archived
-  //             ? '${tag.name} foi arquivada e continua nos lançamentos antigos.'
-  //             : '${tag.name} foi excluída.',
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  void _reportIfFailed(Failure? failure) {
-    if (!mounted || failure == null) return;
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(failure.message)));
+  Future<void> _onDelete(TagModel tag) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _DeleteDialog(
+        tag: tag,
+        cancel: () => _nav.pop(),
+        confirm: () async => await _controller.delete(tag),
+      ),
+    );
   }
 
   @override
@@ -103,7 +59,7 @@ class _TagListPageState extends State<TagListPage> {
       appBar: AppBar(title: const Text('Tags'), centerTitle: true),
       floatingActionButton: SignalBuilder(
         builder: (context) => FloatingActionButton(
-          onPressed: _controller.working.value ? null : _create,
+          onPressed: _controller.state.value is! Loaded ? null : _create,
           child: const Icon(Icons.add),
         ),
       ),
@@ -130,7 +86,7 @@ class _TagListPageState extends State<TagListPage> {
               tags: tags,
               onRefresh: _controller.refresh,
               onEdit: (tag) {},
-              onDelete: (tag) {},
+              onDelete: _onDelete,
             ),
           };
         },
@@ -193,7 +149,13 @@ class _TagList extends StatelessWidget {
 /// mostrar dentro dele — o 409 da TAG-08 deixou de existir.
 class _DeleteDialog extends StatelessWidget {
   final TagModel tag;
-  const _DeleteDialog({required this.tag});
+  final void Function() cancel;
+  final void Function() confirm;
+  const _DeleteDialog({
+    required this.tag,
+    required this.cancel,
+    required this.confirm,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -210,14 +172,8 @@ class _DeleteDialog extends StatelessWidget {
             : '"${tag.name}" não é usada por nenhum lançamento e será excluída.',
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text('Excluir'),
-        ),
+        TextButton(onPressed: cancel, child: const Text('Cancelar')),
+        FilledButton(onPressed: confirm, child: Text('Confirmar')),
       ],
     );
   }

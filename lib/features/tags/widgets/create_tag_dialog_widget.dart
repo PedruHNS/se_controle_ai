@@ -1,59 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:se_controle_ai/core/config/globals.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 import 'package:signals/signals_hooks.dart';
 
 import '../../../data/models/tag_model.dart';
 
-/// Paleta fixa em vez de seletor livre de cor.
-///
-/// O backend aceita qualquer `#RRGGBB`, mas cor escolhida à mão vira rótulo
-/// ilegível — cinza-claro sobre branco — e não há contraste garantido. Estas
-/// são todas do Material, nos tons **400 e 600**, que é a faixa que se enxerga
-/// tanto no tema claro quanto no escuro. Fora dela, os tons 100–300 somem no
-/// branco e os 800–900 somem no preto.
-///
-/// **Na ordem do círculo cromático**, e não por gosto: quem procura "um verde"
-/// acha os verdes juntos. As oito primeiras do arranjo antigo continuam aqui,
-/// com os mesmos códigos — tag já cadastrada segue casando com um círculo da
-/// paleta em vez de aparecer sem seleção ao abrir a edição.
-const _palette = [
-  '#EF5350',
-  '#E53935',
-  '#EC407A',
-  '#D81B60',
-  '#AB47BC',
-  '#8E24AA',
-  '#7E57C2',
-  '#5C6BC0',
-  '#42A5F5',
-  '#1E88E5',
-  '#29B6F6',
-  '#00ACC1',
-  '#26A69A',
-  '#00897B',
-  '#66BB6A',
-  '#43A047',
-  '#9CCC65',
-  '#C0CA33',
-  '#FFCA28',
-  '#FFA726',
-  '#FB8C00',
-  '#FF7043',
-  '#F4511E',
-  '#8D6E63',
-  '#78909C',
-];
-
-/// O formulário de tag em si — nome e cor, sem rede.
-///
-/// Público porque mora fora do arquivo de quem o abre, mas o caminho normal
-/// continua sendo [showTagFormDialog]: é ele que devolve o [TagFormResult] e
-/// resolve o `showDialog`. Construir esta classe direto só faz sentido para
-/// montá-la fora de um diálogo.
-///
-/// Passe [tag] para editar; sem ele, é criação.
 class CreateTagDialogWidget extends StatefulWidget {
   final TagModel? tag;
   const CreateTagDialogWidget({super.key, this.tag});
@@ -64,20 +18,14 @@ class CreateTagDialogWidget extends StatefulWidget {
 
 class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
   final controller = getIt<TagListController>();
-
-  String? _error;
-
+  final nav = getIt<NavigationService>();
   bool get _editing => widget.tag != null;
 
   @override
-  void dispose() {
-    super.dispose();
-  }
+  void initState() {
+    super.initState();
 
-  void _confirm() async {
-    // A mesma regra do backend (TAG-01), verificada aqui só para não gastar uma
-    // ida ao servidor com o caso mais provável de erro.
-    await controller.create();
+    if (!_editing) controller.clearText();
   }
 
   @override
@@ -99,7 +47,6 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
                   labelText: 'Nome',
                   hintText: 'Mercado, saúde, pets',
                   border: const OutlineInputBorder(),
-                  errorText: _error,
                 ),
                 validationMessages: {
                   ValidationMessage.required: (_) =>
@@ -119,7 +66,7 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      for (final hex in _palette)
+                      for (final hex in Globals.pallete)
                         _ColorDot(
                           key: ValueKey(hex), // usado no test de widget
                           hex: hex,
@@ -137,12 +84,11 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
+        TextButton(onPressed: () => nav.pop(), child: const Text('Cancelar')),
         FilledButton(
-          onPressed: _confirm,
+          onPressed: () async {
+            await controller.create();
+          },
           child: Text(_editing ? 'Salvar' : 'Criar'),
         ),
       ],

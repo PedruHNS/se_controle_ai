@@ -71,9 +71,14 @@ class TagListController extends BaseController with MessageMixin {
     );
   }
 
-  void _clearText() {
+  /// Devolve o formulário ao estado de "nova tag" — nome e cor.
+  ///
+  /// A cor entra aqui junto com o nome porque as duas são o mesmo formulário:
+  /// limpar só o texto deixava o diálogo reabrir com a cor da tag anterior
+  /// marcada, e quem não repara confirma com uma cor que não escolheu.
+  void clearText() {
     form.control('title').reset();
-    _colorSelected.value == null;
+    _colorSelected.value = null;
   }
 
   Future<void> refresh() => _load();
@@ -88,24 +93,23 @@ class TagListController extends BaseController with MessageMixin {
     );
 
     result.when(
-      (tag) async {
+      (tag) {
         final newList = [...current.data, tag]
           ..sort((a, b) => TextOrder.alfabetica(a.name, b.name));
 
         _state.value = Loaded(newList);
-        await Future.delayed(
+        Future.delayed(
           Duration(milliseconds: 300),
-          () => toastSucesso('tag adicionada com sucesso.'),
+          () => toastSucess('tag adicionada com sucesso.'),
         );
       },
-      (err) async => Future.delayed(
+      (err) => Future.delayed(
         Duration(milliseconds: 300),
-        () => toastErro(err.message),
+        () => toastError(err.message),
       ),
     );
 
     _nav.pop();
-    _clearText();
   }
 
   /// [color] é [Patch] e não `String?` pelo motivo do CAR-08: ausente não mexe,
@@ -128,19 +132,32 @@ class TagListController extends BaseController with MessageMixin {
     }, (error) async => error);
   }
 
-  /// Dois desfechos (TAG-08): sem uso apaga, em uso arquiva. Devolve o que
-  /// aconteceu junto com a falha, para a tela dizer a frase certa — "excluída"
-  /// e "arquivada" não são a mesma notícia.
-  Future<({Failure? failure, bool archived})> delete(String id) async {
-    _working.value = true;
+  Future<void> delete(TagModel tag) async {
+    final current = _state.value;
+    if (current is! Loaded<List<TagModel>>) return;
 
-    final result = await _repository.delete(id);
+    final result = await _repository.delete(tag.id);
 
-    _working.value = false;
+    result.when(
+      (outcome) {
+        _state.value = Loaded(
+          current.data.where((item) => item.id != tag.id).toList(),
+        );
 
-    return result.when((outcome) async {
-      await _load();
-      return (failure: null, archived: outcome.archived);
-    }, (error) async => (failure: error, archived: false));
+        Future.delayed(
+          Duration(milliseconds: 300),
+          () => toastSucess(
+            outcome.archived
+                ? '${tag.name} foi arquivada e continua nos lançamentos antigos.'
+                : '${tag.name} foi excluída.',
+          ),
+        );
+      },
+      (err) => Future.delayed(
+        Duration(milliseconds: 300),
+        () => toastError(err.message),
+      ),
+    );
+    _nav.pop();
   }
 }

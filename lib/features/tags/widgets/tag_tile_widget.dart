@@ -48,7 +48,7 @@ class TagTile extends StatelessWidget {
       child: Row(
         spacing: 16,
         children: [
-          _ColorAvatar(tag: tag),
+          _DotColor(tag: tag),
           Expanded(
             child: Column(
               mainAxisSize: .min,
@@ -142,8 +142,8 @@ class _MenuDeAcoes extends StatelessWidget {
   }
 }
 
-class _ColorAvatar extends StatelessWidget {
-  const _ColorAvatar({required this.tag});
+class _DotColor extends StatelessWidget {
+  const _DotColor({required this.tag});
 
   final TagModel tag;
 

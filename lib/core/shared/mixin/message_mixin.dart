@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:se_controle_ai/core/config/globals.dart';
 
 mixin MessageMixin<T extends StatelessWidget> {
-  void toastErro(String erro) {
+  void toastError(String erro) {
     Flushbar flush = Flushbar();
 
     flush = Flushbar(
@@ -43,7 +43,7 @@ mixin MessageMixin<T extends StatelessWidget> {
     }
   }
 
-  void toastSucesso(
+  void toastSucess(
     String msg, {
     FlushbarPosition? position,
     Duration? duration,
