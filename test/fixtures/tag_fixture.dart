@@ -12,7 +12,9 @@ const tagListJson = <Map<String, dynamic>>[
   {
     'id': '5fa6134c-35e7-4341-8db0-54f00256c8bc',
     'name': 'Outros',
-    'color': null,
+    // Cinza neutro: era a tag sem cor da fixture, e é o valor que a migration
+    // 010 deu a quem não tinha escolhido nenhuma.
+    'color': '#78909C',
     'archived': false,
     'usageCount': 0,
   },
@@ -27,7 +29,7 @@ const tagListJson = <Map<String, dynamic>>[
   {
     'id': '9c1f2e40-0f2a-4d61-9f6d-6d2f7a5b1c33',
     'name': 'Assinaturas',
-    'color': null,
+    'color': '#8D6E63',
     'archived': true,
     'usageCount': 2,
   },
@@ -41,3 +43,18 @@ const moradiaTagId = '1519d248-272f-407c-9853-87fcfb7ff789';
 
 /// Uma segunda tag, para os testes que trocam a tag de um gasto.
 const outraTagId = '2aa154c8-9549-4ed4-bdd6-3254d91cca84';
+
+/// A resposta de `POST /tags`: a tag inteira, no formato de um item da lista,
+/// mais o `restored`. Nasce com `usageCount: 0` — nenhum lançamento pode
+/// apontar para ela ainda.
+const tagCriadaJson = <String, dynamic>{
+  'id': 'c4f8d1b6-5e0a-4c7f-9b32-8a1d6e40f275',
+  'name': 'Mercado',
+  'color': '#66BB6A',
+  'archived': false,
+  'usageCount': 0,
+  'restored': false,
+};
+
+/// A tag que o `create` do mock devolve.
+const criadaTagId = 'c4f8d1b6-5e0a-4c7f-9b32-8a1d6e40f275';

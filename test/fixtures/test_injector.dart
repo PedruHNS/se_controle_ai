@@ -1,9 +1,13 @@
 import 'package:se_controle_ai/core/di/injector.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 import 'package:se_controle_ai/data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
+import 'package:se_controle_ai/features/auth/controller/login_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
@@ -14,6 +18,7 @@ import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_list_controller.dart';
+import 'package:se_controle_ai/core/theme/theme_controller.dart';
 import 'package:se_controle_ai/features/projection/controller/projection_controller.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 
@@ -32,8 +37,36 @@ import 'mocks.dart';
 /// Os controllers são `registerFactory` aqui, e não o `lazySingleton` da
 /// produção: cada teste precisa de um controller novo, senão o estado de um vaza
 /// para o próximo. Devolve o mock para o teste ajustar o `when`.
+/// O mês selecionado, compartilhado por todas as telas do teste.
+///
+/// **Singleton, e não `registerFactory` como os controllers de tela.** Aqui a
+/// regra se inverte: se cada tela recebesse a sua instância, o teste passaria a
+/// exercitar exatamente o bug que este controller fecha — home num mês, gastos
+/// em outro. É registrado de novo a cada `setUp`, então o mês de um teste não
+/// vaza para o seguinte.
+///
+/// Sem `dispose:` de propósito: o get_it liberaria os signals na hora do
+/// unregister, e um controller do teste anterior que ainda tivesse referência
+/// estouraria ao ler um signal morto.
+void setupSelectedMonth() {
+  if (getIt.isRegistered<SelectedMonthController>()) {
+    getIt.unregister<SelectedMonthController>();
+  }
+
+  getIt.registerSingleton<SelectedMonthController>(SelectedMonthController());
+}
+
 MockSummaryRepository setupTestInjector() {
   final repository = summaryRepositoryMock();
+
+  setupSelectedMonth();
+
+  // Sessão viva por padrão. Desde que o router ganhou `redirect`, um injector
+  // sem autenticação mandaria **toda** tela de teste para o login — o que
+  // faria dezenas de testes falharem por um motivo que não é o deles. Quem
+  // quer testar o caminho deslogado chama `setupAuthTestInjector()` depois,
+  // sem usuário.
+  setupAuthTestInjector(mock: authRepositoryMock(current: pedroLogado));
 
   if (getIt.isRegistered<SummaryRepository>()) {
     getIt.unregister<SummaryRepository>();
@@ -44,16 +77,29 @@ MockSummaryRepository setupTestInjector() {
   if (getIt.isRegistered<ProjectionController>()) {
     getIt.unregister<ProjectionController>();
   }
+  if (getIt.isRegistered<ThemeController>()) {
+    getIt.unregister<ThemeController>();
+  }
 
   getIt
     ..registerSingleton<SummaryRepository>(repository)
     ..registerFactory<HomeController>(
-      () => HomeController(getIt<SummaryRepository>()),
+      () => HomeController(
+        getIt<SummaryRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
     )
     // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
     ..registerFactory<ProjectionController>(
-      () => ProjectionController(getIt<SummaryRepository>()),
-    );
+      () => ProjectionController(
+        getIt<SummaryRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
+    )
+    // O tema não é de feature nenhuma, mas o menu lateral o resolve — e o menu
+    // aparece em todo teste que monta a home. Sem isto, qualquer tela com
+    // drawer estoura com "ThemeController is not registered".
+    ..registerFactory<ThemeController>(ThemeController.new);
 
   return repository;
 }
@@ -77,10 +123,28 @@ MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
     getIt.unregister<TagListController>();
   }
 
+  // A navegação como duplo: o `NavigationService` de verdade embrulha o
+  // `appRouter`, que é único por processo — fechar um diálogo num teste mexeria
+  // na pilha do teste seguinte.
+  if (!getIt.isRegistered<NavigationService>()) {
+    getIt.registerSingleton<NavigationService>(navigationServiceMock());
+  }
+
   getIt
     ..registerSingleton<TagRepository>(repository)
-    ..registerFactory<TagListController>(
-      () => TagListController(getIt<TagRepository>()),
+    // `lazySingleton` com `dispose:`, espelhando o injector de produção — e isso
+    // deixou de ser detalhe: a `TagListPage` chama `resetLazySingleton` no seu
+    // `dispose`, e o get_it recusa isso em registro que não seja lazy. Como
+    // `factory`, todo teste de tela estourava ao desmontar, com a mensagem
+    // "There is no type Null registered as LazySingleton" — que não diz nada
+    // sobre o tipo real, porque o get_it imprime ali o parâmetro `instance`,
+    // que vem nulo.
+    ..registerLazySingleton<TagListController>(
+      () => TagListController(
+        repository: getIt<TagRepository>(),
+        nav: getIt<NavigationService>(),
+      ),
+      dispose: (controller) => controller.dispose(),
     );
 
   return repository;
@@ -90,6 +154,8 @@ MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
 MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   final repository = mock ?? incomeRepositoryMock();
   setupTagTestInjector();
+
+  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
 
   if (getIt.isRegistered<IncomeRepository>()) {
     getIt.unregister<IncomeRepository>();
@@ -110,7 +176,10 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       () => IncomeListController(getIt<IncomeRepository>()),
     )
     ..registerFactory<IncomeFormController>(
-      () => IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
+      () => IncomeFormController(
+        getIt<IncomeRepository>(),
+        getIt<TagRepository>(),
+      ),
     )
     ..registerFactory<IncomeDetailController>(
       () => IncomeDetailController(getIt<IncomeRepository>()),
@@ -124,6 +193,8 @@ MockCreditCardRepository setupCreditCardTestInjector({
   MockCreditCardRepository? mock,
 }) {
   final repository = mock ?? creditCardRepositoryMock();
+
+  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
 
   if (getIt.isRegistered<CreditCardRepository>()) {
     getIt.unregister<CreditCardRepository>();
@@ -141,7 +212,10 @@ MockCreditCardRepository setupCreditCardTestInjector({
   getIt
     ..registerSingleton<CreditCardRepository>(repository)
     ..registerFactory<CreditCardListController>(
-      () => CreditCardListController(getIt<CreditCardRepository>()),
+      () => CreditCardListController(
+        getIt<CreditCardRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
     )
     ..registerFactory<CreditCardFormController>(
       () => CreditCardFormController(getIt<CreditCardRepository>()),
@@ -154,6 +228,7 @@ MockCreditCardRepository setupCreditCardTestInjector({
       () => CreditCardExpensesController(
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
+        getIt<SelectedMonthController>(),
       ),
     );
 
@@ -170,6 +245,10 @@ MockCreditCardRepository setupCreditCardTestInjector({
 MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
   final repository = mock ?? expenseRepositoryMock();
   setupTagTestInjector();
+
+  // A lista e o detalhe de gasto leem o mês para saber qual valor mostrar, e
+  // este setup é chamado por testes que não passam pela home.
+  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
 
   if (getIt.isRegistered<ExpenseRepository>()) {
     getIt.unregister<ExpenseRepository>();
@@ -201,6 +280,28 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
       ),
+    );
+
+  return repository;
+}
+
+
+/// A tela de login: repositório de autenticação mockado e o controller
+/// registrado como `factory`, igual ao injector de verdade.
+MockAuthRepository setupAuthTestInjector({MockAuthRepository? mock}) {
+  final repository = mock ?? authRepositoryMock();
+
+  if (getIt.isRegistered<AuthRepository>()) {
+    getIt.unregister<AuthRepository>();
+  }
+  if (getIt.isRegistered<LoginController>()) {
+    getIt.unregister<LoginController>();
+  }
+
+  getIt
+    ..registerSingleton<AuthRepository>(repository)
+    ..registerFactory<LoginController>(
+      () => LoginController(getIt<AuthRepository>()),
     );
 
   return repository;

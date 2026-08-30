@@ -10,7 +10,6 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/expense_form_controller.dart';
-import '../../tags/widgets/tag_form_dialog.dart';
 
 /// Cadastro e edição de gasto.
 ///
@@ -169,15 +168,15 @@ class _ExpenseForm extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: IconButton.filledTonal(
-                      onPressed: () => _createTag(context, controller),
-                      icon: const Icon(Icons.add),
-                      tooltip: 'Nova categoria',
-                    ),
-                  ),
+                  // const SizedBox(width: 8),
+                  // Padding(
+                  //   padding: const EdgeInsets.only(top: 4),
+                  //   child: IconButton.filledTonal(
+                  //     onPressed: () => _createTag(context, controller),
+                  //     icon: const Icon(Icons.add),
+                  //     tooltip: 'Nova categoria',
+                  //   ),
+                  // ),
                 ],
               );
             },
@@ -499,13 +498,13 @@ Future<void> _createTag(
   BuildContext context,
   ExpenseFormController controller,
 ) async {
-  final novo = await showTagFormDialog(context);
-  if (novo == null) return;
+  // final novo = await showTagFormDialog(context);
+  // if (novo == null) return;
 
-  final erro = await controller.createTag(name: novo.name, color: novo.color);
-  if (erro == null || !context.mounted) return;
+  // final erro = await controller.createTag(name: novo.name, color: novo.color);
+  // if (erro == null || !context.mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
+  // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
 }
 
 /// O nome da tag com um ponto da cor dela na frente. Tag sem cor mostra só o
@@ -517,19 +516,18 @@ class _TagChipLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = tag.parsedColor;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (color != null) ...[
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: tag.parsedColor,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 8),
-        ],
+        ),
+        const SizedBox(width: 8),
         Flexible(child: Text(tag.name, overflow: TextOverflow.ellipsis)),
       ],
     );

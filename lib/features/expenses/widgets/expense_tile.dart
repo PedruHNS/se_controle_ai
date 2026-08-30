@@ -7,9 +7,20 @@ import '../../../data/models/expense_model.dart';
 /// Uma linha da lista de gastos: descrição, período, forma de pagamento e o
 /// valor vigente.
 class ExpenseTile extends StatelessWidget {
-  const ExpenseTile({required this.expense, this.onTap, super.key});
+  const ExpenseTile({
+    required this.expense,
+    required this.month,
+    this.onTap,
+    super.key,
+  });
 
   final ExpenseModel expense;
+
+  /// A competência que a linha descreve — a selecionada na home, não a de hoje.
+  /// É ela que decide o selo e o valor: o mesmo gasto é "3/10" em setembro e
+  /// "4/10" em outubro.
+  final String month;
+
   final VoidCallback? onTap;
 
   /// O selo responde "isto ainda é cobrado?", que é a pergunta de quem olha a
@@ -20,18 +31,18 @@ class ExpenseTile extends StatelessWidget {
   /// Num parcelado o selo é a parcela do mês — "3/10" diz ao mesmo tempo que
   /// está em curso e quanto falta, que é mais do que "Mês único" diria.
   String? get _badge {
-    final label = expense.installmentLabelIn(Month.current());
+    final label = expense.installmentLabelIn(month);
     if (label != null) return label;
-    if (expense.endedBefore(Month.current())) return 'Encerrado';
+    if (expense.endedBefore(month)) return 'Encerrado';
     if (expense.isSingleMonth) return 'Mês único';
     return null;
   }
 
-  /// O valor do mês corrente. Um gasto encerrado ou que só começa no mês que
-  /// vem não tem valor **neste** mês — aí a lista mostra o da vigência mais
+  /// O valor no mês exibido. Um gasto encerrado ou que só começa no mês que vem
+  /// não tem valor **neste** mês — aí a lista mostra o da vigência mais
   /// recente, que é o último valor que ele teve ou terá.
   int? get _amountCents =>
-      expense.amountCentsIn(Month.current()) ?? expense.latestAmountCents;
+      expense.amountCentsIn(month) ?? expense.latestAmountCents;
 
   @override
   Widget build(BuildContext context) {

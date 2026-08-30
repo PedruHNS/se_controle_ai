@@ -4,6 +4,7 @@ import 'package:signals/signals.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
+import '../../../core/utils/text_order.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
@@ -212,7 +213,8 @@ class ExpenseFormController extends BaseController {
       // pessoa escolher outra.
       if (!_tags.any((tag) => tag.id == expense.tag.id)) {
         _setTags(
-          [..._tags, expense.tag]..sort((a, b) => a.name.compareTo(b.name)),
+          [..._tags, expense.tag]
+            ..sort((a, b) => TextOrder.alfabetica(a.name, b.name)),
         );
       }
 
@@ -240,22 +242,24 @@ class ExpenseFormController extends BaseController {
   /// Devolve a mensagem de erro quando o backend recusa (nome repetido é 409,
   /// TAG-01) e `null` quando deu certo. A falha não vai para [generalFailure]:
   /// ela pertence ao diálogo, não à tela inteira, que continua utilizável.
-  Future<String?> createTag({required String name, String? color}) async {
+  Future<String?> createTag({required String name, required String color}) async {
     final created = await _tagRepository.create(name: name, color: color);
 
-    return created.when((id) async {
-      final refreshed = await _tagRepository.list();
-
-      return refreshed.when(
-        (list) {
-          _setTags(list);
-          control<String>(tagId).updateValue(id);
-          return null;
-        },
-        // A tag existe no servidor, mas a lista local não sabe. Reabrir
-        // resolve; travar o formulário por isso seria desproporcional.
-        (failure) => failure.message,
+    return created.when((tag) {
+      // A tag volta inteira do `POST`, então o seletor se atualiza aqui mesmo.
+      // Recarregar o `GET /tags` era uma segunda ida ao servidor para buscar o
+      // que a primeira já tinha devolvido — e uma que podia falhar sozinha,
+      // deixando a tag criada fora de uma lista que não sabia dela.
+      //
+      // Descarta o mesmo `id` antes de inserir porque criar com o nome de uma
+      // arquivada ressuscita aquela tag (TAG-17): o que volta pode ser uma
+      // linha que a lista já conhece.
+      _setTags(
+        [..._tags.where((item) => item.id != tag.id), tag]
+          ..sort((a, b) => TextOrder.alfabetica(a.name, b.name)),
       );
+      control<String>(tagId).updateValue(tag.id);
+      return null;
     }, (failure) => failure.message);
   }
 

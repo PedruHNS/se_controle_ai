@@ -8,6 +8,14 @@ abstract final class AppRoutes {
   static const home = 'home';
   static const homePath = '/';
 
+  /// Login — Etapa 7.
+  ///
+  /// Fora do `/auth/...` de propósito: não existe família de telas de conta
+  /// aqui. Não há cadastro, nem recuperação de senha, nem perfil — a identidade
+  /// é do Firebase (AUT-01) e o que o app tem é uma porta só.
+  static const login = 'login';
+  static const loginPath = '/login';
+
   // As rotas abaixo estão declaradas mas ainda não registradas no router: cada
   // uma entra junto com a tela da sua fase (veja ROADMAP.md). Ficam aqui para o
   // padrão de nome/caminho ser decidido uma vez, não a cada feature.

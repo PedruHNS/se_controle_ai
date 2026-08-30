@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Se Controle Aí">
+  <title>Se Controle Aí — medidor</title>
+  <defs>
+    <linearGradient id="medidorBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6E5CFF"/>
+      <stop offset="1" stop-color="#4326D9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#medidorBg)"/>
+
+  <g fill="none" stroke-linecap="round">
+    <!-- O curso inteiro: o teto do mês. -->
+    <path d="M155.5 314 A116 116 0 1 1 356.5 314" stroke="#FFFFFF" stroke-opacity=".24" stroke-width="40"/>
+    <!-- O trecho gasto. Sobra à direita, e sobrar é o recado. -->
+    <path d="M155.5 314 A116 116 0 0 1 216.3 147" stroke="#FFFFFF" stroke-width="40"/>
+    <!-- Ponteiro. -->
+    <path d="M256 256 L227.3 177" stroke="#FFFFFF" stroke-width="18"/>
+  </g>
+
+  <circle cx="256" cy="256" r="23" fill="#FFFFFF"/>
+  <circle cx="256" cy="256" r="9" fill="#4326D9"/>
+</svg>

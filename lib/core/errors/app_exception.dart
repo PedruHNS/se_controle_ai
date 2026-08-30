@@ -145,13 +145,38 @@ final class SerializationException extends AppException {
   });
 }
 
-/// 401 — a chave de API não foi enviada, ou não confere.
+/// 401 — o servidor não aceitou quem o app diz ser.
 ///
-/// Não é "sessão expirada": o backend não tem login nem sessão. É a chave
-/// gravada no binário pelo `--dart-define`, então corrigir passa por
-/// recompilar o app, não por entrar de novo em algum lugar.
+/// Duas causas, e a segunda passou a existir na Etapa 7: a `x-api-key` do
+/// binário está errada, ou o ID token está ausente, expirado ou inválido
+/// (AUT-06). O backend devolve a mesma frase para as duas de propósito — a
+/// distinção só interessaria a quem está tentando adivinhar.
+///
+/// O interceptor tenta renovar o token uma vez antes de deixar isto subir. Se
+/// chegou aqui, renovar não resolveu.
 final class UnauthorizedException extends AppException {
   const UnauthorizedException({
+    required super.message,
+    super.code,
+    super.cause,
+    super.stackTrace,
+  });
+}
+
+// Não há 403 aqui, e a ausência é a regra: o backend não produz nenhum. Houve
+// um entre 26 e 27/08, para o cadastro que ainda não tinha sido liberado
+// (AUT-11) — a regra saiu, e com ela a exceção e a tela de espera que a
+// acompanhava. Se um 403 chegar hoje, veio de proxy ou WAF e cai em
+// [UnexpectedResponseException], que é onde deve cair.
+
+/// O provedor de identidade recusou ou falhou — o Google, ou o Firebase Auth.
+///
+/// Não é o 401 de [UnauthorizedException], e a distância entre os dois é grande:
+/// lá o app tinha credencial e ela não serviu; aqui nem chegamos a ter token
+/// para mandar. Os desfechos também são opostos — um pede recompilar com a
+/// chave certa, o outro pede entrar de novo.
+final class AuthProviderException extends AppException {
+  const AuthProviderException({
     required super.message,
     super.code,
     super.cause,

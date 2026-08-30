@@ -6,13 +6,24 @@ import '../../../data/models/income_model.dart';
 
 /// Uma linha da lista de ganhos: descrição, valor vigente e o período.
 class IncomeTile extends StatelessWidget {
-  const IncomeTile({required this.income, this.onTap, super.key});
+  const IncomeTile({
+    required this.income,
+    required this.month,
+    this.onTap,
+    super.key,
+  });
 
   final IncomeModel income;
+
+  /// A competência que a linha descreve — a selecionada na home, não a de hoje.
+  /// É ela que decide o selo: um ganho encerrado em julho é "Encerrado" em
+  /// agosto e ainda não é em julho.
+  final String month;
+
   final VoidCallback? onTap;
 
   String? get _badge {
-    if (income.endedBefore(Month.current())) return 'Encerrado';
+    if (income.endedBefore(month)) return 'Encerrado';
     if (income.isSingleMonth) return 'Mês único';
     return null;
   }

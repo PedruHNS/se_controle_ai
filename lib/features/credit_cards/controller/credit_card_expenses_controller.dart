@@ -1,9 +1,9 @@
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/month/selected_month_controller.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
-import '../../../core/utils/month.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/credit_card_repository.dart';
@@ -33,10 +33,15 @@ typedef CardWithExpenses = ({
 /// `history` — está nas parcelas (GFX-09). Somar o que dá localmente daria um
 /// total que passa a mentir no dia em que existir parcelado.
 class CreditCardExpensesController extends BaseController {
-  CreditCardExpensesController(this._expenses, this._cards);
+  CreditCardExpensesController(
+    this._expenses,
+    this._cards,
+    this._selectedMonth,
+  );
 
   final ExpenseRepository _expenses;
   final CreditCardRepository _cards;
+  final SelectedMonthController _selectedMonth;
 
   /// Preenchido por [start]. Id é dado de rota, então quem o conhece é a view.
   late String _id;
@@ -57,7 +62,10 @@ class CreditCardExpensesController extends BaseController {
 
   Future<void> load({bool silent = false}) async {
     final requestId = ++_requestId;
-    final month = Month.current();
+    // A fatura do mês que a pessoa está olhando, não a de hoje. Não precisa de
+    // `effect` como a lista de cartões: este controller é `factory`, nasce
+    // quando a tela abre e morre com ela, e o mês não muda no meio disso.
+    final month = _selectedMonth.month.value;
 
     if (!silent) _state.value = const Loading();
 

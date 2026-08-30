@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "108356233019",
+    "project_id": "secontroleai",
+    "storage_bucket": "secontroleai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:108356233019:android:85019bcfb8bff9ff9f391e",
+        "android_client_info": {
+          "package_name": "com.secontroleai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "108356233019-6resku28iotd37lke81hiajmffo6qt5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.secontroleai.app",
+            "certificate_hash": "c12dc71a50f9f2fa7a872757237992b04dda1493"
+          }
+        },
+        {
+          "client_id": "108356233019-q0iqfn6a2nc6miu49hj7o4go3sa189ue.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.secontroleai.app",
+            "certificate_hash": "5d8e7a353222706b1c53f5d81552e7004eedc97c"
+          }
+        },
+        {
+          "client_id": "108356233019-cvhp1qmk498gfluft89d3il45p69tf5c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLKYrZEu_tkwAb_dz5zcFeQzf-9vNzuus"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "108356233019-cvhp1qmk498gfluft89d3il45p69tf5c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

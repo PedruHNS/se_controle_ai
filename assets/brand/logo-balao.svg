@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Se Controle Aí">
+  <title>Se Controle Aí — balão</title>
+  <defs>
+    <linearGradient id="balaoBg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="512" y2="512">
+      <stop offset="0" stop-color="#6E5CFF"/>
+      <stop offset="1" stop-color="#4326D9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#balaoBg)"/>
+
+  <!-- O balão é o "aí": alguém falando com você. -->
+  <g fill="#FFFFFF">
+    <path d="M178 308 L262 344 L172 402 Q160 409 163 396 Z"/>
+    <rect x="106" y="112" width="300" height="236" rx="60"/>
+  </g>
+
+  <!-- Dentro dele, a única coisa que importa: a barra encolhendo. -->
+  <g fill="#4C34FF">
+    <rect x="158" y="172" width="42" height="128" rx="21"/>
+    <rect x="235" y="210" width="42" height="90" rx="21"/>
+    <rect x="312" y="248" width="42" height="52" rx="21"/>
+  </g>
+</svg>

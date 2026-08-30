@@ -74,6 +74,11 @@ AppException _fromResponse(DioException exception) {
       cause: exception,
       stackTrace: stackTrace,
     ),
+    // Sem caso para 403: o backend não produz nenhum. Houve um, de 26 a 27/08,
+    // para o cadastro à espera de aprovação (AUT-11), e saiu com a regra —
+    // entrar pelo provedor passou a ser acesso. Um 403 que chegue agora veio de
+    // proxy ou WAF, e cair no caso inesperado é o desfecho certo: não é uma
+    // situação que o app saiba explicar.
     404 => NotFoundException(
       message: message,
       code: code,

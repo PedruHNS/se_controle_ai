@@ -1,7 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/repositories/auth_repository.dart';
+import '../config/globals.dart';
+
+import '../../features/auth/view/login_page.dart';
 import '../../features/credit_cards/view/credit_card_expenses_page.dart';
 import '../../features/credit_cards/view/credit_card_form_page.dart';
 import '../../features/credit_cards/view/credit_card_list_page.dart';
@@ -16,6 +21,7 @@ import '../../features/notifications/view/notification_list_page.dart';
 import '../../features/projection/view/projection_page.dart';
 import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
+import 'auth_refresh.dart';
 
 /// Configuração de navegação do app.
 ///
@@ -25,11 +31,52 @@ import 'app_routes.dart';
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.homePath,
 
+  /// A chave do Navigator raiz, para quem precisa de um `context` sem estar
+  /// dentro da árvore — hoje o [MessageMixin], que mostra Flushbar de fora de
+  /// widget nenhum. `MaterialApp.router` não aceita `navigatorKey`: quem cria o
+  /// Navigator raiz é o router, então é aqui que a chave entra. Sem isto
+  /// `Globals.navigatorKey.currentContext` é sempre nulo e todo toast do app é
+  /// construído e descartado em silêncio.
+  navigatorKey: Globals.navigatorKey,
+
   /// Loga cada navegação no console em debug. Vale muito quando um redirect
   /// leva para lugar inesperado.
   debugLogDiagnostics: kDebugMode,
 
+  /// Sem isto o `redirect` só rodaria na próxima navegação: sair da conta
+  /// deixaria a pessoa parada na tela em que estava, olhando dados de uma
+  /// sessão que já não existe.
+  refreshListenable: AuthRefresh(GetIt.I<AuthRepository>().changes),
+
+  /// A tranca da navegação (AUT-05, do lado do app).
+  ///
+  /// Lê o repositório na hora, em vez de guardar uma cópia do usuário: duas
+  /// verdades sobre quem está logado divergiriam, e a que decide navegação é a
+  /// pior das duas para estar errada.
+  ///
+  /// **Estar logado é o critério inteiro.** Houve um segundo, de 26 a 27/08:
+  /// quem estava logado podia ainda não ter acesso (AUT-11), e o app descobria
+  /// isso por um 403 dentro das telas. A regra saiu — quem entra pelo provedor
+  /// entra no app —, e aqui não sobrou nada para checar além da sessão.
+  redirect: (context, state) {
+    final logado = GetIt.I<AuthRepository>().current != null;
+    final indoParaOLogin = state.matchedLocation == AppRoutes.loginPath;
+
+    if (!logado) return indoParaOLogin ? null : AppRoutes.loginPath;
+
+    // Já logado, a tela de login não tem o que fazer — inclusive quando se
+    // chega nela por link ou por `--route`, que é como ela era alcançada antes
+    // deste redirect existir.
+    return indoParaOLogin ? AppRoutes.homePath : null;
+  },
+
   routes: [
+    GoRoute(
+      path: AppRoutes.loginPath,
+      name: AppRoutes.login,
+      builder: (context, state) => const LoginPage(),
+    ),
+
     GoRoute(
       path: AppRoutes.homePath,
       name: AppRoutes.home,

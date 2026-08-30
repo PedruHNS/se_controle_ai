@@ -2,17 +2,20 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/patch.dart';
+import 'package:se_controle_ai/data/models/auth_user_model.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
+import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/repositories/income_repository.dart';
 import 'package:se_controle_ai/data/repositories/summary_repository.dart';
 import 'package:se_controle_ai/data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 
 import 'credit_card_fixture.dart';
 import 'expense_fixture.dart';
@@ -36,6 +39,59 @@ class MockCreditCardRepository extends Mock implements CreditCardRepository {}
 class MockExpenseRepository extends Mock implements ExpenseRepository {}
 
 class MockTagRepository extends Mock implements TagRepository {}
+
+class MockAuthRepository extends Mock implements AuthRepository {}
+
+/// A navegação como duplo.
+///
+/// Mock e não o `NavigationService` de verdade: ele embrulha o `GoRouter`
+/// global, e um teste de controller que o tocasse mexeria na pilha de navegação
+/// dos outros testes — o `appRouter` é único por processo. Com o duplo, "fechou
+/// o diálogo" vira asserção em vez de efeito colateral.
+class MockNavigationService extends Mock implements NavigationService {}
+
+/// Uma navegação que aceita tudo calada.
+MockNavigationService navigationServiceMock() {
+  final mock = MockNavigationService();
+
+  when(() => mock.pop<dynamic>(any<dynamic>())).thenReturn(null);
+  when(() => mock.pop<dynamic>()).thenReturn(null);
+
+  return mock;
+}
+
+/// Quem "entrou" nos testes.
+const pedroLogado = AuthUserModel(
+  uid: 'uid-do-pedro',
+  email: 'pedro@exemplo.com',
+  displayName: 'Pedro',
+);
+
+/// Um repositório de autenticação já respondendo a tudo.
+///
+/// [changes] fica vazio por padrão: quem quiser observar login e logout
+/// acontecendo passa um `StreamController` próprio e empurra os eventos.
+MockAuthRepository authRepositoryMock({
+  AuthUserModel? current,
+  Stream<AuthUserModel?>? changes,
+  Result<AuthUserModel, Failure>? login,
+}) {
+  final mock = MockAuthRepository();
+
+  when(() => mock.current).thenReturn(current);
+  when(
+    () => mock.changes,
+  ).thenAnswer((_) => changes ?? const Stream<AuthUserModel?>.empty());
+  when(
+    () => mock.signInWithGoogle(),
+  ).thenAnswer((_) async => login ?? const Success(pedroLogado));
+  when(() => mock.signOut()).thenAnswer((_) async => const Success(true));
+  when(
+    () => mock.idToken(forceRefresh: any(named: 'forceRefresh')),
+  ).thenAnswer((_) async => 'id-token');
+
+  return mock;
+}
 
 /// Stub de `getMonthly` para qualquer mês.
 ///
@@ -190,24 +246,18 @@ void stubTagList(
   Result<List<TagModel>, Failure>? result,
   Duration? delay,
 }) {
-  final todas = tagListJson.map(TagModel.fromJson).toList();
-
-  // O dobrê filtra como o backend filtra: sem `includeArchived`, arquivada não
-  // vem. Um stub que devolvesse tudo sempre esconderia o bug de o seletor de
+  // O dublê devolve o que o backend devolve: `/tags` traz só as ativas, sem
+  // parâmetro para pedir outra coisa. A arquivada da fixture continua lá de
+  // propósito — um stub que a entregasse esconderia o bug de o seletor de
   // lançamento oferecer tag aposentada.
-  when(
-    () => mock.list(includeArchived: any(named: 'includeArchived')),
-  ).thenAnswer((invocation) async {
+  final ativas = tagListJson
+      .map(TagModel.fromJson)
+      .where((tag) => !tag.archived)
+      .toList();
+
+  when(() => mock.list()).thenAnswer((_) async {
     if (delay != null) await Future<void>.delayed(delay);
-    if (result != null) return result;
-
-    final incluir =
-        invocation.namedArguments[const Symbol('includeArchived')] as bool? ??
-        false;
-
-    return Success(
-      incluir ? todas : todas.where((tag) => !tag.archived).toList(),
-    );
+    return result ?? Success(ativas);
   });
 }
 
@@ -223,32 +273,61 @@ void stubTagDelete(
   when(
     () => mock.delete(any()),
   ).thenAnswer((_) async => result ?? Success((archived: archived)));
-  when(() => mock.restore(any())).thenAnswer((_) async => const Success(true));
 }
 
 /// Stub de edição de tag.
-void stubTagUpdate(MockTagRepository mock, {Result<bool, Failure>? result}) {
-  // `any` em Patch precisa de fallback registrado — mocktail não sabe
-  // construir um valor de tipo próprio sozinho.
-  registerFallbackValue(const Patch<String>.keep());
-
+///
+/// Devolve a tag como o `200` devolve: a mesma linha da fixture com o nome e a
+/// cor que foram mandados, e o `usageCount` intacto — editar rótulo não mexe em
+/// quantos lançamentos usam a tag. Um stub que devolvesse `usageCount: 0`
+/// esconderia a linha voltando da edição dizendo "sem uso".
+///
+/// Sem `registerFallbackValue`: desde que a edição virou substituição, os dois
+/// parâmetros são `String`, e mocktail já sabe inventar um. O [Patch] segue nos
+/// stubs de cartão e de gasto, que continuam com `PATCH`.
+void stubTagUpdate(MockTagRepository mock, {Result<TagModel, Failure>? result}) {
   when(
     () => mock.update(
       any(),
       name: any(named: 'name'),
       color: any(named: 'color'),
     ),
-  ).thenAnswer((_) async => result ?? const Success(true));
+  ).thenAnswer((invocation) async {
+    if (result != null) return result;
+
+    final id = invocation.positionalArguments.first as String;
+    final anterior = tagListJson.firstWhere(
+      (tag) => tag['id'] == id,
+      orElse: () => tagCriadaJson,
+    );
+
+    return Success(
+      TagModel.fromJson({
+        ...anterior,
+        'name': invocation.namedArguments[const Symbol('name')],
+        'color': invocation.namedArguments[const Symbol('color')],
+      }),
+    );
+  });
 }
 
 /// Stub de criação de tag, para o caminho "criar sem sair do formulário".
+///
+/// Devolve a tag inteira, como o `201` faz: é dela que a lista se atualiza sem
+/// recarregar, então um stub que devolvesse só o `id` esconderia justamente o
+/// que os testes de criação verificam.
 void stubTagCreate(
   MockTagRepository mock, {
-  Result<String, Failure>? result,
+  Result<TagModel, Failure>? result,
 }) {
   when(
-    () => mock.create(name: any(named: 'name'), color: any(named: 'color')),
-  ).thenAnswer((_) async => result ?? const Success(moradiaTagId));
+    () => mock.create(
+      name: any(named: 'name'),
+      color: any(named: 'color'),
+    ),
+  ).thenAnswer(
+    (_) async => result ?? Success(TagModel.fromJson(tagCriadaJson)),
+  );
 }
 
 void stubCreditCardList(
@@ -545,8 +624,7 @@ void _recordExpenseUpdateBody(
     'tagId': ?named[const Symbol('tagId')] as String?,
   };
 
-  (named[const Symbol('notes')] as Patch<String>? ??
-          const Patch<String>.keep())
+  (named[const Symbol('notes')] as Patch<String>? ?? const Patch<String>.keep())
       .writeTo(body, 'notes');
   (named[const Symbol('creditCardId')] as Patch<String>? ??
           const Patch<String>.keep())
