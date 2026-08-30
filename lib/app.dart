@@ -18,6 +18,7 @@ class MyApp extends StatelessWidget {
     // atrás do menu lateral.
     return SignalBuilder(
       builder: (context) => MaterialApp.router(
+        debugShowCheckedModeBanner: false,
         // `.router` e não o construtor normal: é o que entrega a navegação ao
         // go_router. Com `home:` as rotas simplesmente não seriam usadas.
         title: 'Se Controle AI',
