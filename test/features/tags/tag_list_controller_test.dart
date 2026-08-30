@@ -257,8 +257,17 @@ void main() {
   group('update', () {
     final moradia = TagModel.fromJson(tagListJson.first);
 
+    /// Edita como a tela edita: `update` lê nome e cor do mesmo formulário que
+    /// a criação usa, então o teste preenche o formulário em vez de passar os
+    /// campos como argumento. Só o `id` viaja por parâmetro.
+    Future<void> editar(String id, {required String nome, String? cor}) async {
+      controller.form.control('title').updateValue(nome);
+      if (cor != null) controller.setColorSelected = cor;
+      await controller.update(id);
+    }
+
     test('troca a linha sem um novo GET', () async {
-      await controller.update(moradia.id, name: 'Casa', color: '#4CAF50');
+      await editar(moradia.id, nome: 'Casa', cor: '#4CAF50');
 
       expect(carregadas().map((tag) => tag.name), isNot(contains('Moradia')));
       expect(carregadas().map((tag) => tag.name), contains('Casa'));
@@ -266,22 +275,23 @@ void main() {
       verifyNever(() => repository.list());
     });
 
-    // Renomear muda o lugar na lista: "Casa" nasce antes de "Outros", e a linha
-    // não pode ficar onde "Moradia" estava.
-    test('reordena depois de renomear', () async {
-      await controller.update(moradia.id, name: 'Zebra', color: null);
+    // A linha editada fica onde estava: `update` substitui no lugar e não
+    // reordena, ao contrário da criação. Renomear "Moradia" para "Zebra"
+    // deixa "Zebra" na primeira posição, fora da ordem alfabética.
+    test('substitui no lugar, sem reordenar', () async {
+      await editar(moradia.id, nome: 'Zebra');
 
       expect(carregadas().map((tag) => tag.name), [
+        'Zebra',
         'Outros',
         'Transporte',
-        'Zebra',
       ]);
     });
 
     // Editar rótulo não mexe em quantos lançamentos usam a tag, e a linha
     // precisa do número para avisar que excluir vai arquivar (TAG-08).
     test('mantém o usageCount que voltou do servidor', () async {
-      await controller.update(moradia.id, name: 'Casa', color: null);
+      await editar(moradia.id, nome: 'Casa');
 
       final casa = carregadas().firstWhere((tag) => tag.name == 'Casa');
       expect(casa.usageCount, 3);
@@ -294,7 +304,7 @@ void main() {
         result: const Error(ConflictFailure(message: 'Já existe.')),
       );
 
-      await controller.update(moradia.id, name: 'Outros', color: null);
+      await editar(moradia.id, nome: 'Outros');
 
       expect(carregadas().map((tag) => tag.name), contains('Moradia'));
     });

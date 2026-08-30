@@ -25,7 +25,11 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
   void initState() {
     super.initState();
 
-    if (!_editing) controller.clearText();
+    if (_editing) {
+      controller.loadTag(widget.tag!);
+    } else {
+      controller.clearText();
+    }
   }
 
   @override
@@ -43,9 +47,11 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
             children: [
               ReactiveTextField(
                 formControlName: 'title',
+
                 decoration: InputDecoration(
                   labelText: 'Nome',
                   hintText: 'Mercado, saúde, pets',
+
                   border: const OutlineInputBorder(),
                 ),
                 validationMessages: {
@@ -87,7 +93,14 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
         TextButton(onPressed: () => nav.pop(), child: const Text('Cancelar')),
         FilledButton(
           onPressed: () async {
-            await controller.create();
+            // `else`, e não dois `await` em sequência: sem ele salvar uma
+            // edição gravava a alteração e logo depois criava uma tag nova com
+            // o mesmo nome, além de fechar o diálogo duas vezes.
+            if (_editing) {
+              await controller.update(widget.tag!.id);
+            } else {
+              await controller.create();
+            }
           },
           child: Text(_editing ? 'Salvar' : 'Criar'),
         ),

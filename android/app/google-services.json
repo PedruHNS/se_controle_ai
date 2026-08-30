@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "108356233019-q0iqfn6a2nc6miu49hj7o4go3sa189ue.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.secontroleai.app",
+            "certificate_hash": "5d8e7a353222706b1c53f5d81552e7004eedc97c"
+          }
+        },
+        {
           "client_id": "108356233019-cvhp1qmk498gfluft89d3il45p69tf5c.apps.googleusercontent.com",
           "client_type": 3
         }

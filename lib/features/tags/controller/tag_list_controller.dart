@@ -9,33 +9,23 @@ import '../../../core/utils/text_order.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/tag_repository.dart';
 
-/// Lista de tags, com criação, edição e exclusão a partir dela.
-///
-/// Não há tela de detalhe nem formulário de página inteira: a tag tem dois
-/// campos, e uma tela cheia para nome e cor seria navegação sem conteúdo. Tudo
-/// acontece em diálogo, sobre a lista.
-///
-/// Diferente das outras listas, aqui não há competência: tag não é versionada
-/// (TAG-03), então não existe "as tags de agosto" — renomear muda o rótulo em
-/// todo o histórico, e isso é intencional.
 class TagListController extends BaseController with MessageMixin {
   final TagRepository _repository;
   final NavigationService _nav;
   TagListController({required this._repository, required this._nav});
 
   final _state = signal<ViewState<List<TagModel>>>(const Loading());
+  ReadonlySignal<ViewState<List<TagModel>>> get state => _state;
 
   final _colorSelected = signal<String?>(null);
-  set setColorSelected(String hex) => _colorSelected.value = hex;
   ReadonlySignal<String?> get getColorSelected => _colorSelected;
+  set setColorSelected(String? hex) => _colorSelected.value = hex;
 
   final form = FormGroup({
     'title': FormControl<String>(
       validators: [Validators.maxLength(200), Validators.required],
     ),
   });
-
-  ReadonlySignal<ViewState<List<TagModel>>> get state => _state;
 
   @override
   void onInit() async {
@@ -63,14 +53,14 @@ class TagListController extends BaseController with MessageMixin {
     );
   }
 
-  /// Devolve o formulário ao estado de "nova tag" — nome e cor.
-  ///
-  /// A cor entra aqui junto com o nome porque as duas são o mesmo formulário:
-  /// limpar só o texto deixava o diálogo reabrir com a cor da tag anterior
-  /// marcada, e quem não repara confirma com uma cor que não escolheu.
   void clearText() {
     form.control('title').reset();
     _colorSelected.value = null;
+  }
+
+  void loadTag(TagModel tag) {
+    form.control('title').updateValue(tag.name);
+    _colorSelected.value = tag.color;
   }
 
   Future<void> refresh() => _load();
@@ -103,10 +93,14 @@ class TagListController extends BaseController with MessageMixin {
     _nav.pop();
   }
 
-  Future<void> update(String id, {required String name, String? color}) async {
+  Future<void> update(String id) async {
     final current = _state.value;
     if (current is! Loaded<List<TagModel>>) return;
-    final result = await _repository.update(id, name: name, color: color);
+    final result = await _repository.update(
+      id,
+      name: form.control('title').value,
+      color: _colorSelected.value,
+    );
 
     result.when(
       (tag) {
@@ -125,6 +119,7 @@ class TagListController extends BaseController with MessageMixin {
         () => toastError(err.message),
       ),
     );
+    _nav.pop();
   }
 
   Future<void> delete(TagModel tag) async {

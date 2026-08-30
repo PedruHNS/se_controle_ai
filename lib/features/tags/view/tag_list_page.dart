@@ -80,7 +80,12 @@ class _TagListPageState extends State<TagListPage> {
             Loaded(data: final tags) => _TagList(
               tags: tags,
               onRefresh: _controller.refresh,
-              onEdit: (tag) {},
+              onEdit: (tag) {
+                showDialog(
+                  context: context,
+                  builder: (context) => CreateTagDialogWidget(tag: tag),
+                );
+              },
               onDelete: _onDelete,
             ),
           };

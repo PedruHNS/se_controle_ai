@@ -197,4 +197,75 @@ void main() {
   // implementados e sem cobertura de tela. O histórico está em `git log` deste
   // arquivo, no commit anterior a esta remoção.
   // ---------------------------------------------------------------------------
+
+  // A edição reaproveita o diálogo da criação, e é daí que vinham os dois bugs
+  // que estes testes fecham: a tela abria o diálogo sem passar a tag, e o
+  // diálogo não tinha ramo que carregasse a tag no formulário. O resultado era
+  // "Editar" abrindo em branco e gravando uma tag nova.
+  group('edição', () {
+    /// Abre o menu da linha [indice] e escolhe Editar. Sem argumento, a
+    /// primeira — "Moradia".
+    Future<void> abrirEdicao(WidgetTester tester, {int indice = 0}) async {
+      await tester.tap(find.byIcon(Icons.more_vert).at(indice));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('abre em modo de edição', (tester) async {
+      await pump(tester);
+      await abrirEdicao(tester);
+
+      expect(find.text('Editar categoria'), findsOneWidget);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Nova categoria'), findsNothing);
+    });
+
+    testWidgets('vem com o nome da tag preenchido', (tester) async {
+      await pump(tester);
+      await abrirEdicao(tester);
+
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller?.text,
+        'Moradia',
+      );
+    });
+
+    // "Transporte", e não "Moradia": a cor da Moradia na fixture é `#4CAF50`,
+    // que não está em `Globals.pallete`, então não há círculo para marcar. O
+    // `#42A5F5` do Transporte está.
+    testWidgets('vem com a cor da tag marcada', (tester) async {
+      await pump(tester);
+      await abrirEdicao(tester, indice: 2);
+
+      // O círculo marcado é o único que desenha o check.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('#42A5F5')),
+          matching: find.byIcon(Icons.check),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.check), findsOneWidget);
+    });
+
+    testWidgets('salvar edita, e não cria', (tester) async {
+      await pump(tester);
+      await abrirEdicao(tester);
+
+      await tester.enterText(find.byType(TextField), 'Casa');
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      verify(
+        () => repository.update(any(), name: 'Casa', color: '#4CAF50'),
+      ).called(1);
+      verifyNever(
+        () => repository.create(
+          name: any(named: 'name'),
+          color: any(named: 'color'),
+        ),
+      );
+    });
+  });
 }
