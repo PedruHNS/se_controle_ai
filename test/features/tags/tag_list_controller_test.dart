@@ -45,8 +45,11 @@ void main() {
 
   tearDown(() => controller.dispose());
 
-  Future<void> criar(String nome) async {
+  /// Cria como a tela cria. A cor entra sempre: virou obrigatória (TAG-02), e
+  /// sem ela o `create` sai antes de chamar o repositório.
+  Future<void> criar(String nome, {String cor = '#66BB6A'}) async {
     controller.form.control('title').updateValue(nome);
+    controller.setColorSelected = cor;
     await controller.create();
   }
 
@@ -142,8 +145,13 @@ void main() {
   });
 
   // TAG-17: criar com o nome de uma arquivada ressuscita aquela tag, então o
-  // que volta pode ser uma linha que a lista já conhece.
-  test('a ressuscitada substitui a linha, em vez de duplicá-la', () async {
+  // `POST` pode devolver uma linha que a lista já conhece.
+  //
+  // A escolha é inserir assim mesmo, sem checar id: a lista local recebe o que
+  // o servidor devolveu, e ponto. Uma linha repetida só aparece com a lista
+  // desatualizada — a tag foi arquivada em outra sessão e esta tela ainda a
+  // mostra — e some no `GET` seguinte, sem sujar nada no servidor.
+  test('a ressuscitada entra na lista, como qualquer outra', () async {
     stubTagCreate(
       repository,
       result: Success(
@@ -159,21 +167,18 @@ void main() {
 
     await criar('moradia');
 
-    expect(carregadas().where((tag) => tag.id == moradiaTagId), hasLength(1));
-    expect(carregadas().map((tag) => tag.name), ['moradia', 'Outros', 'Transporte']);
+    expect(carregadas().map((tag) => tag.name), contains('moradia'));
+    expect(carregadas().firstWhere((tag) => tag.name == 'moradia').usageCount, 3);
+    verifyNever(() => repository.list());
   });
 
-  // Sem lista em mãos não há onde inserir: aí o refresh é o caminho, e é ele
-  // que traz a nova junto.
-  test('sem lista carregada, cai no refresh', () async {
-    stubTagList(
-      repository,
-      // A lista ainda em voo deixa a tela em `Loading` quando a criação volta.
-      delay: const Duration(milliseconds: 50),
-      result: Success(
-        [...tagListJson, tagCriadaJson].map(TagModel.fromJson).toList(),
-      ),
-    );
+  // Sem lista em mãos não há onde inserir, e a criação para antes do `POST`.
+  //
+  // Não é caminho de tela: o FAB só existe com o estado em `Loaded`, então o
+  // diálogo nem abre antes do primeiro `GET` terminar. O teste fixa a guarda
+  // para quem chamar o controller direto.
+  test('sem lista carregada, não chega a criar', () async {
+    stubTagList(repository, delay: const Duration(milliseconds: 50));
 
     final emAberto = TagListController(
       repository: repository,
@@ -181,15 +186,17 @@ void main() {
     );
     addTearDown(emAberto.dispose);
     emAberto.form.control('title').updateValue('Mercado');
+    emAberto.setColorSelected = '#66BB6A';
 
     await emAberto.create();
 
-    expect(
-      (emAberto.state.value as Loaded<List<TagModel>>).data.map((t) => t.name),
-      contains('Mercado'),
+    expect(emAberto.state.value, isA<Loading<List<TagModel>>>());
+    verifyNever(
+      () => repository.create(
+        name: any(named: 'name'),
+        color: any(named: 'color'),
+      ),
     );
-    // Duas: a da abertura e a do refresh que a criação teve de pedir.
-    verify(() => repository.list()).called(2);
   });
 
   // TAG-08: excluir tem dois desfechos — sem uso apaga, em uso arquiva. A tela
@@ -260,9 +267,13 @@ void main() {
     /// Edita como a tela edita: `update` lê nome e cor do mesmo formulário que
     /// a criação usa, então o teste preenche o formulário em vez de passar os
     /// campos como argumento. Só o `id` viaja por parâmetro.
-    Future<void> editar(String id, {required String nome, String? cor}) async {
+    Future<void> editar(
+      String id, {
+      required String nome,
+      String cor = '#4CAF50',
+    }) async {
       controller.form.control('title').updateValue(nome);
-      if (cor != null) controller.setColorSelected = cor;
+      controller.setColorSelected = cor;
       await controller.update(id);
     }
 
@@ -275,16 +286,32 @@ void main() {
       verifyNever(() => repository.list());
     });
 
-    // A linha editada fica onde estava: `update` substitui no lugar e não
-    // reordena, ao contrário da criação. Renomear "Moradia" para "Zebra"
-    // deixa "Zebra" na primeira posição, fora da ordem alfabética.
-    test('substitui no lugar, sem reordenar', () async {
+    // Espelha o mesmo teste do `delete`. O `update` publicava `current.data`
+    // direto, então o `[]=` e o `sort` reescreviam a lista do estado anterior.
+    test('publica um estado novo, e não a mesma lista mexida por dentro', () async {
+      final antes = controller.state.value as Loaded<List<TagModel>>;
+      final listaAntiga = antes.data;
+
+      await editar(moradia.id, nome: 'Zebra');
+
+      expect(controller.state.value, isNot(same(antes)));
+      expect(listaAntiga.map((tag) => tag.name), [
+        'Moradia',
+        'Outros',
+        'Transporte',
+      ]);
+    });
+
+    // Renomear muda o lugar na lista: `update` reordena depois de substituir,
+    // como a criação faz. "Moradia" vira "Zebra" e a linha vai para o fim, em
+    // vez de ficar onde estava.
+    test('reordena depois de renomear', () async {
       await editar(moradia.id, nome: 'Zebra');
 
       expect(carregadas().map((tag) => tag.name), [
-        'Zebra',
         'Outros',
         'Transporte',
+        'Zebra',
       ]);
     });
 
@@ -295,7 +322,7 @@ void main() {
 
       final casa = carregadas().firstWhere((tag) => tag.name == 'Casa');
       expect(casa.usageCount, 3);
-      expect(casa.color, isNull);
+      expect(casa.color, '#4CAF50');
     });
 
     test('falha não mexe na lista', () async {

@@ -242,7 +242,7 @@ class ExpenseFormController extends BaseController {
   /// Devolve a mensagem de erro quando o backend recusa (nome repetido é 409,
   /// TAG-01) e `null` quando deu certo. A falha não vai para [generalFailure]:
   /// ela pertence ao diálogo, não à tela inteira, que continua utilizável.
-  Future<String?> createTag({required String name, String? color}) async {
+  Future<String?> createTag({required String name, required String color}) async {
     final created = await _tagRepository.create(name: name, color: color);
 
     return created.when((tag) {

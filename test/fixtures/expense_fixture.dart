@@ -53,7 +53,7 @@ const youtubeJson = <String, dynamic>{
   'tag': {
     'id': '5fa6134c-35e7-4341-8db0-54f00256c8bc',
     'name': 'Outros',
-    'color': null,
+    'color': '#78909C',
   },
   'notes': 'guardar a nota fiscal',
   'type': 'FIXED',
@@ -81,7 +81,7 @@ const presenteJson = <String, dynamic>{
   'tag': {
     'id': '123c98f8-2ec5-47e8-add8-e1295ae94d1d',
     'name': 'Presentes',
-    'color': null,
+    'color': '#EC407A',
   },
   'notes': null,
   'type': 'FIXED',

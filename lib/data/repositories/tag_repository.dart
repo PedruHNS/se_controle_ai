@@ -20,19 +20,20 @@ abstract interface class TagRepository {
 
   Future<Result<TagModel, Failure>> create({
     required String name,
-    String? color,
+    required String color,
   });
 
   /// Substitui a tag: nome e cor vão **sempre os dois**, e ela passa a ser o
-  /// que foi mandado. `color` nulo é "sem cor", não "não mexe" — por isso não
-  /// há [Patch] aqui, ao contrário do cartão e do gasto (CAR-08).
+  /// que foi mandado. Não há [Patch] aqui, ao contrário do cartão e do gasto
+  /// (CAR-08): sem campo opcional, não existe a ambiguidade entre "ausente" e
+  /// "limpa" que o `Patch` resolvia.
   ///
   /// Quem quer só renomear manda a cor atual de volta. O diálogo de tag tem os
   /// dois campos na tela, então isso não custa nenhuma leitura extra.
   Future<Result<TagModel, Failure>> update(
     String id, {
     required String name,
-    String? color,
+    required String color,
   });
 
   Future<Result<TagDeleteOutcome, Failure>> delete(String id);
@@ -62,12 +63,12 @@ class HttpTagRepository implements TagRepository {
   @override
   Future<Result<TagModel, Failure>> create({
     required String name,
-    String? color,
+    required String color,
   }) async {
     try {
       final response = await _api.post(
         '/tags',
-        data: {'name': name, 'color': ?color},
+        data: {'name': name, 'color': color},
       );
       // O `201` traz a tag pronta. O `restored` também vem no corpo e é
       // ignorado aqui: nenhuma tela distingue "criada" de "restaurada" ainda, e
@@ -84,7 +85,7 @@ class HttpTagRepository implements TagRepository {
   Future<Result<TagModel, Failure>> update(
     String id, {
     required String name,
-    String? color,
+    required String color,
   }) async {
     try {
       final response = await _api.post(

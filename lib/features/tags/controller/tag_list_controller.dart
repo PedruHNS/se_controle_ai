@@ -69,9 +69,12 @@ class TagListController extends BaseController with MessageMixin {
     final current = _state.value;
     if (current is! Loaded<List<TagModel>>) return;
 
+    final color = _colorSelected.value;
+    if (color == null) return toastError('Escolha uma cor para a tag.');
+
     final result = await _repository.create(
       name: form.control('title').value,
-      color: _colorSelected.value,
+      color: color,
     );
 
     result.when(
@@ -96,19 +99,22 @@ class TagListController extends BaseController with MessageMixin {
   Future<void> update(String id) async {
     final current = _state.value;
     if (current is! Loaded<List<TagModel>>) return;
+
+    final color = _colorSelected.value;
+    if (color == null) return toastError('Escolha uma cor para a tag.');
+
     final result = await _repository.update(
       id,
       name: form.control('title').value,
-      color: _colorSelected.value,
+      color: color,
     );
 
     result.when(
       (tag) {
         final index = current.data.indexWhere((item) => item.id == tag.id);
-        final newList = current.data;
-
         if (index == -1) return;
 
+        final newList = [...current.data];
         newList[index] = tag;
         newList.sort((a, b) => TextOrder.alfabetica(a.name, b.name));
 

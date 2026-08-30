@@ -34,16 +34,16 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(_editing ? 'Editar categoria' : 'Nova categoria'),
+    return ReactiveForm(
+      formGroup: controller.form,
+      child: AlertDialog(
+        title: Text(_editing ? 'Editar categoria' : 'Nova categoria'),
 
-      content: SingleChildScrollView(
-        padding: .all(8),
-        child: ReactiveForm(
-          formGroup: controller.form,
+        content: SingleChildScrollView(
+          padding: .all(8),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: .min,
+            crossAxisAlignment: .start,
             children: [
               ReactiveTextField(
                 formControlName: 'title',
@@ -61,10 +61,7 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
               ),
 
               const SizedBox(height: 16),
-              Text(
-                'Cor (opcional)',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
+              Text('Cor', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 8),
               SignalBuilder(
                 builder: (context) {
@@ -77,8 +74,6 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
                           key: ValueKey(hex), // usado no test de widget
                           hex: hex,
                           selected: controller.getColorSelected.value == hex,
-                          // Tocar na cor já escolhida desmarca: é como se tira a cor
-                          // sem precisar de um botão "nenhuma".
                           onTap: () => controller.setColorSelected = hex,
                         ),
                     ],
@@ -88,23 +83,32 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
             ],
           ),
         ),
+
+        actions: [
+          TextButton(onPressed: () => nav.pop(), child: const Text('Cancelar')),
+          ReactiveFormConsumer(
+            builder: (context, form, child) => SignalBuilder(
+              builder: (context) {
+                final pronto =
+                    form.valid && controller.getColorSelected.value != null;
+
+                return FilledButton(
+                  onPressed: pronto
+                      ? () async {
+                          if (_editing) {
+                            await controller.update(widget.tag!.id);
+                          } else {
+                            await controller.create();
+                          }
+                        }
+                      : null,
+                  child: Text(_editing ? 'Salvar' : 'Criar'),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(onPressed: () => nav.pop(), child: const Text('Cancelar')),
-        FilledButton(
-          onPressed: () async {
-            // `else`, e não dois `await` em sequência: sem ele salvar uma
-            // edição gravava a alteração e logo depois criava uma tag nova com
-            // o mesmo nome, além de fechar o diálogo duas vezes.
-            if (_editing) {
-              await controller.update(widget.tag!.id);
-            } else {
-              await controller.create();
-            }
-          },
-          child: Text(_editing ? 'Salvar' : 'Criar'),
-        ),
-      ],
     );
   }
 }

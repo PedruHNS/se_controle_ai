@@ -22,9 +22,13 @@ void main() {
       expect(tag.color, '#4CAF50');
     });
 
-    test('cor nula continua nula', () {
-      expect(TagModel.fromJson(tagListJson[1]).color, isNull);
-      expect(TagModel.fromJson(tagListJson[1]).parsedColor, isNull);
+    // TAG-02: não há mais tag sem cor. O que era "Outros sem cor" na fixture
+    // virou o cinza neutro que a migration 010 deu a quem não tinha escolhido.
+    test('toda tag vem com cor', () {
+      final outros = TagModel.fromJson(tagListJson[1]);
+
+      expect(outros.color, '#78909C');
+      expect(outros.parsedColor, const Color(0xFF78909C));
     });
 
     test('converte #RRGGBB em Color', () {
@@ -34,11 +38,11 @@ void main() {
     });
 
     // O backend garante o formato por CHECK, mas um valor estranho aqui viraria
-    // exceção na hora de pintar — pior que não pintar.
-    test('cor fora do formato não estoura, vira null', () {
+    // exceção na hora de pintar — pior que pintar de cinza.
+    test('cor fora do formato não estoura, cai no cinza de reserva', () {
       const tag = TagModel(id: 'x', name: 'X', color: 'vermelho');
 
-      expect(tag.parsedColor, isNull);
+      expect(tag.parsedColor, const Color(0xFF78909C));
     });
   });
 
@@ -102,7 +106,7 @@ void main() {
         result: Success(
           ExpenseModel.fromJson({
             ...aluguelJson,
-            'tag': {'id': arquivadaTagId, 'name': 'Assinaturas', 'color': null},
+            'tag': {'id': arquivadaTagId, 'name': 'Assinaturas', 'color': '#8D6E63'},
           }),
         ),
       );
@@ -147,7 +151,7 @@ void main() {
       // outro.
       clearInteractions(tags);
 
-      final erro = await controller.createTag(name: 'Mercado', color: null);
+      final erro = await controller.createTag(name: 'Mercado', color: '#66BB6A');
 
       expect(erro, isNull);
       expect(
@@ -155,7 +159,7 @@ void main() {
         criadaTagId,
       );
       expect(controller.tags.value.map((t) => t.name), contains('Mercado'));
-      verify(() => tags.create(name: 'Mercado', color: null)).called(1);
+      verify(() => tags.create(name: 'Mercado', color: '#66BB6A')).called(1);
       verifyNever(() => tags.list());
     });
 
@@ -170,7 +174,7 @@ void main() {
         ),
       );
 
-      await controller.createTag(name: 'Farmácia', color: null);
+      await controller.createTag(name: 'Farmácia', color: '#66BB6A');
 
       expect(controller.tags.value.map((t) => t.name), [
         'Farmácia',
@@ -192,7 +196,7 @@ void main() {
         ),
       );
 
-      final erro = await controller.createTag(name: 'Moradia', color: null);
+      final erro = await controller.createTag(name: 'Moradia', color: '#66BB6A');
 
       expect(erro, 'Já existe uma tag chamada "Moradia"');
       expect(controller.generalFailure.value, isNull);

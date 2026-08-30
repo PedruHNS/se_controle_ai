@@ -12,12 +12,6 @@ import '../controller/tag_list_controller.dart';
 
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// Tags — o CRUD completo, sem tela de detalhe nem formulário de página
-/// inteira.
-///
-/// A tag tem dois campos, nome e cor, e nenhum histórico: uma tela cheia para
-/// isso seria navegação sem conteúdo. Criar e editar acontecem em diálogo,
-/// sobre a lista, que se atualiza atrás.
 class TagListPage extends StatefulWidget {
   const TagListPage({super.key});
 
@@ -145,18 +139,6 @@ class _TagList extends StatelessWidget {
   }
 }
 
-/// O ponto de cor da tag. Sem cor, mostra a inicial — um círculo cinza
-/// sugeriria que a cor escolhida foi cinza.
-
-/// Confirmação de exclusão, que diz **antes** o que vai acontecer.
-///
-/// São dois desfechos (TAG-08) e a diferença importa para quem decide: tag sem
-/// uso é apagada, tag em uso é arquivada e continua nos lançamentos antigos.
-/// Descobrir isso só depois, pela mensagem de sucesso, seria decidir no escuro.
-///
-/// Não fala com o repositório: devolve `true` e quem chamou executa. É o
-/// oposto do diálogo de cartão, e a razão é que aqui não há erro esperado para
-/// mostrar dentro dele — o 409 da TAG-08 deixou de existir.
 class _DeleteDialog extends StatelessWidget {
   final TagModel tag;
   final void Function() cancel;

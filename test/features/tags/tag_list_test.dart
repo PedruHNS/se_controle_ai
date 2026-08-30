@@ -90,10 +90,65 @@ void main() {
       await abrirDialogo(tester);
 
       await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.byKey(const ValueKey('#66BB6A')));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Criar'));
       await tester.pumpAndSettle();
 
-      verify(() => repository.create(name: 'Mercado', color: null)).called(1);
+      verify(
+        () => repository.create(name: 'Mercado', color: '#66BB6A'),
+      ).called(1);
+    });
+
+    /// O `onPressed` do botão de confirmar. `null` quando desabilitado, que é
+    /// como o Material decide pintá-lo apagado — não há cor codificada.
+    VoidCallback? confirmar(WidgetTester tester) => tester
+        .widget<FilledButton>(find.widgetWithText(FilledButton, 'Criar'))
+        .onPressed;
+
+    testWidgets('o botão só habilita com nome e cor', (tester) async {
+      await pump(tester);
+      await abrirDialogo(tester);
+
+      expect(confirmar(tester), isNull, reason: 'nada preenchido');
+
+      await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.pumpAndSettle();
+      expect(confirmar(tester), isNull, reason: 'só o nome');
+
+      await tester.tap(find.byKey(const ValueKey('#66BB6A')));
+      await tester.pumpAndSettle();
+      expect(confirmar(tester), isNotNull, reason: 'nome e cor');
+    });
+
+    // O nome sozinho não basta, e a cor sozinha também não: são duas fontes de
+    // rebuild diferentes, e um observador só deixaria uma delas passar batido.
+    testWidgets('só a cor não habilita o botão', (tester) async {
+      await pump(tester);
+      await abrirDialogo(tester);
+
+      await tester.tap(find.byKey(const ValueKey('#66BB6A')));
+      await tester.pumpAndSettle();
+
+      expect(confirmar(tester), isNull);
+    });
+
+    // TAG-02: a cor virou obrigatória, e o signal nasce nulo. Sem esta guarda a
+    // criação chamaria o backend com `null` e só descobriria lá.
+    testWidgets('sem cor escolhida não chama o backend', (tester) async {
+      await pump(tester);
+      await abrirDialogo(tester);
+
+      await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.text('Criar'));
+      await tester.pumpAndSettle();
+
+      verifyNever(
+        () => repository.create(
+          name: any(named: 'name'),
+          color: any(named: 'color'),
+        ),
+      );
     });
 
     testWidgets('a cor escolhida vai junto', (tester) async {
@@ -146,6 +201,8 @@ void main() {
       await abrirDialogo(tester);
 
       await tester.enterText(find.byType(TextField), 'Mercado');
+      await tester.tap(find.byKey(const ValueKey('#66BB6A')));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Criar'));
       await tester.pumpAndSettle();
 

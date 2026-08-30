@@ -12,7 +12,7 @@ class TagTile extends StatelessWidget {
     : tag = const TagModel(
         id: '',
         name: 'Categoria',
-        color: null,
+        color: '#78909C',
         usageCount: 12,
       ),
       onEdit = null,
@@ -88,7 +88,7 @@ class _MenuDeAcoes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return PopupMenuButton(
+    return PopupMenuButton<_Acao>(
       icon: const Icon(Icons.more_vert),
       tooltip: 'Mais opções',
       padding: .zero,
@@ -108,7 +108,7 @@ class _MenuDeAcoes extends StatelessWidget {
       },
       itemBuilder: (context) => [
         const PopupMenuItem(
-          value: _Acao.editar,
+          value: .editar,
           child: ListTile(
             contentPadding: .zero,
             leading: Icon(Icons.edit_outlined),
@@ -116,11 +116,9 @@ class _MenuDeAcoes extends StatelessWidget {
           ),
         ),
         PopupMenuItem(
-          value: _Acao.excluir,
+          value: .excluir,
           child: ListTile(
             contentPadding: .zero,
-            // Vermelho porque é o item que pode não ter volta. O Arquivar
-            // fica neutro: quando ele de fato arquiva, o Restaurar desfaz.
             iconColor: theme.colorScheme.error,
             textColor: theme.colorScheme.error,
             leading: Icon(Icons.delete_outline),
@@ -139,20 +137,8 @@ class _DotColor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = tag.parsedColor;
-
-    if (color == null) {
-      return CircleAvatar(
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        radius: 10,
-        child: Text(
-          tag.name.characters.first.toUpperCase(),
-          style: theme.textTheme.titleSmall,
-        ),
-      );
-    }
-
-    return CircleAvatar(backgroundColor: color, radius: 10);
+    // A inicial em cinza, que aparecia quando a tag não tinha cor, saiu com a
+    // TAG-02: não existe mais tag sem cor para cair nela.
+    return CircleAvatar(backgroundColor: tag.parsedColor, radius: 10);
   }
 }
