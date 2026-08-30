@@ -1,0 +1,5 @@
+{
+  "_comentario": "Modelo do env/dev.json, que fica fora do git. Copie, renomeie e preencha.",
+  "API_BASE_URL": "http://SEU-IP-NA-REDE:3333",
+  "API_KEY": ""
+}

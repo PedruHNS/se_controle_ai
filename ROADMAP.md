@@ -1518,4 +1518,51 @@ Descobertas implementando a Fase 2:
    caminho. É a mesma razão do `Month`: `DateTime` carrega fuso, e fuso é o que
    faz uma data andar um dia para trás. Reabrir isso só se aparecer localização
    de verdade — mais de um idioma na tela.
-4. **Onde o backend vai rodar** — só local em Docker, ou hospedado?
+4. ~~**Onde o backend vai rodar**~~ — **resolvido em 21/08: hospedado.** Está no
+   ar em `https://secontroleai.duckdns.org`, numa VPS do Google Cloud com Caddy
+   e HTTPS automático. O Docker local continua sendo o ambiente de
+   desenvolvimento; o que mudou é que existe um endereço estável para o app
+   apontar.
+
+   **Em 30/08 a configuração de build virou arquivo por ambiente.** Antes o
+   endereço e a chave iam soltos na linha de comando:
+
+   ```
+   flutter build apk --dart-define=API_BASE_URL=... --dart-define=API_KEY=...
+   ```
+
+   Passou a ser:
+
+   ```
+   flutter run       --dart-define-from-file=env/dev.json
+   flutter build apk --dart-define-from-file=env/prod.json --release
+   ```
+
+   `env/*.json` fica fora do git e `env/*.example.json` vai junto. O motivo não
+   foi estética: o comando solto é longo, some no histórico e é fácil de rodar
+   pela metade. Saiu um APK apontando para a rede local em vez de produção, e
+   só apareceu abrindo o binário com `strings` — o build não tinha como avisar,
+   porque `--dart-define` ausente é um caso válido, não um erro.
+
+   Isso também aposenta o IP de rede fixo no `AppConfig`: quem troca de máquina
+   edita o `env/dev.json`, não o código.
+
+5. **A `API_KEY` ainda faz sentido para o app?** — aberta desde 30/08.
+
+   Ela nasceu na Etapa 7 do backend, antes da autenticação, quando a API não
+   tinha como saber quem estava chamando. Hoje toda rota exige token do Firebase
+   e resolve o dono da requisição, então a chave virou uma segunda tranca, mais
+   fraca, na mesma porta.
+
+   E ela **não é segredo num cliente distribuído**: fica em texto dentro do APK,
+   e `strings -a app-release.apk` a encontra. Tirar o valor do git protege o
+   repositório, não quem tem o aplicativo.
+
+   As saídas, sem ordem de preferência: exigir `x-api-key` apenas nas rotas sem
+   usuário autenticado, e o app se identificar só pelo token do Firebase — que é
+   por usuário, expira sozinho e não sai de um binário; ou manter a chave e
+   assumir que ela é pública, valendo como barreira contra varredura automática
+   e não contra alguém interessado.
+
+   Não é urgente: a autenticação real já é o token, e a chave só acrescenta
+   ruído. Vale decidir antes de o app sair da instalação manual.

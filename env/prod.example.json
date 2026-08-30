@@ -1,0 +1,5 @@
+{
+  "_comentario": "Modelo do env/prod.json, que fica fora do git. Copie, renomeie e preencha.",
+  "API_BASE_URL": "https://secontroleai.duckdns.org",
+  "API_KEY": "a API_KEY do ~/expense-tracker-api/.env da VPS"
+}

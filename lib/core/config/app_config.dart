@@ -2,12 +2,24 @@ import 'package:flutter/foundation.dart';
 
 /// Configuração de ambiente do app.
 abstract final class AppConfig {
-  /// Endereço do backend, gravado no binário em tempo de build:
+  /// Endereço do backend, gravado no binário em tempo de build.
+  ///
+  /// A forma normal de passar é por arquivo, um por ambiente:
   ///
   /// ```
-  /// flutter run   --dart-define=API_BASE_URL=http://192.168.0.14:3333
-  /// flutter build apk --dart-define=API_BASE_URL=https://api.exemplo.com
+  /// flutter run       --dart-define-from-file=env/dev.json
+  /// flutter build apk --dart-define-from-file=env/prod.json --release
   /// ```
+  ///
+  /// `env/dev.json` e `env/prod.json` estão no `.gitignore`, nomeados um a um;
+  /// os `env/*.example.json` vão para o repositório e mostram o formato. Por
+  /// arquivo e não por `--dart-define` solto porque o comando solto é longo,
+  /// some no histórico do shell e é fácil de rodar pela metade — já saiu APK
+  /// apontando para a rede local sem ninguém perceber, e só apareceu abrindo o
+  /// binário com `strings`.
+  ///
+  /// `--dart-define` continua funcionando e tem precedência sobre o arquivo,
+  /// o que serve para sobrescrever um valor pontual sem editar nada.
   static const _envBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   /// Usado quando não se passa `--dart-define`, para `flutter run` e
@@ -38,8 +50,12 @@ abstract final class AppConfig {
   /// de build:
   ///
   /// ```
-  /// flutter run --dart-define=API_KEY=<a chave>
+  /// flutter build apk --dart-define-from-file=env/prod.json
   /// ```
+  ///
+  /// **Não é segredo depois do build.** Ela fica em texto dentro do APK, e
+  /// `strings -a app-release.apk` a encontra. Manter o valor fora do git evita
+  /// vazá-lo no repositório, não em quem tiver o aplicativo.
   ///
   /// Vazia por padrão, e é o certo: o backend na sua máquina sobe sem tranca,
   /// e um valor de exemplo aqui só serviria para ser esquecido no lugar do

@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Configuração de build por ambiente (--dart-define-from-file).
+# Os arquivos de verdade ficam fora do git: o de produção carrega a API_KEY, e
+# o de desenvolvimento carrega um IP de rede local que muda por máquina. Os
+# `.example` vão junto para quem clonar saber o que preencher.
+# Nomeados por inteiro, e não por glob: é assim que eles aparecem de volta no
+# `git check-ignore`, e não depende de ninguém reler uma negação para entender
+# por que os `.example` continuam entrando.
+/env/dev.json
+/env/prod.json
