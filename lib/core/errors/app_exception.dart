@@ -147,9 +147,10 @@ final class SerializationException extends AppException {
 
 /// 401 — o servidor não aceitou quem o app diz ser.
 ///
-/// Duas causas, e a segunda passou a existir na Etapa 7: a `x-api-key` do
-/// binário está errada, ou o ID token está ausente, expirado ou inválido
-/// (AUT-06). O backend devolve a mesma frase para as duas de propósito — a
+/// Uma causa só desde 31/08: o ID token está ausente, expirado ou inválido
+/// (AUT-06). Eram duas — a `x-api-key` do binário errada era a outra —, e a
+/// chave saiu quando ficou claro que ela não acrescentava nada ao token. O
+/// backend sempre devolveu a mesma frase para os dois casos de propósito: a
 /// distinção só interessaria a quem está tentando adivinhar.
 ///
 /// O interceptor tenta renovar o token uma vez antes de deixar isto subir. Se

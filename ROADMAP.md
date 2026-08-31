@@ -16,22 +16,25 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 27/08/2026 (quarta revisão).*
+*Atualizado em 31/08/2026 (quinta revisão).*
 
 Flutter 3.44.9 · Dart 3.12.2 · **Fases 0 a 7 concluídas, Fase 9 em andamento** ·
 a home mostra o resumo do mês, ganhos e gastos fixos têm CRUD completo com
 reajuste, correção e encerramento, gasto parcelado tem reparcelamento e
 quitação, cartões têm CRUD com a edição parcial do CAR-08, a projeção mostra
 para onde o saldo caminha, um menu lateral na home leva a todas elas — e agora
-o app entra pelo Firebase antes de qualquer uma.
+o app entra pelo Firebase antes de qualquer uma, **e só por ele**: a
+`x-api-key` saiu em 31/08.
 
-**480 testes passando, 2 falhando** · `flutter analyze` sem nenhum aviso. As
-duas falhas são da tela de tags e dependem de decisão de produto, não de
-conserto: `a ressuscitada substitui a linha` cobra a deduplicação do TAG-17 no
-`create` (criar com o nome de uma arquivada devolve uma linha que a lista já
-tem, e hoje ela entra duas vezes), e `sem lista carregada, cai no refresh` cobra
-que criar sem lista em mãos caia num `GET` — hoje o `create` desiste antes de
-falar com o repositório.
+**489 testes passando, 1 falhando** · `flutter analyze` com um aviso
+(`_createTag` não referenciado, em `expense_form_page.dart`).
+
+A falha é `sem lista carregada, não chega a criar`, do
+`tag_list_controller_test`, e ela **passa quando o arquivo roda sozinho** —
+falha só na suíte completa. Isso não é regra de produto, é estado vazando entre
+arquivos de teste: alguma coisa registrada globalmente sobrevive ao teardown e
+muda o que o controller enxerga. É o tipo de falha que só piora com o tempo,
+porque a ordem dos arquivos muda sozinha conforme a suíte cresce.
 
 **A refatoração de tags fechou em 27/08**, e com ela a dívida do comparador que
 esta seção registrava. `TagModel` não é `Comparable` e **nunca teve** um
@@ -118,10 +121,14 @@ falha e card próprios sob o título "Aguardando aprovação"; em **27/08 a regr
 foi retirada**, e essa tela deixou de existir em qualquer hipótese: quem se
 cadastra tem acesso ao app. Sumiram junto a `PendingApprovalException`, a
 `PendingApprovalFailure`, o caso 403 do `exception_mapper` e as duas linhas do
-card — o app não tem mais nenhum tratamento de 403, e é para não ter mesmo. A
-`x-api-key`
-**continua**, ao lado do token e não no lugar dele: uma é tranca, a outra é
-identidade.
+card — o app não tem mais nenhum tratamento de 403, e é para não ter mesmo.
+
+Em **31/08 a `x-api-key` saiu também**, e com ela o último header fixo do Dio.
+Ela conviveu com o token por cinco dias, e o que a derrubou não foi a
+redundância: é que ela nunca foi segredo depois do build — uma string só, igual
+em todos os aparelhos, sem validade, legível com `strings -a app-release.apk`.
+O token é por pessoa, expira em uma hora e é verificado por assinatura. **Quem
+autentica agora é só o Google.**
 
 As libs de runtime em uso, mais o `mocktail` nos testes:
 
@@ -438,7 +445,7 @@ Toda a superfície que o app tem para consumir. Dinheiro **sempre em centavos
 **Toda rota exige `Authorization: Bearer <ID token>`, menos `/health`** (AUT-05).
 Não há rota de login, cadastro, refresh nem logout: a identidade vem do
 Firebase, e a única rota que a Etapa 7 acrescentou é o `GET /me`, que confirma a
-sessão. A `x-api-key` continua exigida em paralelo, e as duas não se substituem.
+sessão. **É a única credencial que o app manda**: a `x-api-key` saiu em 31/08.
 
 Dois status novos vieram junto. **401** deixou de significar só "a chave do
 build está errada" e passou a incluir token ausente, expirado ou inválido — o
@@ -1162,11 +1169,11 @@ O que a fase entrega:
   navegação precisa saber é se **há alguém**, e o segundo dispara a cada
   renovação de token, o que faria o `redirect` rodar de hora em hora sem nada
   ter mudado
-- O interceptor do Dio mandando `Authorization: Bearer` com o ID token —
-  **ao lado** do `x-api-key`, e não no lugar dele. A AUT-11 diz por quê: a
-  chave não identifica ninguém, mas descarta varredura automática antes de o
-  servidor gastar uma verificação de assinatura. São camadas com propósitos
-  diferentes, e a de produção continua valendo
+- O interceptor do Dio mandando `Authorization: Bearer` com o ID token. Nasceu
+  **ao lado** do `x-api-key`, como camada com propósito diferente — a chave não
+  identificava ninguém, mas descartava varredura automática antes de o servidor
+  gastar uma verificação de assinatura. Em 31/08 a chave saiu e o interceptor
+  ficou sozinho: o header dele é o único que o app manda
 - **401 passa a significar outra coisa.** Hoje quer dizer "a chave do build está
   errada" e a `UnauthorizedFailure` não é retentável de propósito. Com sessão,
   401 passa a ser "o token expirou" — e a resposta certa deixa de ser mostrar
@@ -1547,22 +1554,62 @@ Descobertas implementando a Fase 2:
    Isso também aposenta o IP de rede fixo no `AppConfig`: quem troca de máquina
    edita o `env/dev.json`, não o código.
 
-5. **A `API_KEY` ainda faz sentido para o app?** — aberta desde 30/08.
+5. ~~**A `API_KEY` ainda faz sentido para o app?**~~ — **resolvida em 31/08:
+   não. Foi retirada dos dois lados.**
 
    Ela nasceu na Etapa 7 do backend, antes da autenticação, quando a API não
-   tinha como saber quem estava chamando. Hoje toda rota exige token do Firebase
-   e resolve o dono da requisição, então a chave virou uma segunda tranca, mais
+   tinha como saber quem estava chamando. Com toda rota exigindo token do
+   Firebase e resolvendo o dono da requisição, virou uma segunda tranca, mais
    fraca, na mesma porta.
 
-   E ela **não é segredo num cliente distribuído**: fica em texto dentro do APK,
-   e `strings -a app-release.apk` a encontra. Tirar o valor do git protege o
-   repositório, não quem tem o aplicativo.
+   **O que decidiu não foi a redundância, foi ela não ser segredo.** Num cliente
+   distribuído a chave fica em texto dentro do APK, e `strings -a
+   app-release.apk` a encontra — tirar o valor do git protegia o repositório,
+   nunca quem tem o aplicativo. Era uma string só, igual em todos os aparelhos,
+   sem validade e sem dizer quem era. O token é por pessoa, expira em uma hora e
+   é verificado por assinatura.
 
-   As saídas, sem ordem de preferência: exigir `x-api-key` apenas nas rotas sem
-   usuário autenticado, e o app se identificar só pelo token do Firebase — que é
-   por usuário, expira sozinho e não sai de um binário; ou manter a chave e
-   assumir que ela é pública, valendo como barreira contra varredura automática
-   e não contra alguém interessado.
+   **O que se perdeu é medível e pequeno:** requisição sem credencial passou a
+   custar uma verificação de JWT em vez de uma comparação de hash. As duas são
+   locais — o `verifyIdToken` não vai à rede, e o banco só é tocado depois de o
+   token valer —, então o que a chave descartava era ciclo de CPU, não consulta
+   ao Postgres.
 
-   Não é urgente: a autenticação real já é o token, e a chave só acrescenta
-   ruído. Vale decidir antes de o app sair da instalação manual.
+   Saíram: o `apiKeyGuard` e seus 7 testes, a variável dos dois compose e dos
+   dois `.env.example`, o header do `dio_factory`, a constante do `AppConfig` e
+   o campo dos `env/*.example.json`. **Quem faz esse papel direito é o Firebase
+   App Check**, que atesta o app pelo Play Integrity sem embutir segredo no
+   binário — e que só vale a pena quando houver track interno na Play, porque a
+   atestação exige um build que o Google reconheça.
+
+6. ~~**O app é fechado ou aberto?**~~ — **resolvida em 31/08: aberto.** Quem
+   quiser entra, conectando com a conta Google. Não há allowlist, não há
+   convite, não há aprovação — a `AUT-11` já tinha caído em 27/08, e isto
+   confirma a direção em vez de reabrir o assunto.
+
+   **A defesa deixa de ser impedir e passa a ser observar e limitar**, e isso
+   troca a ordem do que falta fazer:
+
+   - **Limite de taxa** vira o primeiro item, e em duas dimensões: por IP,
+     contra quem nem token tem, e por `uid`, contra o usuário autenticado que se
+     comporta mal. Só por IP não serve num app de celular, onde o endereço muda
+     de torre em torre.
+   - **Aviso de conta nova** deixa de ser conforto e vira o único sinal de que
+     alguém entrou. Sem ele, só se descobre consultando a tabela.
+   - **Backup do Postgres** muda de natureza: os dados deixam de ser só seus.
+
+   **E aparecem três obrigações que não existiam com o app fechado**, todas com
+   prazo dado pela Play:
+
+   - **Exclusão de conta.** A política do Google Play obriga todo app que cria
+     conta a oferecer exclusão, dentro do app **e** por um link na web
+     acessível sem instalar. Hoje não existe rota, e as FKs são `ON DELETE
+     RESTRICT` em 8 tabelas — é spec nova, com ordem de remoção definida.
+   - **Política de privacidade e formulário de Data Safety**, porque o app
+     coleta e-mail e nome pelo Google. A página é estática, o Caddy serve.
+   - **Quota ou, no mínimo, alarme de disco.** A VPS é pequena e nada hoje
+     limita quanto cada pessoa escreve.
+
+   A publicação na Play está a uns 6 meses, então nada disso é para agora — mas
+   a exclusão de conta encosta em todas as tabelas, e é a que menos aceita ser
+   deixada para o fim.

@@ -46,24 +46,11 @@ abstract final class AppConfig {
   static String get apiBaseUrl =>
       _envBaseUrl.isNotEmpty ? _envBaseUrl : _defaultBaseUrl;
 
-  /// Chave que a API exige no header `x-api-key`, gravada no binário em tempo
-  /// de build:
-  ///
-  /// ```
-  /// flutter build apk --dart-define-from-file=env/prod.json
-  /// ```
-  ///
-  /// **Não é segredo depois do build.** Ela fica em texto dentro do APK, e
-  /// `strings -a app-release.apk` a encontra. Manter o valor fora do git evita
-  /// vazá-lo no repositório, não em quem tiver o aplicativo.
-  ///
-  /// Vazia por padrão, e é o certo: o backend na sua máquina sobe sem tranca,
-  /// e um valor de exemplo aqui só serviria para ser esquecido no lugar do
-  /// verdadeiro. Vazia, o header simplesmente não é enviado.
-  ///
-  /// **Não é login.** Não há usuário nem sessão do outro lado — corrigir uma
-  /// chave errada passa por recompilar, não por entrar de novo.
-  static const apiKey = String.fromEnvironment('API_KEY');
+  // Não há mais `apiKey` aqui. Ela existiu até 31/08, vinda do `--dart-define`
+  // e mandada no header `x-api-key`, e saiu com a tranca do backend: nunca foi
+  // segredo depois do build — `strings -a app-release.apk` a encontrava — e o
+  // que identifica o app hoje é o ID token do Firebase, que é por pessoa e
+  // expira sozinho.
 
   static const connectTimeout = Duration(seconds: 30);
   static const receiveTimeout = Duration(seconds: 30);

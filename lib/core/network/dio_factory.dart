@@ -17,21 +17,24 @@ import 'auth_interceptor.dart';
 Dio buildDio({AuthRepository? auth}) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: AppConfig.apiBaseUrl,
+      baseUrl: 'https://secontroleai.duckdns.org',
+      // baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       sendTimeout: AppConfig.sendTimeout,
       contentType: 'application/json',
-      // Só entra quando existe. Vazio, mandar `x-api-key: ''` faria o backend
-      // recusar com 401 em vez de tratar como ausente — e é o mesmo 401, mas
-      // por um motivo que não é o real.
-      headers: {if (AppConfig.apiKey.isNotEmpty) 'x-api-key': AppConfig.apiKey},
     ),
   );
 
-  // Antes do logger, para o header entrar na requisição antes de ela ser
-  // registrada. Com `requestHeader: false` isso não muda o que aparece no
-  // console — muda o que aparece se alguém religar aquela opção para depurar.
+  // Nenhum header fixo aqui desde 31/08. Havia um `x-api-key` vindo do
+  // `--dart-define`, e ele saiu junto com a tranca do backend: uma chave só
+  // para todos os aparelhos, que não expira e fica legível dentro do APK, não
+  // acrescentava nada ao token do Firebase que o interceptor manda abaixo.
+  //
+  // O interceptor vem antes do logger para o `Authorization` entrar na
+  // requisição antes de ela ser registrada. Com `requestHeader: false` isso não
+  // muda o que aparece no console — muda o que apareceria se alguém religasse
+  // aquela opção para depurar, e agora o que vazaria ali é o token.
   if (auth != null) {
     dio.interceptors.add(AuthInterceptor(auth, dio.fetch));
   }
