@@ -7,9 +7,13 @@ import 'auth_interceptor.dart';
 
 /// Constrói a única instância de Dio do app.
 ///
-/// [baseUrl] e [enableLogging] existem para teste — em produção os dois vêm do
-/// [AppConfig]. Teste roda em debug, então sem o segundo cada requisição
-/// simulada despejaria corpo e cabeçalho na saída do `flutter test`.
+/// **O endereço vem do [AppConfig], nunca escrito aqui.** Chegou a ficar
+/// chumbado em `https://secontroleai.duckdns.org` durante um teste em aparelho,
+/// com a linha do [AppConfig] comentada logo abaixo — e isso anulava em
+/// silêncio os `env/*.json` de 30/08: o `--dart-define-from-file` continuava
+/// sendo lido e ignorado, então `flutter run` na máquina de casa falava com a
+/// VPS de produção sem ninguém perceber. É o mesmo estrago que os arquivos de
+/// ambiente vieram evitar, só que ao contrário.
 ///
 /// [auth] é opcional porque nem todo Dio precisa se identificar: os testes que
 /// só verificam serialização montam um sem autenticação nenhuma. Em produção
@@ -17,8 +21,7 @@ import 'auth_interceptor.dart';
 Dio buildDio({AuthRepository? auth}) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: 'https://secontroleai.duckdns.org',
-      // baseUrl: AppConfig.apiBaseUrl,
+      baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       sendTimeout: AppConfig.sendTimeout,
