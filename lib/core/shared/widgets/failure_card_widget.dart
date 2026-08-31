@@ -96,15 +96,17 @@ class FailureCardWidget extends StatelessWidget {
     ServerFailure() => Icons.cloud_off_outlined,
     SerializationFailure() => Icons.extension_off_outlined,
     CancelledFailure() => Icons.cancel_outlined,
+    TooManyRequestsFailure() => Icons.hourglass_top_outlined,
     AuthFailure() => Icons.person_off_outlined,
     UnexpectedFailure() => Icons.help_outline,
   };
 
   String get _title => switch (failure) {
     NetworkFailure() => 'Sem conexão',
-    // "Acesso negado" e não "não autorizado": para quem usa, o app é que não
-    // foi aceito, e não há nada a fazer na tela — a chave vem do build.
-    UnauthorizedFailure() => 'Acesso negado',
+    // "Sessão expirada" e não "acesso negado": desde que a `x-api-key` saiu, o
+    // 401 tem uma causa só, e ela tem conserto — entrar de novo. "Negado"
+    // sugeria que a pessoa não tem permissão, que é outra coisa.
+    UnauthorizedFailure() => 'Sessão expirada',
     NotFoundFailure() => 'Não encontrado',
     ValidationFailure() => 'Dados inválidos',
     ConflictFailure() => 'Conflito',
@@ -114,6 +116,9 @@ class FailureCardWidget extends StatelessWidget {
     // o app, não que o JSON não bateu com o model.
     SerializationFailure() => 'Versão incompatível',
     CancelledFailure() => 'Cancelado',
+    // Sem a palavra "erro": nada deu errado, foi rápido demais. E sem "limite",
+    // que soa a plano pago — o que houve foi ritmo.
+    TooManyRequestsFailure() => 'Muitas tentativas',
     // "Login" e não "autenticação": o que a pessoa faz em seguida é entrar de
     // novo, e às vezes por outro provedor. Difere do UnauthorizedFailure acima,
     // que é a chave de API e não tem ação nenhuma na tela.

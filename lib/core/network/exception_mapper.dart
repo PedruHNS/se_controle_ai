@@ -44,6 +44,19 @@ AppException mapDioException(DioException exception) {
   };
 }
 
+/// Segundos até o limite renovar, como o `Retry-After` manda (RFC 9110).
+///
+/// A RFC também admite data HTTP no lugar do número, e aqui isso é ignorado de
+/// propósito: o `express-rate-limit` sempre manda segundos, e interpretar data
+/// exigiria confiar no relógio do aparelho, que é justamente o que costuma
+/// estar errado. Sem número legível, devolve nulo e a mensagem fica genérica.
+Duration? _retryAfter(Response<dynamic>? response) {
+  final header = response?.headers.value('retry-after');
+  final segundos = int.tryParse(header ?? '');
+
+  return segundos == null || segundos <= 0 ? null : Duration(seconds: segundos);
+}
+
 /// O backend responde erro sempre com `{code, message, issues?}`.
 AppException _fromResponse(DioException exception) {
   final DioException(:response, :requestOptions, :stackTrace) = exception;
@@ -94,6 +107,17 @@ AppException _fromResponse(DioException exception) {
     422 => UnprocessableEntityException(
       message: message,
       code: code,
+      cause: exception,
+      stackTrace: stackTrace,
+    ),
+    // O único status que o app sabe esperar. `Retry-After` vem em segundos e é
+    // o que permite dizer "tente em 15 minutos" em vez de "tente de novo" —
+    // que aqui seria conselho errado, porque repetir na hora gasta mais do
+    // limite.
+    429 => TooManyRequestsException(
+      message: message,
+      code: code,
+      retryAfter: _retryAfter(response),
       cause: exception,
       stackTrace: stackTrace,
     ),

@@ -125,6 +125,30 @@ final class UnprocessableEntityException extends AppException {
   });
 }
 
+/// 429 — requisições demais no intervalo (AUT-15 do backend).
+///
+/// Não fala do pedido nem de quem pediu: fala do **ritmo**. Por isso é o único
+/// erro do app que se resolve sozinho, com tempo — e o único que sabe dizer
+/// quanto: [retryAfter] vem do header `Retry-After` da resposta.
+///
+/// São dois limites do outro lado, um por endereço de origem e um por usuário,
+/// com janela de 15 minutos. Qual dos dois estourou não vem na resposta, e é
+/// deliberado — a distinção só interessaria a quem está tentando descobrir o
+/// teto.
+final class TooManyRequestsException extends AppException {
+  const TooManyRequestsException({
+    required super.message,
+    this.retryAfter,
+    super.code,
+    super.statusCode = 429,
+    super.cause,
+    super.stackTrace,
+  });
+
+  /// Quanto falta para o limite se renovar, quando o servidor informa.
+  final Duration? retryAfter;
+}
+
 /// 5xx — falha do servidor.
 final class ServerException extends AppException {
   const ServerException({

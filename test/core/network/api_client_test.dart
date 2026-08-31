@@ -218,7 +218,7 @@ void main() {
       final (client: client, adapter: _) = clientThatReturns(
         (_) async => _json({
           'code': 'UNAUTHORIZED',
-          'message': 'Chave de API ausente ou inválida',
+          'message': 'Token ausente, inválido ou expirado',
         }, 401),
       );
 

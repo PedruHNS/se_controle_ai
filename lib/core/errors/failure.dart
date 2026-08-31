@@ -15,6 +15,12 @@ sealed class Failure {
   const Failure({required this.message, this.code, this.exception});
 
   /// Faz sentido oferecer "tentar de novo"?
+  ///
+  /// [TooManyRequestsFailure] fica **fora** de propósito, embora seja a falha
+  /// mais transitória de todas: a janela do limite é de 15 minutos, então o
+  /// botão daria o mesmo erro em toda tentativa até ela virar. O que resolve é
+  /// esperar, e a mensagem diz quanto — botão aqui seria promessa falsa, do
+  /// mesmo tipo que [UnauthorizedFailure] evita.
   bool get isRetryable => switch (this) {
     NetworkFailure() || ServerFailure() => true,
     _ => false,
@@ -81,6 +87,11 @@ sealed class Failure {
       code: exception.code,
       exception: exception,
     ),
+    TooManyRequestsException() => TooManyRequestsFailure(
+      message: _mensagemDeEspera(exception.retryAfter),
+      code: exception.code,
+      exception: exception,
+    ),
     UnexpectedResponseException() => UnexpectedFailure(
       code: exception.code,
       exception: exception,
@@ -119,19 +130,55 @@ final class ValidationFailure extends Failure {
   }
 }
 
-/// 401 — o app não se identificou para a API.
+/// 401 — o servidor não aceitou a sessão.
 ///
-/// **Não é retentável**, e é a diferença que importa: repetir a mesma
-/// requisição com a mesma chave dá o mesmo 401 para sempre. O botão "tentar de
-/// novo" aqui seria uma promessa falsa.
+/// A mensagem mudou em 31/08, com a `x-api-key`. Antes o 401 tinha duas causas
+/// — chave do build errada ou token inválido — e o texto falava de "chave de
+/// acesso", que não dizia nada a quem usa e passou a ser mentira quando a chave
+/// deixou de existir. Hoje a causa é uma só: o token não serve mais.
+///
+/// **Não é retentável**, e é a diferença que importa: o `AuthInterceptor` já
+/// renovou o token à força e repetiu uma vez antes de esta falha subir. Se
+/// chegou aqui, repetir de novo dá o mesmo 401. O que resolve é entrar outra
+/// vez.
 final class UnauthorizedFailure extends Failure {
   const UnauthorizedFailure({
-    super.message =
-        'O app não conseguiu se identificar para o servidor. '
-        'A chave de acesso está ausente ou incorreta.',
+    super.message = 'Sua sessão expirou. Entre de novo para continuar.',
     super.code,
     super.exception,
   });
+}
+
+/// 429 — o ritmo de requisições estourou o limite do servidor (AUT-15).
+///
+/// Não é retentável **agora**, e é o único caso em que essa distinção tem
+/// tempo: a janela é de 15 minutos. A mensagem vem pronta de
+/// [_mensagemDeEspera], com o número quando o servidor manda o `Retry-After`.
+final class TooManyRequestsFailure extends Failure {
+  const TooManyRequestsFailure({
+    super.message = 'Muitas requisições em pouco tempo. Aguarde um instante.',
+    super.code,
+    super.exception,
+  });
+}
+
+/// "em 15 minutos" é útil; "em 900 segundos" faz a pessoa fazer a conta.
+///
+/// Arredonda para cima: prometer menos tempo do que falta produz uma segunda
+/// recusa, que é pior do que esperar trinta segundos a mais.
+String _mensagemDeEspera(Duration? espera) {
+  if (espera == null) {
+    return 'Muitas requisições em pouco tempo. Aguarde um instante.';
+  }
+
+  if (espera.inSeconds < 60) {
+    return 'Muitas requisições em pouco tempo. '
+        'Tente de novo em ${espera.inSeconds} segundos.';
+  }
+
+  final minutos = (espera.inSeconds / 60).ceil();
+  return 'Muitas requisições em pouco tempo. '
+      'Tente de novo em $minutos ${minutos == 1 ? 'minuto' : 'minutos'}.';
 }
 
 /// 404 — não existe, ou foi apagado em outra tela.

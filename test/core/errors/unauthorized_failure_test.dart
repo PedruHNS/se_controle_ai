@@ -5,8 +5,10 @@ import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/widgets/failure_card_widget.dart';
 
 void main() {
+  // A frase é a que o backend devolve hoje, para os dois casos que ele não
+  // distingue de propósito: token ausente e token que não serve mais (AUT-06).
   const exception = UnauthorizedException(
-    message: 'Chave de API ausente ou inválida',
+    message: 'Token ausente, inválido ou expirado',
     code: 'UNAUTHORIZED',
   );
 
@@ -19,16 +21,18 @@ void main() {
     });
 
     // A mensagem do backend descreve o problema para quem opera o servidor.
-    // Quem está olhando a tela não sabe o que é uma chave de API.
+    // Quem está olhando a tela não sabe o que é um token — sabe que entrou e
+    // que agora não está mais entrando.
     test('a mensagem é a do app, não a do backend', () {
       final failure = Failure.fromException(exception);
 
-      expect(failure.message, isNot(contains('Chave de API')));
-      expect(failure.message, contains('não conseguiu se identificar'));
+      expect(failure.message, isNot(contains('Token')));
+      expect(failure.message, contains('sessão expirou'));
     });
 
-    // É a diferença que importa: repetir com a mesma chave dá o mesmo 401 para
-    // sempre, então o botão seria uma promessa falsa.
+    // O AuthInterceptor já renovou o token e repetiu uma vez antes de a falha
+    // chegar aqui. Se chegou, repetir de novo dá o mesmo 401 — o botão seria
+    // uma promessa falsa.
     test('não é retentável', () {
       expect(Failure.fromException(exception).isRetryable, isFalse);
     });
@@ -46,7 +50,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Acesso negado'), findsOneWidget);
+      expect(find.text('Sessão expirada'), findsOneWidget);
       expect(find.text('Tentar de novo'), findsNothing);
     });
   });
