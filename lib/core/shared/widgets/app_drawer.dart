@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../data/repositories/auth_repository.dart';
@@ -171,7 +172,6 @@ class _DrawerItem extends StatelessWidget {
   }
 }
 
-
 /// Encerra a sessão.
 ///
 /// Não navega: quem tira a pessoa daqui é o `redirect` do router, avisado pelo
@@ -192,7 +192,10 @@ class _Sair extends StatelessWidget {
       // Quem está logado, embaixo: sem isso não há nenhum lugar no app que
       // responda "com qual conta eu entrei?".
       subtitle: user == null ? null : Text(user.label),
-      onTap: () => GetIt.I<AuthRepository>().signOut(),
+      onTap: () {
+        GetIt.I<AuthRepository>().signOut();
+        getIt.resetLazySingleton<HomeController>();
+      },
     );
   }
 }
