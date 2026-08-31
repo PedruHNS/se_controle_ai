@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -274,12 +276,14 @@ void main() {
     });
 
     test('saving liga durante o envio e desliga no fim', () async {
-      stubIncomeOperations(repository, delay: const Duration(milliseconds: 50));
+      final segura = Completer<void>();
+      stubIncomeOperations(repository, pendenteAte: segura.future);
       fill(description: 'Salário', amountCents: 500000);
 
       final pending = controller.submit();
 
       expect(controller.saving.value, isTrue);
+      segura.complete();
       await pending;
       expect(controller.saving.value, isFalse);
     });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -89,7 +91,8 @@ void main() {
     // Trocar o horizonte duas vezes é um toque rápido, e a resposta de 24 meses
     // pode chegar depois da de 6.
     test('resposta atrasada não sobrescreve a mais nova', () async {
-      stubProjection(repository, delay: const Duration(milliseconds: 60));
+      final presa = Completer<void>();
+      stubProjection(repository, pendenteAte: presa.future);
       final slow = controller.load();
 
       stubProjection(
@@ -100,6 +103,7 @@ void main() {
 
       expect(controller.state.value, isA<Failed<List<MonthProjectionModel>>>());
 
+      presa.complete();
       await slow;
 
       expect(

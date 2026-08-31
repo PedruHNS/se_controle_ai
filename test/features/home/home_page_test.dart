@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,13 +58,17 @@ void main() {
 
   group('carregamento', () {
     testWidgets('mostra spinner antes da resposta', (tester) async {
-      stubMonthly(repository, delay: const Duration(milliseconds: 100));
+      final segura = Completer<void>();
+      stubMonthly(repository, pendenteAte: segura.future);
 
       await tester.pumpWidget(const MaterialApp(home: HomePage()));
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
+      // Sem soltar a resposta, o `pumpAndSettle` esperaria para sempre: o
+      // indicador de progresso é uma animação que nunca acaba.
+      segura.complete();
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -60,19 +62,22 @@ void main() {
 
   test('refresh mantém o conteúdo na tela durante a busca', () async {
     await controller.load();
-    stubExpenseList(repository, delay: const Duration(milliseconds: 50));
+    final segura = Completer<void>();
+    stubExpenseList(repository, pendenteAte: segura.future);
 
     final pending = controller.refresh();
 
     expect(controller.state.value, isA<Loaded<List<ExpenseModel>>>());
 
+    segura.complete();
     await pending;
   });
 
   // A guarda de corrida que toda tela do app tem: uma resposta atrasada não
   // pode sobrescrever a que veio depois dela.
   test('resposta atrasada não sobrescreve a mais nova', () async {
-    stubExpenseList(repository, delay: const Duration(milliseconds: 60));
+    final presa = Completer<void>();
+    stubExpenseList(repository, pendenteAte: presa.future);
     final slow = controller.load();
 
     stubExpenseList(
@@ -83,6 +88,7 @@ void main() {
 
     expect(controller.state.value, isA<Failed<List<ExpenseModel>>>());
 
+    presa.complete();
     await slow;
 
     expect(

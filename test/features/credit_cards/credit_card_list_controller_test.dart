@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -66,22 +68,26 @@ void main() {
   });
 
   test('load sem silent passa por Loading', () async {
-    stubCreditCardList(repository, delay: const Duration(milliseconds: 50));
+    final segura = Completer<void>();
+    stubCreditCardList(repository, pendenteAte: segura.future);
 
     final pending = controller.load();
 
     expect(controller.state.value, isA<Loading<List<CreditCardModel>>>());
+    segura.complete();
     await pending;
     expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
   });
 
   test('refresh mantém o conteúdo na tela durante a busca', () async {
     await controller.load();
-    stubCreditCardList(repository, delay: const Duration(milliseconds: 50));
+    final segura = Completer<void>();
+    stubCreditCardList(repository, pendenteAte: segura.future);
 
     final pending = controller.refresh();
 
     expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
+    segura.complete();
     await pending;
   });
 
@@ -153,15 +159,14 @@ void main() {
     });
 
     test('working sobe durante a exclusão e desce depois', () async {
-      stubCreditCardOperations(
-        repository,
-        delay: const Duration(milliseconds: 50),
-      );
+      final segura = Completer<void>();
+      stubCreditCardOperations(repository, pendenteAte: segura.future);
       await controller.load();
 
       final pending = controller.delete('id-do-cartao');
 
       expect(controller.working.value, isTrue);
+      segura.complete();
       await pending;
       expect(controller.working.value, isFalse);
     });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -178,7 +180,11 @@ void main() {
   // diálogo nem abre antes do primeiro `GET` terminar. O teste fixa a guarda
   // para quem chamar o controller direto.
   test('sem lista carregada, não chega a criar', () async {
-    stubTagList(repository, delay: const Duration(milliseconds: 50));
+    // Um `GET` que não volta: o `Completer` nunca é completado, e é o ponto.
+    // Nada aqui espera por ele — o que o teste quer é justamente o estado do
+    // meio, com a lista ainda a caminho.
+    final nuncaVolta = Completer<void>();
+    stubTagList(repository, pendenteAte: nuncaVolta.future);
 
     final emAberto = TagListController(
       repository: repository,

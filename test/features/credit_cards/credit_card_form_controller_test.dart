@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -396,16 +398,15 @@ void main() {
     });
 
     test('saving sobe durante o envio e desce depois', () async {
-      stubCreditCardOperations(
-        repository,
-        delay: const Duration(milliseconds: 50),
-      );
+      final segura = Completer<void>();
+      stubCreditCardOperations(repository, pendenteAte: segura.future);
       await controller.start();
       fill();
 
       final pending = controller.submit();
 
       expect(controller.saving.value, isTrue);
+      segura.complete();
       await pending;
       expect(controller.saving.value, isFalse);
     });

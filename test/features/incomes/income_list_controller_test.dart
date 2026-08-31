@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -51,21 +53,25 @@ void main() {
   });
 
   test('refresh mantém o conteúdo na tela durante a busca', () async {
-    stubIncomeList(repository, delay: const Duration(milliseconds: 50));
+    final segura = Completer<void>();
+    stubIncomeList(repository, pendenteAte: segura.future);
 
     final pending = controller.refresh();
 
     expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
+    segura.complete();
     await pending;
     expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
   });
 
   test('load sem silent passa por Loading', () async {
-    stubIncomeList(repository, delay: const Duration(milliseconds: 50));
+    final segura = Completer<void>();
+    stubIncomeList(repository, pendenteAte: segura.future);
 
     final pending = controller.load();
 
     expect(controller.state.value, isA<Loading<List<IncomeModel>>>());
+    segura.complete();
     await pending;
     expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
   });

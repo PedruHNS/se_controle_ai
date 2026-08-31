@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -172,11 +174,13 @@ void main() {
   });
 
   test('working liga durante a operação e desliga no fim', () async {
-    stubIncomeOperations(repository, delay: const Duration(milliseconds: 50));
+    final segura = Completer<void>();
+    stubIncomeOperations(repository, pendenteAte: segura.future);
 
     final pending = controller.correct(amountCents: 1000);
 
     expect(controller.working.value, isTrue);
+    segura.complete();
     await pending;
     expect(controller.working.value, isFalse);
   });

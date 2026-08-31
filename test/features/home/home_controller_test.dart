@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
@@ -34,9 +36,8 @@ void main() {
     });
 
     test('fica em Loading enquanto a resposta não volta', () async {
-      final slowRepository = summaryRepositoryMock(
-        delay: const Duration(milliseconds: 100),
-      );
+      final segura = Completer<void>();
+      final slowRepository = summaryRepositoryMock(pendenteAte: segura.future);
       final slowController = HomeController(
         slowRepository,
         SelectedMonthController(),
@@ -45,7 +46,11 @@ void main() {
 
       expect(slowController.state.value, isA<Loading<MonthlySummaryModel>>());
 
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      // Solta a resposta e deixa a fila de eventos girar: sem esperar tempo
+      // nenhum, o estado final já está lá.
+      segura.complete();
+      await pumpEventQueue();
+
       expect(slowController.state.value, isA<Loaded<MonthlySummaryModel>>());
     });
 
@@ -80,11 +85,13 @@ void main() {
     });
 
     test('silent mantém o conteúdo na tela durante a busca', () async {
-      stubMonthly(repository, delay: const Duration(milliseconds: 50));
+      final segura = Completer<void>();
+      stubMonthly(repository, pendenteAte: segura.future);
 
       final pending = controller.load(silent: true);
 
       expect(controller.state.value, isA<Loaded<MonthlySummaryModel>>());
+      segura.complete();
       await pending;
       expect(controller.state.value, isA<Loaded<MonthlySummaryModel>>());
     });
@@ -209,7 +216,10 @@ void main() {
   group('corrida', () {
     test('resposta atrasada de mês antigo não sobrescreve a atual', () async {
       // Duas buscas em voo; a primeira volta depois da segunda.
-      stubMonthly(repository, delay: const Duration(milliseconds: 50));
+      // A lenta fica presa até o fim do teste: assim a ordem de chegada é
+      // decidida aqui, e não por quanto tempo a máquina levou.
+      final presa = Completer<void>();
+      stubMonthly(repository, pendenteAte: presa.future);
       final slow = controller.load();
 
       stubMonthly(
@@ -224,6 +234,7 @@ void main() {
       );
 
       // A lenta chega agora e precisa ser descartada.
+      presa.complete();
       await slow;
       expect(
         (controller.state.value as Loaded<MonthlySummaryModel>).data.month,

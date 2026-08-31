@@ -95,16 +95,29 @@ MockAuthRepository authRepositoryMock({
 
 /// Stub de `getMonthly` para qualquer mês.
 ///
-/// [delay] simula latência: é o que permite observar `Loading` e testar duas
-/// buscas em voo ao mesmo tempo.
+/// [pendenteAte] segura a resposta até aquele future resolver, e é o que permite
+/// observar o estado do meio — `Loading`, `saving`, duas buscas em voo. **Todo
+/// stub deste arquivo que aceita o parâmetro segue esta mesma regra.**
+///
+/// Existiu como `delay` até 31/08, e a troca não foi estética. O `delay` era uma
+/// corrida contra o relógio: o teste afirmava "ainda está carregando" contando
+/// que 50 ms não tivessem passado, e o `flutter test` roda os arquivos em
+/// paralelo — sob carga o isolate fica sem CPU por mais que isso, o
+/// `Future.delayed` resolve antes da asserção e o estado já é o final. Um teste
+/// de tags perdeu essa corrida e foi o que expôs o padrão, que estava em quinze
+/// lugares.
+///
+/// Com um `Completer` não há corrida: pendente é pendente. Quem precisa ver o
+/// desfecho completa o future antes do `await`; quem só quer o estado do meio
+/// nunca o completa.
 void stubMonthly(
   MockSummaryRepository mock, {
   Result<MonthlySummaryModel, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final answer = result ?? Success(MonthlySummaryModel.fromJson(summaryJson));
   when(() => mock.getMonthly(month: any(named: 'month'))).thenAnswer((_) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return answer;
   });
 }
@@ -116,7 +129,7 @@ void stubMonthly(
 void stubProjection(
   MockSummaryRepository mock, {
   Result<List<MonthProjectionModel>, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final answer =
       result ??
@@ -127,7 +140,7 @@ void stubProjection(
       months: any(named: 'months'),
     ),
   ).thenAnswer((_) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return answer;
   });
 }
@@ -136,10 +149,10 @@ void stubProjection(
 /// pedido, e devolve projeção vazia.
 MockSummaryRepository summaryRepositoryMock({
   Result<MonthlySummaryModel, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final mock = MockSummaryRepository();
-  stubMonthly(mock, result: result, delay: delay);
+  stubMonthly(mock, result: result, pendenteAte: pendenteAte);
   stubProjection(mock);
   return mock;
 }
@@ -156,12 +169,12 @@ List<String?> capturedMonths(MockSummaryRepository mock) => verify(
 void stubIncomeList(
   MockIncomeRepository mock, {
   Result<List<IncomeModel>, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final answer =
       result ?? Success(incomeListJson.map(IncomeModel.fromJson).toList());
   when(() => mock.list(month: any(named: 'month'))).thenAnswer((_) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return answer;
   });
 }
@@ -182,10 +195,10 @@ void stubIncomeOperations(
   MockIncomeRepository mock, {
   Result<bool, Failure> result = const Success(true),
   Result<String, Failure> createResult = const Success('novo-id'),
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   Future<T> answer<T>(T value) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return value;
   }
 
@@ -224,16 +237,16 @@ MockIncomeRepository incomeRepositoryMock({
   Result<IncomeModel, Failure>? detail,
   Result<bool, Failure> operations = const Success(true),
   Result<String, Failure> create = const Success('novo-id'),
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final mock = MockIncomeRepository();
-  stubIncomeList(mock, result: list, delay: delay);
+  stubIncomeList(mock, result: list, pendenteAte: pendenteAte);
   stubIncomeDetail(mock, result: detail);
   stubIncomeOperations(
     mock,
     result: operations,
     createResult: create,
-    delay: delay,
+    pendenteAte: pendenteAte,
   );
   return mock;
 }
@@ -241,10 +254,12 @@ MockIncomeRepository incomeRepositoryMock({
 /// Stub de `list` de cartões.
 /// Stub de `/tags` — o formulário de gasto não abre sem a lista, porque a tag
 /// é obrigatória (TAG-06).
+/// [pendenteAte] segura o `GET` até aquele future resolver — ou para sempre, se
+/// ninguém o resolver. O porquê está no [stubMonthly].
 void stubTagList(
   MockTagRepository mock, {
   Result<List<TagModel>, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   // O dublê devolve o que o backend devolve: `/tags` traz só as ativas, sem
   // parâmetro para pedir outra coisa. A arquivada da fixture continua lá de
@@ -256,7 +271,7 @@ void stubTagList(
       .toList();
 
   when(() => mock.list()).thenAnswer((_) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return result ?? Success(ativas);
   });
 }
@@ -333,13 +348,13 @@ void stubTagCreate(
 void stubCreditCardList(
   MockCreditCardRepository mock, {
   Result<List<CreditCardModel>, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final answer =
       result ??
       Success(creditCardListJson.map(CreditCardModel.fromJson).toList());
   when(() => mock.list(month: any(named: 'month'))).thenAnswer((_) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return answer;
   });
 }
@@ -362,7 +377,7 @@ void stubCreditCardOperations(
   MockCreditCardRepository mock, {
   Result<bool, Failure> result = const Success(true),
   Result<String, Failure> createResult = const Success('novo-cartao'),
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   // `Patch` não é anulável no `update`, e para esses o mocktail precisa de um
   // valor de reserva antes de aceitar `any()`. Registrar aqui, e não em um
@@ -371,7 +386,7 @@ void stubCreditCardOperations(
   registerFallbackValue(const Patch<int>.keep());
 
   Future<T> answer<T>(T value) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return value;
   }
 
@@ -409,16 +424,16 @@ MockCreditCardRepository creditCardRepositoryMock({
   Result<CreditCardModel, Failure>? detail,
   Result<bool, Failure> operations = const Success(true),
   Result<String, Failure> create = const Success('novo-cartao'),
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final mock = MockCreditCardRepository();
-  stubCreditCardList(mock, result: list, delay: delay);
+  stubCreditCardList(mock, result: list, pendenteAte: pendenteAte);
   stubCreditCardDetail(mock, result: detail);
   stubCreditCardOperations(
     mock,
     result: operations,
     createResult: create,
-    delay: delay,
+    pendenteAte: pendenteAte,
   );
   return mock;
 }
@@ -464,7 +479,7 @@ Map<String, dynamic> capturedUpdateBody(MockCreditCardRepository mock) =>
 void stubExpenseList(
   MockExpenseRepository mock, {
   Result<List<ExpenseModel>, Failure>? result,
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final answer =
       result ?? Success(expenseListJson.map(ExpenseModel.fromJson).toList());
@@ -476,7 +491,7 @@ void stubExpenseList(
       creditCardId: any(named: 'creditCardId'),
     ),
   ).thenAnswer((_) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return answer;
   });
 }
@@ -499,7 +514,7 @@ void stubExpenseOperations(
   MockExpenseRepository mock, {
   Result<bool, Failure> result = const Success(true),
   Result<String, Failure> createResult = const Success('novo-gasto'),
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   // `Patch` e `PaymentMethod` não são anuláveis nesta interface, e para esses o
   // mocktail precisa de um valor de reserva antes de aceitar `any()`.
@@ -507,7 +522,7 @@ void stubExpenseOperations(
   registerFallbackValue(PaymentMethod.debit);
 
   Future<T> answer<T>(T value) async {
-    if (delay != null) await Future<void>.delayed(delay);
+    if (pendenteAte != null) await pendenteAte;
     return value;
   }
 
@@ -590,16 +605,16 @@ MockExpenseRepository expenseRepositoryMock({
   Result<ExpenseModel, Failure>? detail,
   Result<bool, Failure> operations = const Success(true),
   Result<String, Failure> create = const Success('novo-gasto'),
-  Duration? delay,
+  Future<void>? pendenteAte,
 }) {
   final mock = MockExpenseRepository();
-  stubExpenseList(mock, result: list, delay: delay);
+  stubExpenseList(mock, result: list, pendenteAte: pendenteAte);
   stubExpenseDetail(mock, result: detail);
   stubExpenseOperations(
     mock,
     result: operations,
     createResult: create,
-    delay: delay,
+    pendenteAte: pendenteAte,
   );
   return mock;
 }
