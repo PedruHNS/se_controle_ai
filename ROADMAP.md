@@ -26,15 +26,25 @@ para onde o saldo caminha, um menu lateral na home leva a todas elas — e agora
 o app entra pelo Firebase antes de qualquer uma, **e só por ele**: a
 `x-api-key` saiu em 31/08.
 
-**489 testes passando, 1 falhando** · `flutter analyze` com um aviso
+**516 testes passando, nenhum falhando** · `flutter analyze` com um aviso
 (`_createTag` não referenciado, em `expense_form_page.dart`).
 
-A falha é `sem lista carregada, não chega a criar`, do
-`tag_list_controller_test`, e ela **passa quando o arquivo roda sozinho** —
-falha só na suíte completa. Isso não é regra de produto, é estado vazando entre
-arquivos de teste: alguma coisa registrada globalmente sobrevive ao teardown e
-muda o que o controller enxerga. É o tipo de falha que só piora com o tempo,
-porque a ordem dos arquivos muda sozinha conforme a suíte cresce.
+**A última falha era o relógio, não o código, e o diagnóstico começou errado.**
+`sem lista carregada, não chega a criar` passava sozinha e falhava na suíte
+completa, o que parecia estado vazando entre arquivos de teste. Não era: o
+`flutter test` roda os arquivos **em paralelo**, e o teste afirmava "ainda está
+carregando" contando que 50 ms de `Future.delayed` não tivessem passado. Sob
+carga o isolate fica sem CPU por mais que isso, o `list()` resolve antes da
+asserção e o estado já é `Loaded`. Rodar com `-j 1` passava — foi o que mostrou
+onde estava.
+
+O conserto trocou o `delay` por um `Completer` que ninguém completa: pendente é
+pendente, sem corrida. O mesmo padrão estava em **outros quinze lugares** —
+ganhos, cartões, gastos, home e projeção —, e todos foram migrados no mesmo dia,
+antes de perderem a corrida também. Onde o teste precisa ver o desfecho, ele
+completa o future antes do `await`; onde só quer o estado do meio, nunca
+completa. De quebra a suíte ficou mais rápida: ninguém mais espera 50 ms de
+verdade.
 
 **A refatoração de tags fechou em 27/08**, e com ela a dívida do comparador que
 esta seção registrava. `TagModel` não é `Comparable` e **nunca teve** um
@@ -1137,8 +1147,11 @@ Google** (`expense-tracker-api/docs/specs/08-autenticacao.md`).
 **O que falta:**
 - [ ] **SHA-1 de release.** Sem ele o login funciona no `flutter run` e falha
       no APK publicado
-- [ ] **A tela de espera na abertura** (veja abaixo). Ainda não existe, e é o
-      risco aberto desta fase
+- [x] **A tela de espera na abertura**, feita em 31/08. O `redirect` não decide
+      mais nada enquanto o Firebase não responde: `AuthRefresh` passou a saber
+      se o primeiro evento já chegou, e até lá qualquer rota vira `/splash`. O
+      destino original vai guardado na query, então abrir o app por link não
+      termina na home por acidente
 - [ ] **Não há como revogar acesso.** Nem rota, nem coluna: o `UPDATE users SET
       approved_at = NULL` existiu por um dia e foi embora com a `009`. Quem
       entrou, entrou. Apagar a identidade no console do Firebase impede novos
@@ -1193,19 +1206,34 @@ refresh, e **cai fora o interceptor single-flight** — que era a parte
 genuinamente difícil desta fase nos dois desenhos anteriores. O interceptor só
 chama `getIdToken()` e segue; a fila é problema do SDK.
 
-**Uma coisa que fica pior antes de melhorar, e continua em aberto:** hoje o app
-abre direto na home. Com login, deveria abrir numa tela de espera enquanto o SDK
-restaura a sessão — e essa tela **ainda não existe**.
+**A abertura do app teve que ganhar uma espera, e ela existe desde 31/08.** O
+`redirect` lê `currentUser` no primeiro build; se o `firebase_auth` ainda não
+restaurou a sessão nesse instante, ele lê `null` e manda para o login alguém que
+está logado — o `AuthRefresh` corrige um quadro depois, e o que se vê é um
+piscar da tela de login.
 
-O `redirect` lê `currentUser` no primeiro build. Se o `firebase_auth` ainda não
-tiver restaurado a sessão nesse instante, ele lê `null` e manda para o login
-alguém que está logado — e o `AuthRefresh` corrige um quadro depois, o que se vê
-como um piscar. Se o SDK já entrega o usuário junto com o `initializeApp`, nada
-disso acontece.
+O conserto não foi adivinhar o tempo do SDK: foi **parar de responder à pergunta
+errada**. O `AuthRefresh` passou a distinguir "não há ninguém logado" de "ainda
+não sei", e enquanto a segunda for verdade ninguém decide nada — a rota vira
+`/splash`, que é um indicador de progresso sem marca e sem texto, porque some
+antes de ser lido. Chegado o primeiro evento, a decisão acontece com a resposta
+certa em mãos.
 
-**Não dá para decidir isso por teste**: o duplo do repositório responde na hora,
-e a corrida só existe contra o SDK de verdade. Fica registrado como o risco
-aberto da fase, a conferir na primeira abertura em aparelho com sessão salva.
+**Ele guarda um contador, e não o usuário.** Um signal só notifica quando o
+valor muda: com o usuário dentro, o primeiro evento de quem *não* está logado
+seria `null` → `null`, mudança nenhuma, e o app ficaria preso na espera para
+sempre. O contador sempre muda. E quem sabe quem está logado continua sendo o
+repositório — duas verdades sobre isso divergiriam, e a que decide navegação é a
+pior das duas para estar errada.
+
+**A decisão saiu de dentro do router.** Virou `rotaParaEstado`, uma função de
+quatro entradas em `auth_gate.dart`, com 14 testes cobrindo as combinações. Pelo
+router ela só era alcançável com `pumpWidget`, injetor montado e um router
+global que guarda estado entre testes — e aí o que falha não diz qual
+combinação quebrou. O caminho completo continua coberto por widget test, em
+arquivo próprio: o `AuthRefresh` do router é global e assina o primeiro stream
+que encontra, então testar a espera exige o primeiro contato com o `appRouter`
+acontecendo num isolate só dela.
 
 **Pronto quando:** duas contas diferentes, no mesmo aparelho, veem gastos
 diferentes — e nenhuma vê a tag da outra. O token expirando no meio do uso não

@@ -7,6 +7,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../config/globals.dart';
 
 import '../../features/auth/view/login_page.dart';
+import '../../features/auth/view/splash_page.dart';
 import '../../features/credit_cards/view/credit_card_expenses_page.dart';
 import '../../features/credit_cards/view/credit_card_form_page.dart';
 import '../../features/credit_cards/view/credit_card_list_page.dart';
@@ -21,6 +22,7 @@ import '../../features/notifications/view/notification_list_page.dart';
 import '../../features/projection/view/projection_page.dart';
 import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
+import 'auth_gate.dart';
 import 'auth_refresh.dart';
 
 /// Configuração de navegação do app.
@@ -28,6 +30,10 @@ import 'auth_refresh.dart';
 /// Instância única e `final` de propósito: recriar o GoRouter a cada build do
 /// widget raiz descarta a pilha de navegação e o app "volta" para a home sozinho
 /// a cada rebuild.
+/// Fora do [appRouter] porque o `redirect` precisa **ler** o estado dele, e não
+/// só ser notificado: é ele que sabe se o primeiro evento do Firebase já chegou.
+final AuthRefresh _authRefresh = AuthRefresh(GetIt.I<AuthRepository>().changes);
+
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.homePath,
 
@@ -46,7 +52,7 @@ final GoRouter appRouter = GoRouter(
   /// Sem isto o `redirect` só rodaria na próxima navegação: sair da conta
   /// deixaria a pessoa parada na tela em que estava, olhando dados de uma
   /// sessão que já não existe.
-  refreshListenable: AuthRefresh(GetIt.I<AuthRepository>().changes),
+  refreshListenable: _authRefresh.mudancas,
 
   /// A tranca da navegação (AUT-05, do lado do app).
   ///
@@ -54,23 +60,34 @@ final GoRouter appRouter = GoRouter(
   /// verdades sobre quem está logado divergiriam, e a que decide navegação é a
   /// pior das duas para estar errada.
   ///
-  /// **Estar logado é o critério inteiro.** Houve um segundo, de 26 a 27/08:
-  /// quem estava logado podia ainda não ter acesso (AUT-11), e o app descobria
-  /// isso por um 403 dentro das telas. A regra saiu — quem entra pelo provedor
-  /// entra no app —, e aqui não sobrou nada para checar além da sessão.
-  redirect: (context, state) {
-    final logado = GetIt.I<AuthRepository>().current != null;
-    final indoParaOLogin = state.matchedLocation == AppRoutes.loginPath;
-
-    if (!logado) return indoParaOLogin ? null : AppRoutes.loginPath;
-
-    // Já logado, a tela de login não tem o que fazer — inclusive quando se
-    // chega nela por link ou por `--route`, que é como ela era alcançada antes
-    // deste redirect existir.
-    return indoParaOLogin ? AppRoutes.homePath : null;
-  },
+  /// **Estar logado é o critério, quando já se sabe quem está logado.** Houve
+  /// um segundo critério, de 26 a 27/08: quem estava logado podia ainda não ter
+  /// acesso (AUT-11), e o app descobria isso por um 403 dentro das telas. A
+  /// regra saiu — quem entra pelo provedor entra no app.
+  ///
+  /// O que sobrou de sutil é o **começo**: nos primeiros quadros o SDK do
+  /// Firebase ainda está lendo a sessão do disco, e `currentUser` é nulo em
+  /// quem está logado. Decidir ali manda ao login quem acabou de abrir o app, e
+  /// o `AuthRefresh` corrige um quadro depois — o que se vê é um piscar da tela
+  /// de login. Por isso existe a espera: enquanto `resolvido` é falso, ninguém
+  /// decide nada.
+  ///
+  /// A decisão em si mora no [rotaParaEstado], que não conhece `context` nem
+  /// router e por isso pode ser testada combinação por combinação.
+  redirect: (context, state) => rotaParaEstado(
+    sessaoResolvida: _authRefresh.resolvido,
+    logado: GetIt.I<AuthRepository>().current != null,
+    indoPara: state.matchedLocation,
+    guardado: state.uri.queryParameters[AppRoutes.deParam],
+  ),
 
   routes: [
+    GoRoute(
+      path: AppRoutes.splashPath,
+      name: AppRoutes.splash,
+      builder: (context, state) => const SplashPage(),
+    ),
+
     GoRoute(
       path: AppRoutes.loginPath,
       name: AppRoutes.login,
@@ -196,13 +213,6 @@ final GoRouter appRouter = GoRouter(
   errorBuilder: (context, state) =>
       _RouteErrorPage(location: state.uri.toString(), error: state.error),
 
-  /// Ponto de entrada para regra de acesso, quando houver login. Hoje o backend
-  /// não tem autenticação (veja ROADMAP.md), então nada é redirecionado.
-  ///
-  /// redirect: (context, state) {
-  ///   if (!isSignedIn && state.matchedLocation != '/login') return '/login';
-  ///   return null;
-  /// },
 );
 
 class _RouteErrorPage extends StatelessWidget {

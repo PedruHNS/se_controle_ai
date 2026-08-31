@@ -8,6 +8,22 @@ abstract final class AppRoutes {
   static const home = 'home';
   static const homePath = '/';
 
+  /// A espera da abertura, enquanto o SDK do Firebase diz se há sessão.
+  ///
+  /// Não é tela de produto: ninguém navega para cá de propósito, e ela só
+  /// aparece nos primeiros quadros do app. Existe porque a resposta "quem está
+  /// logado" não é instantânea, e sem um lugar para esperar o app decidia com a
+  /// resposta errada — mandava ao login quem já estava dentro.
+  static const splash = 'splash';
+  static const splashPath = '/splash';
+
+  /// Onde a pessoa queria chegar, guardado na query do splash.
+  ///
+  /// Sem isto, abrir o app por um link (uma notificação da Fase 10, por
+  /// exemplo) sempre terminaria na home: o destino se perderia nos quadros em
+  /// que ainda não se sabia se havia sessão.
+  static const deParam = 'de';
+
   /// Login — Etapa 7.
   ///
   /// Fora do `/auth/...` de propósito: não existe família de telas de conta
