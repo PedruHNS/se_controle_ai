@@ -6,6 +6,7 @@ import 'package:se_controle_ai/core/shared/widgets/app_drawer.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
+import 'package:se_controle_ai/features/home/widgets/home_fab.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 import 'package:se_controle_ai/features/notifications/view/notification_list_page.dart';
@@ -137,6 +138,11 @@ void main() {
   // O botão de criar da home é o atalho para o cadastro: sem ele, lançar um
   // gasto custa abrir o menu, entrar na lista e só ali achar o `+`.
   group('botão de criar', () {
+    /// As opções do menu são só ícone, e os mesmos dois ícones abrem as seções
+    /// no corpo da home — daí o escopo no [HomeFab].
+    Finder opcao(IconData icone) =>
+        find.descendant(of: find.byType(HomeFab), matching: find.byIcon(icone));
+
     Future<void> abrirMenu(WidgetTester tester) async {
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
@@ -148,7 +154,7 @@ void main() {
     testWidgets('Novo gasto leva ao formulário de gasto', (tester) async {
       await abrirMenu(tester);
 
-      await tester.tap(find.text('Novo gasto'));
+      await tester.tap(opcao(Icons.payments_outlined));
       await tester.pumpAndSettle();
 
       expect(find.byType(ExpenseFormPage), findsOneWidget);
@@ -157,7 +163,7 @@ void main() {
     testWidgets('Novo ganho leva ao formulário de ganho', (tester) async {
       await abrirMenu(tester);
 
-      await tester.tap(find.text('Novo ganho'));
+      await tester.tap(opcao(Icons.trending_up));
       await tester.pumpAndSettle();
 
       expect(find.byType(IncomeFormPage), findsOneWidget);
@@ -170,7 +176,7 @@ void main() {
     ) async {
       await abrirMenu(tester);
 
-      await tester.tap(find.text('Novo gasto'));
+      await tester.tap(opcao(Icons.payments_outlined));
       await tester.pumpAndSettle();
 
       await tester.pageBack();
@@ -179,7 +185,7 @@ void main() {
       expect(find.byType(ExpenseFormPage), findsNothing);
       expect(find.byType(ExpenseListPage), findsNothing);
       expect(find.byIcon(Icons.menu), findsOneWidget);
-      expect(find.text('Novo gasto').hitTestable(), findsNothing);
+      expect(opcao(Icons.payments_outlined).hitTestable(), findsNothing);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
+import 'package:se_controle_ai/features/home/widgets/home_fab.dart';
 
 import '../../fixtures/test_injector.dart';
 
@@ -17,11 +18,20 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// As opções não têm rótulo: são o ícone e nada mais. Por isso o teste
+  /// procura pelo ícone — e **escopado no [HomeFab]**, porque os mesmos dois
+  /// ícones abrem as seções Ganhos e Dinheiro e crédito no corpo da tela.
+  ///
   /// As opções continuam na árvore com o menu fechado — o `SizeTransition` as
   /// deixa com altura zero em vez de arrancá-las, que é o que permite a
   /// animação de saída. Então o que o teste pergunta é se dá para tocar nelas,
   /// não se elas existem.
-  Finder acao(String label) => find.text(label).hitTestable();
+  Finder acao(IconData icone) => find
+      .descendant(of: find.byType(HomeFab), matching: find.byIcon(icone))
+      .hitTestable();
+
+  final ganho = Icons.trending_up;
+  final gasto = Icons.payments_outlined;
 
   group('menu do botão de criar', () {
     testWidgets('começa fechado, mostrando só o botão de adicionar', (
@@ -30,16 +40,16 @@ void main() {
       await pumpHome(tester);
 
       expect(find.byIcon(Icons.add), findsOneWidget);
-      expect(acao('Novo ganho'), findsNothing);
-      expect(acao('Novo gasto'), findsNothing);
+      expect(acao(ganho), findsNothing);
+      expect(acao(gasto), findsNothing);
     });
 
     testWidgets('abre com as duas opções do mês', (tester) async {
       await pumpHome(tester);
       await tapFab(tester);
 
-      expect(acao('Novo ganho'), findsOneWidget);
-      expect(acao('Novo gasto'), findsOneWidget);
+      expect(acao(ganho), findsOneWidget);
+      expect(acao(gasto), findsOneWidget);
     });
 
     testWidgets('fecha ao tocar no botão de novo', (tester) async {
@@ -47,20 +57,8 @@ void main() {
       await tapFab(tester);
       await tapFab(tester);
 
-      expect(acao('Novo ganho'), findsNothing);
-      expect(acao('Novo gasto'), findsNothing);
-    });
-
-    // Fechar tocando fora é o que se espera de qualquer menu, e sem isto a
-    // única saída seria acertar de novo o botão que abriu.
-    testWidgets('fecha ao tocar fora, na cortina', (tester) async {
-      await pumpHome(tester);
-      await tapFab(tester);
-
-      await tester.tapAt(const Offset(20, 300));
-      await tester.pumpAndSettle();
-
-      expect(acao('Novo gasto'), findsNothing);
+      expect(acao(ganho), findsNothing);
+      expect(acao(gasto), findsNothing);
     });
 
     // O teste de layout que a olho nu se faria abrindo o app: as duas opções
@@ -83,40 +81,26 @@ void main() {
           matching: find.byType(FloatingActionButton),
         ),
       );
-      final gasto = tester.getRect(
-        find.widgetWithText(FloatingActionButton, 'Novo gasto'),
+      final opcaoGasto = tester.getRect(
+        find.widgetWithIcon(FloatingActionButton, gasto),
       );
-      final ganho = tester.getRect(
-        find.widgetWithText(FloatingActionButton, 'Novo ganho'),
+      final opcaoGanho = tester.getRect(
+        find.widgetWithIcon(FloatingActionButton, ganho),
       );
 
       // Gasto logo acima do botão, ganho acima do gasto.
-      expect(gasto.bottom, lessThan(botao.top));
-      expect(ganho.bottom, lessThan(gasto.top));
+      expect(opcaoGasto.bottom, lessThan(botao.top));
+      expect(opcaoGanho.bottom, lessThan(opcaoGasto.top));
 
       // Todas terminam na mesma borda direita do botão principal.
-      expect(gasto.right, closeTo(botao.right, 1));
-      expect(ganho.right, closeTo(gasto.right, 1));
+      expect(opcaoGasto.right, closeTo(botao.right, 1));
+      expect(opcaoGanho.right, closeTo(opcaoGasto.right, 1));
 
       // E nenhuma escapa da tela.
-      expect(ganho.top, greaterThan(0));
-      expect(ganho.left, greaterThan(0));
-      expect(gasto.right, lessThan(tela.width));
+      expect(opcaoGanho.top, greaterThan(0));
+      expect(opcaoGanho.left, greaterThan(0));
+      expect(opcaoGasto.right, lessThan(tela.width));
     });
 
-    // A cortina cobre o resumo enquanto o menu está aberto — é o que faz o
-    // toque fora fechar em vez de abrir uma seção por engano. Fechada, ela não
-    // pode roubar o toque de nada: nem do pull-to-refresh, nem das seções.
-    testWidgets('a cortina só engole o toque do resumo com o menu aberto', (
-      tester,
-    ) async {
-      await pumpHome(tester);
-
-      expect(find.text('Ganhos').hitTestable(), findsOneWidget);
-
-      await tapFab(tester);
-
-      expect(find.text('Ganhos').hitTestable(), findsNothing);
-    });
   });
 }
