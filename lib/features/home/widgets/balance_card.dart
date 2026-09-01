@@ -3,19 +3,19 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
 import '../../../core/utils/money.dart';
-import '../../../data/models/monthly_summary_model.dart';
+import '../../../data/models/monthly_balance_model.dart';
 
 /// O cabeçalho do mês: saldo em destaque, ganho e gasto ao lado, e quanto do
 /// ganho já está comprometido.
 class BalanceCard extends StatelessWidget {
-  const BalanceCard({required this.summary, super.key});
+  const BalanceCard({required this.balance, super.key});
 
-  final MonthlySummaryModel summary;
+  final MonthlyBalanceModel balance;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final negative = summary.isNegative;
+    final negative = balance.isNegative;
 
     // Vermelho só quando falta dinheiro. Usar a cor de erro para saldo positivo
     // treinaria o olho a ignorar o vermelho justamente quando ele importa.
@@ -38,7 +38,7 @@ class BalanceCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              Money.format(summary.balanceCents),
+              Money.format(balance.balanceCents),
               style: theme.textTheme.displaySmall?.copyWith(
                 color: balanceColor,
                 fontWeight: FontWeight.bold,
@@ -53,7 +53,7 @@ class BalanceCard extends StatelessWidget {
                 Expanded(
                   child: _Figure(
                     label: 'Entra',
-                    value: summary.incomeCents,
+                    value: balance.incomeCents,
                     icon: Icons.arrow_downward,
                     color: theme.colorScheme.primary,
                   ),
@@ -61,16 +61,16 @@ class BalanceCard extends StatelessWidget {
                 Expanded(
                   child: _Figure(
                     label: 'Sai',
-                    value: summary.expenseCents,
+                    value: balance.expenseCents,
                     icon: Icons.arrow_upward,
                     color: theme.colorScheme.error,
                   ),
                 ),
               ],
             ),
-            if (summary.committedPercent != null) ...[
+            if (balance.committedPercent != null) ...[
               const SizedBox(height: 20),
-              _CommittedBar(percent: summary.committedPercent!),
+              _CommittedBar(percent: balance.committedPercent!),
             ],
           ],
         ),

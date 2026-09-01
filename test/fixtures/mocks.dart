@@ -7,7 +7,10 @@ import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/data/models/month_projection_model.dart';
+import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
+import 'package:se_controle_ai/data/models/monthly_balance_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
+import 'package:se_controle_ai/data/models/summary_section_model.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
 import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
@@ -122,6 +125,124 @@ void stubMonthly(
   });
 }
 
+/// Stubs das quatro rotas da home, derivados do **mesmo** [summaryJson].
+///
+/// Derivar em vez de escrever quatro fixtures novos é o que mantém o contrato
+/// verificado num lugar só: o JSON continua sendo resposta real copiada do
+/// backend, e as seções são recortes dele. Se o formato mudar, muda ali.
+void stubBalance(
+  MockSummaryRepository mock, {
+  Map<String, dynamic>? json,
+  Result<MonthlyBalanceModel, Failure>? result,
+  Future<void>? pendenteAte,
+}) {
+  final answer =
+      result ?? Success(MonthlyBalanceModel.fromJson(json ?? summaryJson));
+  when(() => mock.getBalance(month: any(named: 'month'))).thenAnswer((_) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
+void stubIncomeSection(
+  MockSummaryRepository mock, {
+  Map<String, dynamic>? json,
+  Result<SummarySectionModel, Failure>? result,
+  Future<void>? pendenteAte,
+}) {
+  final fonte = json ?? summaryJson;
+  final answer =
+      result ??
+      Success(
+        SummarySectionModel.fromJson({
+          'totalCents': fonte['incomeCents'],
+          'items': fonte['incomes'],
+        }),
+      );
+  when(() => mock.getIncomes(month: any(named: 'month'))).thenAnswer((_) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
+void stubDebitSection(
+  MockSummaryRepository mock, {
+  Map<String, dynamic>? json,
+  Result<SummarySectionModel, Failure>? result,
+  Future<void>? pendenteAte,
+}) {
+  final fonte = json ?? summaryJson;
+  final answer =
+      result ??
+      Success(
+        SummarySectionModel.fromJson(fonte['debit'] as Map<String, dynamic>),
+      );
+  when(() => mock.getDebit(month: any(named: 'month'))).thenAnswer((_) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
+void stubCreditCardSections(
+  MockSummaryRepository mock, {
+  Map<String, dynamic>? json,
+  Result<List<CreditCardInvoiceModel>, Failure>? result,
+  Future<void>? pendenteAte,
+}) {
+  final fonte = json ?? summaryJson;
+  final answer =
+      result ??
+      Success(
+        (fonte['creditCards'] as List<dynamic>)
+            .cast<Map<String, dynamic>>()
+            .map(CreditCardInvoiceModel.fromJson)
+            .toList(),
+      );
+  when(() => mock.getCreditCards(month: any(named: 'month'))).thenAnswer((
+    _,
+  ) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
+/// As quatro de uma vez, que é como a home as pede.
+///
+/// [failure] derruba todas — é a falha de rede, que não escolhe endpoint. Para
+/// derrubar só uma seção, chame o stub dela depois deste com o erro que quiser:
+/// o `when` mais recente vence.
+void stubHome(
+  MockSummaryRepository mock, {
+  Map<String, dynamic>? json,
+  Failure? failure,
+  Future<void>? pendenteAte,
+}) {
+  stubBalance(
+    mock,
+    json: json,
+    result: failure == null ? null : Error(failure),
+    pendenteAte: pendenteAte,
+  );
+  stubIncomeSection(
+    mock,
+    json: json,
+    result: failure == null ? null : Error(failure),
+    pendenteAte: pendenteAte,
+  );
+  stubDebitSection(
+    mock,
+    json: json,
+    result: failure == null ? null : Error(failure),
+    pendenteAte: pendenteAte,
+  );
+  stubCreditCardSections(
+    mock,
+    json: json,
+    result: failure == null ? null : Error(failure),
+    pendenteAte: pendenteAte,
+  );
+}
+
 /// Stub de `getProjection`.
 ///
 /// O padrão é a projeção de exemplo, e não uma lista vazia: quase todo teste que
@@ -148,11 +269,13 @@ void stubProjection(
 /// Mock de resumo pronto para uso: responde o mês de exemplo em qualquer mês
 /// pedido, e devolve projeção vazia.
 MockSummaryRepository summaryRepositoryMock({
-  Result<MonthlySummaryModel, Failure>? result,
+  Map<String, dynamic>? json,
+  Failure? failure,
   Future<void>? pendenteAte,
 }) {
   final mock = MockSummaryRepository();
-  stubMonthly(mock, result: result, pendenteAte: pendenteAte);
+  stubHome(mock, json: json, failure: failure, pendenteAte: pendenteAte);
+  stubMonthly(mock);
   stubProjection(mock);
   return mock;
 }
@@ -161,8 +284,10 @@ MockSummaryRepository summaryRepositoryMock({
 ///
 /// `verify` **consome** o que foi gravado, então chamar duas vezes no mesmo
 /// teste devolve lista vazia na segunda. Use uma vez, no fim.
+/// Sai do `getBalance` e não das quatro: elas partem juntas do mesmo `load`,
+/// então uma basta para descrever a sequência de meses pedidos.
 List<String?> capturedMonths(MockSummaryRepository mock) => verify(
-  () => mock.getMonthly(month: captureAny(named: 'month')),
+  () => mock.getBalance(month: captureAny(named: 'month')),
 ).captured.cast<String?>();
 
 /// Stub de `list` de ganhos.
@@ -300,7 +425,10 @@ void stubTagDelete(
 /// Sem `registerFallbackValue`: desde que a edição virou substituição, os dois
 /// parâmetros são `String`, e mocktail já sabe inventar um. O [Patch] segue nos
 /// stubs de cartão e de gasto, que continuam com `PATCH`.
-void stubTagUpdate(MockTagRepository mock, {Result<TagModel, Failure>? result}) {
+void stubTagUpdate(
+  MockTagRepository mock, {
+  Result<TagModel, Failure>? result,
+}) {
   when(
     () => mock.update(
       any(),

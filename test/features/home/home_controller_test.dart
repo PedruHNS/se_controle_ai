@@ -7,7 +7,9 @@ import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
-import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
+import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
+import 'package:se_controle_ai/data/models/monthly_balance_model.dart';
+import 'package:se_controle_ai/data/models/summary_section_model.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 
 import '../../fixtures/mocks.dart';
@@ -24,13 +26,29 @@ void main() {
 
   tearDown(() => controller.dispose());
 
+  /// As quatro buscas saem do mesmo `load`, então uma delas basta para
+  /// descrever "buscou" ou "não buscou". O saldo é a escolhida em todo o
+  /// arquivo, por ser a que a tela mostra primeiro.
+  void verificaBuscou({required String month, int vezes = 1}) =>
+      verify(() => repository.getBalance(month: month)).called(vezes);
+
   group('estado inicial', () {
     // O BaseController chama onInit() no construtor, e o onInit do HomeController
     // dispara load(). Ou seja: construir já busca — quando o corpo do teste roda,
     // a busca do setUp terminou.
-    test('busca sozinho ao ser construído', () {
-      verify(() => repository.getMonthly(month: Month.current())).called(1);
-      expect(controller.state.value, isA<Loaded<MonthlySummaryModel>>());
+    test('busca as quatro seções sozinho ao ser construído', () {
+      verificaBuscou(month: Month.current());
+      verify(() => repository.getIncomes(month: Month.current())).called(1);
+      verify(() => repository.getDebit(month: Month.current())).called(1);
+      verify(() => repository.getCreditCards(month: Month.current())).called(1);
+
+      expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
+      expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
+      expect(controller.debit.value, isA<Loaded<SummarySectionModel>>());
+      expect(
+        controller.creditCards.value,
+        isA<Loaded<List<CreditCardInvoiceModel>>>(),
+      );
       expect(controller.month.value, Month.current());
       expect(controller.isCurrentMonth.value, isTrue);
     });
@@ -44,18 +62,80 @@ void main() {
       );
       addTearDown(slowController.dispose);
 
-      expect(slowController.state.value, isA<Loading<MonthlySummaryModel>>());
+      expect(slowController.balance.value, isA<Loading<MonthlyBalanceModel>>());
 
       // Solta a resposta e deixa a fila de eventos girar: sem esperar tempo
       // nenhum, o estado final já está lá.
       segura.complete();
       await pumpEventQueue();
 
-      expect(slowController.state.value, isA<Loaded<MonthlySummaryModel>>());
+      expect(slowController.balance.value, isA<Loaded<MonthlyBalanceModel>>());
     });
 
     test('monthLabel é derivado do mês', () {
       expect(controller.monthLabel.value, Month.shortLabel(Month.current()));
+    });
+  });
+
+  // O motivo de existirem quatro rotas em vez de uma. Se estes três caírem, a
+  // separação virou custo sem benefício: seria uma busca só, com mais passos.
+  group('seções independentes', () {
+    test('uma seção que falha não apaga as que chegaram', () async {
+      stubHome(repository);
+      stubCreditCardSections(repository, result: const Error(NetworkFailure()));
+
+      await controller.load();
+
+      expect(
+        controller.creditCards.value,
+        isA<Failed<List<CreditCardInvoiceModel>>>(),
+      );
+      expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
+      expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
+      expect(controller.debit.value, isA<Loaded<SummarySectionModel>>());
+    });
+
+    test('uma seção lenta não segura as outras', () async {
+      final presa = Completer<void>();
+      stubHome(repository);
+      stubCreditCardSections(repository, pendenteAte: presa.future);
+
+      final pending = controller.load();
+      await pumpEventQueue();
+
+      // As três rápidas já estão na tela com a quarta ainda em voo.
+      expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
+      expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
+      expect(controller.debit.value, isA<Loaded<SummarySectionModel>>());
+      expect(
+        controller.creditCards.value,
+        isA<Loading<List<CreditCardInvoiceModel>>>(),
+      );
+
+      presa.complete();
+      await pending;
+      expect(
+        controller.creditCards.value,
+        isA<Loaded<List<CreditCardInvoiceModel>>>(),
+      );
+    });
+
+    test('load só termina quando as quatro terminam', () async {
+      final presa = Completer<void>();
+      stubHome(repository);
+      stubDebitSection(repository, pendenteAte: presa.future);
+
+      var terminou = false;
+      final pending = controller.load().then((_) => terminou = true);
+      await pumpEventQueue();
+
+      // O RefreshIndicator depende disto: recolher a rosquinha antes da última
+      // seção chegar mostraria "pronto" com um pedaço ainda carregando.
+      expect(terminou, isFalse);
+
+      presa.complete();
+      await pending;
+      expect(terminou, isTrue);
     });
   });
 
@@ -65,35 +145,35 @@ void main() {
 
       await controller.load();
 
-      final state = controller.state.value;
-      expect(state, isA<Loaded<MonthlySummaryModel>>());
-      expect((state as Loaded<MonthlySummaryModel>).data.month, '2026-08');
-      verify(() => repository.getMonthly(month: Month.current())).called(1);
+      final state = controller.balance.value;
+      expect(state, isA<Loaded<MonthlyBalanceModel>>());
+      expect((state as Loaded<MonthlyBalanceModel>).data.month, '2026-08');
+      verificaBuscou(month: Month.current());
     });
 
     test('falha vira Failed com a falha traduzida', () async {
-      stubMonthly(repository, result: const Error(NetworkFailure()));
+      stubHome(repository, failure: const NetworkFailure());
 
       await controller.load();
 
-      final state = controller.state.value;
-      expect(state, isA<Failed<MonthlySummaryModel>>());
+      final state = controller.balance.value;
+      expect(state, isA<Failed<MonthlyBalanceModel>>());
       expect(
-        (state as Failed<MonthlySummaryModel>).failure,
+        (state as Failed<MonthlyBalanceModel>).failure,
         isA<NetworkFailure>(),
       );
     });
 
     test('silent mantém o conteúdo na tela durante a busca', () async {
       final segura = Completer<void>();
-      stubMonthly(repository, pendenteAte: segura.future);
+      stubHome(repository, pendenteAte: segura.future);
 
       final pending = controller.load(silent: true);
 
-      expect(controller.state.value, isA<Loaded<MonthlySummaryModel>>());
+      expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
       segura.complete();
       await pending;
-      expect(controller.state.value, isA<Loaded<MonthlySummaryModel>>());
+      expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
     });
   });
 
@@ -132,16 +212,14 @@ void main() {
 
       await controller.goToCurrentMonth();
 
-      verifyNever(() => repository.getMonthly(month: any(named: 'month')));
+      verifyNever(() => repository.getBalance(month: any(named: 'month')));
     });
 
     test('mesmo mês SEM dado na tela busca — não deixa preso no erro', () async {
       // A busca inicial falhou: o estado é Failed, não Loaded. Pedir o mesmo mês
       // tem de disparar a busca de novo, senão "voltar para o mês atual" estando
       // no mês atual não faria nada e a tela ficaria presa no erro.
-      final failing = summaryRepositoryMock(
-        result: const Error(NetworkFailure()),
-      );
+      final failing = summaryRepositoryMock(failure: const NetworkFailure());
       final controllerInError = HomeController(
         failing,
         SelectedMonthController(),
@@ -149,26 +227,49 @@ void main() {
       addTearDown(controllerInError.dispose);
       await Future<void>.delayed(Duration.zero);
 
-      expect(controllerInError.state.value, isA<Failed<MonthlySummaryModel>>());
+      expect(
+        controllerInError.balance.value,
+        isA<Failed<MonthlyBalanceModel>>(),
+      );
       clearInteractions(failing);
-      stubMonthly(failing);
+      stubHome(failing);
 
       await controllerInError.goToCurrentMonth();
 
-      verify(() => failing.getMonthly(month: Month.current())).called(1);
-      expect(controllerInError.state.value, isA<Loaded<MonthlySummaryModel>>());
+      verify(() => failing.getBalance(month: Month.current())).called(1);
+      expect(
+        controllerInError.balance.value,
+        isA<Loaded<MonthlyBalanceModel>>(),
+      );
     });
 
-    test('mesmo mês a partir de erro tenta de novo', () async {
-      stubMonthly(repository, result: const Error(NetworkFailure()));
+    // Uma seção em erro basta: `alreadyLoaded` exige as quatro carregadas, que é
+    // o que faz o "tentar de novo" da seção quebrada funcionar.
+    test('mesmo mês com UMA seção em erro rebusca', () async {
+      stubCreditCardSections(repository, result: const Error(NetworkFailure()));
       await controller.load();
       clearInteractions(repository);
 
-      stubMonthly(repository);
+      stubHome(repository);
       await controller.goToMonth(controller.month.value);
 
-      verify(() => repository.getMonthly(month: any(named: 'month'))).called(1);
-      expect(controller.state.value, isA<Loaded<MonthlySummaryModel>>());
+      verificaBuscou(month: Month.current());
+      expect(
+        controller.creditCards.value,
+        isA<Loaded<List<CreditCardInvoiceModel>>>(),
+      );
+    });
+
+    test('mesmo mês a partir de erro tenta de novo', () async {
+      stubHome(repository, failure: const NetworkFailure());
+      await controller.load();
+      clearInteractions(repository);
+
+      stubHome(repository);
+      await controller.goToMonth(controller.month.value);
+
+      verify(() => repository.getBalance(month: any(named: 'month'))).called(1);
+      expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
     });
 
     test('goToMonth recusa competência inválida', () async {
@@ -180,7 +281,7 @@ void main() {
       await controller.goToMonth('9999-12');
 
       expect(controller.month.value, start);
-      verifyNever(() => repository.getMonthly(month: any(named: 'month')));
+      verifyNever(() => repository.getBalance(month: any(named: 'month')));
     });
 
     test('goToMonth para o mesmo mês já carregado não refaz a busca', () async {
@@ -189,7 +290,7 @@ void main() {
 
       await controller.goToMonth(controller.month.value);
 
-      verifyNever(() => repository.getMonthly(month: any(named: 'month')));
+      verifyNever(() => repository.getBalance(month: any(named: 'month')));
     });
 
     test('não passa dos limites que o backend aceita', () async {
@@ -200,7 +301,7 @@ void main() {
       await controller.goToNextMonth();
 
       expect(controller.month.value, '2100-12');
-      verifyNever(() => repository.getMonthly(month: any(named: 'month')));
+      verifyNever(() => repository.getBalance(month: any(named: 'month')));
 
       await controller.goToMonth('2000-01');
       clearInteractions(repository);
@@ -209,7 +310,7 @@ void main() {
       await controller.goToPreviousMonth();
 
       expect(controller.month.value, '2000-01');
-      verifyNever(() => repository.getMonthly(month: any(named: 'month')));
+      verifyNever(() => repository.getBalance(month: any(named: 'month')));
     });
   });
 
@@ -219,17 +320,14 @@ void main() {
       // A lenta fica presa até o fim do teste: assim a ordem de chegada é
       // decidida aqui, e não por quanto tempo a máquina levou.
       final presa = Completer<void>();
-      stubMonthly(repository, pendenteAte: presa.future);
+      stubHome(repository, pendenteAte: presa.future);
       final slow = controller.load();
 
-      stubMonthly(
-        repository,
-        result: Success(MonthlySummaryModel.fromJson(emptySummaryJson)),
-      );
+      stubHome(repository, json: emptySummaryJson);
       await controller.load();
 
       expect(
-        (controller.state.value as Loaded<MonthlySummaryModel>).data.month,
+        (controller.balance.value as Loaded<MonthlyBalanceModel>).data.month,
         '2026-09',
       );
 
@@ -237,7 +335,7 @@ void main() {
       presa.complete();
       await slow;
       expect(
-        (controller.state.value as Loaded<MonthlySummaryModel>).data.month,
+        (controller.balance.value as Loaded<MonthlyBalanceModel>).data.month,
         '2026-09',
         reason: 'a resposta atrasada sobrescreveu a mais nova',
       );

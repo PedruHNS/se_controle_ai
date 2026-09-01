@@ -1,11 +1,14 @@
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
-import 'package:se_controle_ai/data/models/debit_group_model.dart';
+import 'package:se_controle_ai/data/models/summary_section_model.dart';
 import 'package:se_controle_ai/data/models/summary_line_item_model.dart';
 
-/// Resposta de `GET /summary?month=YYYY-MM`.
+/// Resposta de `GET /summary?month=YYYY-MM` — a tela inicial inteira em um
+/// objeto.
 ///
-/// É a tela inicial inteira em um objeto: quanto entra, quanto sai, o que sai
-/// no débito e a fatura de cada cartão.
+/// **A home não usa mais.** Ela passou a buscar as quatro seções por rotas
+/// próprias, para cada uma pintar quando chega. Isto continua aqui, junto com a
+/// rota, enquanto existirem builds antigas do app instaladas: a API sobe no
+/// push e o aparelho só atualiza quando alguém compila. Os dois saem juntos.
 class MonthlySummaryModel {
   final String month;
   final int incomeCents;
@@ -19,7 +22,7 @@ class MonthlySummaryModel {
   final double? committedPercent;
 
   final List<SummaryLineItemModel> incomes;
-  final DebitGroupModel debit;
+  final SummarySectionModel debit;
   final List<CreditCardInvoiceModel> creditCards;
 
   bool get isNegative => balanceCents < 0;
@@ -45,7 +48,9 @@ class MonthlySummaryModel {
             .cast<Map<String, dynamic>>()
             .map(SummaryLineItemModel.fromJson)
             .toList(growable: false),
-        debit: DebitGroupModel.fromJson(json['debit'] as Map<String, dynamic>),
+        debit: SummarySectionModel.fromJson(
+          json['debit'] as Map<String, dynamic>,
+        ),
         creditCards: (json['creditCards'] as List<dynamic>)
             .cast<Map<String, dynamic>>()
             .map(CreditCardInvoiceModel.fromJson)

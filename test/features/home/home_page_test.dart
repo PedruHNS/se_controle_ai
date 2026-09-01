@@ -7,7 +7,6 @@ import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
-import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
 import 'package:se_controle_ai/features/home/widgets/credit_card_invoice_card.dart';
 
@@ -59,12 +58,14 @@ void main() {
   group('carregamento', () {
     testWidgets('mostra spinner antes da resposta', (tester) async {
       final segura = Completer<void>();
-      stubMonthly(repository, pendenteAte: segura.future);
+      stubHome(repository, pendenteAte: segura.future);
 
       await tester.pumpWidget(const MaterialApp(home: HomePage()));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Quatro: uma por seção. Cada uma guarda o próprio lugar enquanto não
+      // chega, para o conteúdo não pular quando as respostas entram.
+      expect(find.byType(CircularProgressIndicator), findsNWidgets(4));
 
       // Sem soltar a resposta, o `pumpAndSettle` esperaria para sempre: o
       // indicador de progresso é uma animação que nunca acaba.
@@ -143,10 +144,7 @@ void main() {
 
   group('mês no vermelho', () {
     testWidgets('troca o rótulo do saldo e avisa do estouro', (tester) async {
-      stubMonthly(
-        repository,
-        result: Success(MonthlySummaryModel.fromJson(negativeSummaryJson)),
-      );
+      stubHome(repository, json: negativeSummaryJson);
 
       await pumpHome(tester);
 
@@ -167,10 +165,7 @@ void main() {
     testWidgets('mantém o acesso aos ganhos mesmo sem lançamentos', (
       tester,
     ) async {
-      stubMonthly(
-        repository,
-        result: Success(MonthlySummaryModel.fromJson(emptySummaryJson)),
-      );
+      stubHome(repository, json: emptySummaryJson);
 
       await pumpHome(tester);
 
@@ -187,40 +182,50 @@ void main() {
     testWidgets('falha de rede mostra mensagem e botão de tentar de novo', (
       tester,
     ) async {
-      stubMonthly(repository, result: const Error(NetworkFailure()));
+      stubHome(repository, failure: const NetworkFailure());
 
       await pumpHome(tester);
 
+      // Uma vez, não quatro: as quatro seções caíram juntas, então a notícia é
+      // da tela, não de uma seção.
       expect(find.text('Sem conexão'), findsOneWidget);
       expect(find.text('Tentar de novo'), findsOneWidget);
+    });
+
+    testWidgets('uma seção que falha não derruba as outras', (tester) async {
+      stubCreditCardSections(repository, result: const Error(NetworkFailure()));
+
+      await pumpHome(tester);
+
+      // O erro fica no lugar das faturas; ganhos e saldo seguem na tela.
+      expect(find.text('Sem conexão'), findsOneWidget);
+      expect(find.text('Salário'), findsOneWidget);
+      expect(find.text('Ganhos'), findsOneWidget);
     });
 
     testWidgets('tentar de novo refaz a busca e mostra o conteúdo', (
       tester,
     ) async {
-      stubMonthly(repository, result: const Error(NetworkFailure()));
+      stubHome(repository, failure: const NetworkFailure());
       await pumpHome(tester);
 
-      stubMonthly(
-        repository,
-        result: Success(MonthlySummaryModel.fromJson(summaryJson)),
-      );
+      stubHome(repository);
       await tester.tap(find.text('Tentar de novo'));
       await tester.pumpAndSettle();
 
       expect(find.text('Salário'), findsOneWidget);
       expect(find.text('Tentar de novo'), findsNothing);
-      verify(() => repository.getMonthly(month: any(named: 'month'))).called(2);
+      verify(() => repository.getBalance(month: any(named: 'month'))).called(2);
     });
 
     testWidgets('erro que não vale repetir não oferece o botão', (
       tester,
     ) async {
       // 422 é regra de negócio: repetir daria o mesmo resultado.
-      stubMonthly(
+      stubHome(
         repository,
-        result: const Error(
-          DomainRuleFailure(message: 'Gasto no cartão exige informar o cartão'),
+        failure: const DomainRuleFailure(
+          message: 'Gasto no cartão exige informar o cartão',
         ),
       );
 
