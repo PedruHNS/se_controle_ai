@@ -2,7 +2,6 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals.dart';
-
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../core/utils/text_order.dart';
@@ -37,7 +36,6 @@ class TagListController extends BaseController with MessageMixin {
   void dispose() {
     super.dispose();
     _state.dispose();
-
     _colorSelected.dispose();
     form.dispose();
   }
