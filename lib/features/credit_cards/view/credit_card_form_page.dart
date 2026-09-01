@@ -112,6 +112,7 @@ class _CreditCardForm extends StatelessWidget {
           ReactiveTextField<String>(
             formControlName: CreditCardFormController.name,
             autofocus: true,
+            onTapUpOutside: (event) => FocusScope.of(context).unfocus(),
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.next,
             validationMessages: {
@@ -128,6 +129,7 @@ class _CreditCardForm extends StatelessWidget {
           ReactiveTextField<String>(
             formControlName: CreditCardFormController.lastDigits,
             keyboardType: TextInputType.number,
+            onTapOutside: (event) => FocusScope.of(context).unfocus(),
             textInputAction: TextInputAction.next,
             // Quatro dígitos e nada mais: o limite de tamanho no campo evita a
             // recusa depois.

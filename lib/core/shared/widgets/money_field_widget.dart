@@ -29,6 +29,7 @@ class MoneyFieldWidget extends StatelessWidget {
       formControlName: formControlName,
       valueAccessor: MoneyValueAccessor(),
       autofocus: autofocus,
+      onTapOutside: (event) => FocusScope.of(context).unfocus(),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       // Só dígitos, vírgula e ponto: bloqueia sinal e letra na origem, em vez
       // de recusar depois com mensagem de erro.

@@ -121,6 +121,7 @@ class _ExpenseForm extends StatelessWidget {
           ReactiveTextField<String>(
             formControlName: ExpenseFormController.description,
             autofocus: true,
+            onTapOutside: (event) => FocusScope.of(context).unfocus(),
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.next,
             validationMessages: {
@@ -186,6 +187,7 @@ class _ExpenseForm extends StatelessWidget {
             formControlName: ExpenseFormController.notes,
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.newline,
+            onTapOutside: (event) => FocusScope.of(context).unfocus(),
             keyboardType: TextInputType.multiline,
             minLines: 2,
             maxLines: 4,
@@ -233,6 +235,7 @@ class _ExpenseForm extends StatelessWidget {
           // débito (GFX-01).
           ReactiveValueListenableBuilder<PaymentMethod>(
             formControlName: ExpenseFormController.paymentMethod,
+            
             builder: (context, control, child) {
               if (control.value != PaymentMethod.creditCard) {
                 return const SizedBox.shrink();
@@ -284,6 +287,7 @@ class _ExpenseForm extends StatelessWidget {
             Text('Tipo', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
             ReactiveValueListenableBuilder<ExpenseType>(
+              
               formControlName: ExpenseFormController.type,
               builder: (context, control, child) =>
                   SegmentedButton<ExpenseType>(
@@ -311,6 +315,7 @@ class _ExpenseForm extends StatelessWidget {
             ),
 
             ReactiveValueListenableBuilder<ExpenseType>(
+              
               formControlName: ExpenseFormController.type,
               builder: (context, control, child) =>
                   control.value == ExpenseType.installment
@@ -368,12 +373,14 @@ class _FixedFields extends StatelessWidget {
       children: [
         const SizedBox(height: 16),
         MoneyFieldWidget(
+          
           formControlName: ExpenseFormController.amountCents,
           label: 'Valor por mês',
           onSubmitted: (_) => onSubmit(),
         ),
         const SizedBox(height: 16),
         MonthFieldWidget(
+ 
           formControlName: ExpenseFormController.startMonth,
           label: 'A partir de',
         ),

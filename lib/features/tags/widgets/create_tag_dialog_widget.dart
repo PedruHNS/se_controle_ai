@@ -47,7 +47,7 @@ class _CreateTagDialogWidgetState extends State<CreateTagDialogWidget> {
             children: [
               ReactiveTextField(
                 formControlName: 'title',
-
+                onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 decoration: InputDecoration(
                   labelText: 'Nome',
                   hintText: 'Mercado, saúde, pets',
