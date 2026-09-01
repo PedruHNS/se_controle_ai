@@ -14,6 +14,7 @@ import '../../../data/models/summary_section_model.dart';
 import '../controller/home_controller.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/credit_card_invoice_card.dart';
+import '../widgets/home_fab.dart';
 import '../widgets/summary_section.dart';
 
 /// Resumo do mês — tela inicial.
@@ -30,8 +31,29 @@ class _HomePageState extends State<HomePage> {
   // desejada: o mês selecionado continua o mesmo ao sair da home e voltar.
   final _controller = getIt<HomeController>();
 
+  /// O menu do botão de criar está aberto? Mora aqui, e não no [HomeFab],
+  /// porque abrir também escurece o corpo da tela — e a cortina é do corpo.
+  bool _fabExpanded = false;
+
+  void _setFab(bool expanded) => setState(() => _fabExpanded = expanded);
+
+  /// Abre um formulário de cadastro e recarrega o mês se algo foi criado.
+  ///
+  /// O formulário devolve o id do que nasceu, ou nulo se a pessoa desistiu —
+  /// no segundo caso não há o que recarregar, e recarregar mesmo assim faria a
+  /// tela piscar à toa.
+  Future<void> _openForm(String route) async {
+    _setFab(false);
+
+    final created = await context.pushNamed(route);
+    if (!mounted || created == null) return;
+
+    await _controller.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -125,8 +147,16 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+
+            SliverPadding(padding: .only(bottom: bottomPadding + 40)),
           ],
         ),
+      ),
+      floatingActionButton: HomeFab(
+        expanded: _fabExpanded,
+        onToggle: () => _setFab(!_fabExpanded),
+        onNewIncome: () => _openForm(AppRoutes.incomeForm),
+        onNewExpense: () => _openForm(AppRoutes.expenseForm),
       ),
     );
   }

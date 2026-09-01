@@ -4,7 +4,9 @@ import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/core/shared/widgets/app_drawer.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
+import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
+import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 import 'package:se_controle_ai/features/notifications/view/notification_list_page.dart';
 import 'package:se_controle_ai/features/projection/view/projection_page.dart';
@@ -130,5 +132,54 @@ void main() {
     expect(find.byType(TagListPage), findsNothing);
     expect(find.byType(AppDrawer), findsNothing);
     expect(find.byIcon(Icons.menu), findsOneWidget);
+  });
+
+  // O botão de criar da home é o atalho para o cadastro: sem ele, lançar um
+  // gasto custa abrir o menu, entrar na lista e só ali achar o `+`.
+  group('botão de criar', () {
+    Future<void> abrirMenu(WidgetTester tester) async {
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('Novo gasto leva ao formulário de gasto', (tester) async {
+      await abrirMenu(tester);
+
+      await tester.tap(find.text('Novo gasto'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ExpenseFormPage), findsOneWidget);
+    });
+
+    testWidgets('Novo ganho leva ao formulário de ganho', (tester) async {
+      await abrirMenu(tester);
+
+      await tester.tap(find.text('Novo ganho'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IncomeFormPage), findsOneWidget);
+    });
+
+    // Voltar do formulário cai na home, e não na lista do assunto: o caminho
+    // foi o atalho, não o menu.
+    testWidgets('voltar do formulário devolve para a home, com o menu fechado', (
+      tester,
+    ) async {
+      await abrirMenu(tester);
+
+      await tester.tap(find.text('Novo gasto'));
+      await tester.pumpAndSettle();
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ExpenseFormPage), findsNothing);
+      expect(find.byType(ExpenseListPage), findsNothing);
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      expect(find.text('Novo gasto').hitTestable(), findsNothing);
+    });
   });
 }
