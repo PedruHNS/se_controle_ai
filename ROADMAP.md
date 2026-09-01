@@ -540,7 +540,7 @@ aparece lá sem duplicar.
 | 1 | **Autenticação e multiusuário: entra, e cedo.** Firebase Auth, só Google. Entra antes de notificações e offline porque obriga toda tabela a ganhar dono, e esse custo cresce com o número de tabelas | 21/08 · provedor em 25/08 · só Google em 27/08 |
 | 2 | **Offline-first: entra, mas por último** (Fase 11) | 19/08 |
 | 3 | **`intl`: não entra.** Moeda é `Money`, data é `IsoDate`, as duas por corte de string e sem `DateTime` no caminho — que é o que faz uma data andar um dia para trás. Reabrir só com localização de verdade | 19/08 |
-| 4 | **Backend hospedado** em `https://secontroleai.duckdns.org`, VPS do Google Cloud com Caddy e HTTPS automático. O Docker local segue sendo o ambiente de desenvolvimento | 21/08 |
+| 4 | **Backend hospedado** em `https://secontroleai.com.br`, VPS do Google Cloud com Caddy e HTTPS automático. O Docker local segue sendo o ambiente de desenvolvimento | 21/08 |
 | 5 | **A `API_KEY` sai dos dois lados.** O que decidiu não foi a redundância: num cliente distribuído a chave fica em texto no APK, e `strings -a` a encontra. Era uma string só, igual em todos os aparelhos, sem validade e sem dizer quem era | 31/08 |
 | 6 | **O app é aberto.** Quem quiser entra com a conta Google — sem allowlist, convite ou aprovação. A defesa deixa de ser impedir e passa a ser observar e limitar: rate limit por IP e por `uid`, aviso de conta nova, e backup do Postgres muda de natureza | 31/08 |
 
