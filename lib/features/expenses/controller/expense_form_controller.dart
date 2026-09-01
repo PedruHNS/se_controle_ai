@@ -2,10 +2,10 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/month/selected_month_controller.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../core/utils/text_order.dart';
-import '../../../core/utils/month.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
@@ -36,11 +36,13 @@ class ExpenseFormController extends BaseController {
     this._repository,
     this._cardRepository,
     this._tagRepository,
+    this._selectedMonth,
   );
 
   final ExpenseRepository _repository;
   final CreditCardRepository _cardRepository;
   final TagRepository _tagRepository;
+  final SelectedMonthController _selectedMonth;
 
   /// Nomes dos campos, iguais aos do backend porque é assim que o
   /// `issues[].path` de um 400 encontra o campo certo.
@@ -80,7 +82,10 @@ class ExpenseFormController extends BaseController {
   List<CreditCardModel> _cards = const [];
   List<TagModel> _tags = const [];
 
-  final form = FormGroup({
+  // `late` porque o padrão de competência vem de [_selectedMonth]: inicializador
+  // de campo não enxerga `this`. É `registerFactory`, então o controller nasce
+  // quando a tela abre e lê o mês que estava selecionado naquele instante.
+  late final form = FormGroup({
     description: FormControl<String>(validators: [Validators.required]),
     // TAG-06: obrigatória. Era `category`, texto livre e opcional.
     tagId: FormControl<String>(validators: [Validators.required]),
@@ -92,11 +97,16 @@ class ExpenseFormController extends BaseController {
     amountCents: FormControl<int>(
       validators: [Validators.required, Validators.min(1)],
     ),
+    // O mês que a pessoa está olhando, não o de hoje: quem navegou até outubro
+    // para lançar um gasto de outubro não deveria ter que corrigir o campo.
     startMonth: FormControl<String>(
-      value: Month.current(),
+      value: _selectedMonth.month.value,
       validators: [Validators.required],
     ),
-    recurring: FormControl<bool>(value: true),
+    // Desligado por padrão: o gasto de uma vez só é o caso comum, e deixar
+    // ligado fazia um almoço virar cobrança mensal em silêncio. Quem quer
+    // recorrência marca o switch.
+    recurring: FormControl<bool>(value: false),
     type: FormControl<ExpenseType>(value: ExpenseType.fixed),
     totalCents: FormControl<int>(
       validators: [Validators.required, Validators.min(1)],
@@ -110,7 +120,7 @@ class ExpenseFormController extends BaseController {
       ],
     ),
     firstMonth: FormControl<String>(
-      value: Month.current(),
+      value: _selectedMonth.month.value,
       validators: [Validators.required],
     ),
   });
@@ -242,7 +252,10 @@ class ExpenseFormController extends BaseController {
   /// Devolve a mensagem de erro quando o backend recusa (nome repetido é 409,
   /// TAG-01) e `null` quando deu certo. A falha não vai para [generalFailure]:
   /// ela pertence ao diálogo, não à tela inteira, que continua utilizável.
-  Future<String?> createTag({required String name, required String color}) async {
+  Future<String?> createTag({
+    required String name,
+    required String color,
+  }) async {
     final created = await _tagRepository.create(name: name, color: color);
 
     return created.when((tag) {
@@ -392,7 +405,7 @@ class ExpenseFormController extends BaseController {
       creditCardId: _cardId,
       amountCents: control<int>(amountCents).value!,
       startMonth: control<String>(startMonth).value!,
-      recurring: control<bool>(recurring).value ?? true,
+      recurring: control<bool>(recurring).value ?? false,
     );
 
     return result.when((id) => id, (failure) {

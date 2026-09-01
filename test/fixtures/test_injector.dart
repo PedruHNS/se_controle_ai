@@ -179,6 +179,7 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       () => IncomeFormController(
         getIt<IncomeRepository>(),
         getIt<TagRepository>(),
+        getIt<SelectedMonthController>(),
       ),
     )
     ..registerFactory<IncomeDetailController>(
@@ -273,6 +274,7 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
         getIt<TagRepository>(),
+        getIt<SelectedMonthController>(),
       ),
     )
     ..registerFactory<ExpenseDetailController>(
@@ -284,7 +286,6 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
 
   return repository;
 }
-
 
 /// A tela de login: repositório de autenticação mockado e o controller
 /// registrado como `factory`, igual ao injector de verdade.

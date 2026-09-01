@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
 
@@ -51,17 +52,22 @@ void main() {
     late MockCreditCardRepository cards;
     late MockTagRepository tags;
     late ExpenseFormController controller;
+    late SelectedMonthController month;
 
     setUp(() {
+      month = SelectedMonthController();
       repository = expenseRepositoryMock();
       cards = creditCardRepositoryMock();
       tags = MockTagRepository();
       stubTagList(tags);
       stubTagCreate(tags);
-      controller = ExpenseFormController(repository, cards, tags);
+      controller = ExpenseFormController(repository, cards, tags, month);
     });
 
-    tearDown(() => controller.dispose());
+    tearDown(() {
+      controller.dispose();
+      month.dispose();
+    });
 
     test('carrega as tags ao abrir', () async {
       await controller.start();
@@ -106,7 +112,11 @@ void main() {
         result: Success(
           ExpenseModel.fromJson({
             ...aluguelJson,
-            'tag': {'id': arquivadaTagId, 'name': 'Assinaturas', 'color': '#8D6E63'},
+            'tag': {
+              'id': arquivadaTagId,
+              'name': 'Assinaturas',
+              'color': '#8D6E63',
+            },
           }),
         ),
       );
@@ -145,23 +155,29 @@ void main() {
     // O `POST` devolve a tag inteira, então o seletor se atualiza com ela: sem
     // isso era preciso um segundo `GET /tags` para exibir o que o servidor
     // acabou de responder.
-    test('criar tag entra no seletor e já fica selecionada, sem novo GET', () async {
-      await controller.start();
-      // O `GET` da abertura já aconteceu; daqui para a frente não deve haver
-      // outro.
-      clearInteractions(tags);
+    test(
+      'criar tag entra no seletor e já fica selecionada, sem novo GET',
+      () async {
+        await controller.start();
+        // O `GET` da abertura já aconteceu; daqui para a frente não deve haver
+        // outro.
+        clearInteractions(tags);
 
-      final erro = await controller.createTag(name: 'Mercado', color: '#66BB6A');
+        final erro = await controller.createTag(
+          name: 'Mercado',
+          color: '#66BB6A',
+        );
 
-      expect(erro, isNull);
-      expect(
-        controller.control<String>(ExpenseFormController.tagId).value,
-        criadaTagId,
-      );
-      expect(controller.tags.value.map((t) => t.name), contains('Mercado'));
-      verify(() => tags.create(name: 'Mercado', color: '#66BB6A')).called(1);
-      verifyNever(() => tags.list());
-    });
+        expect(erro, isNull);
+        expect(
+          controller.control<String>(ExpenseFormController.tagId).value,
+          criadaTagId,
+        );
+        expect(controller.tags.value.map((t) => t.name), contains('Mercado'));
+        verify(() => tags.create(name: 'Mercado', color: '#66BB6A')).called(1);
+        verifyNever(() => tags.list());
+      },
+    );
 
     // A lista local tem que ficar igual à que o servidor devolveria: ordenada
     // por nome, sem diferenciar caixa, como o `ORDER BY name` do Postgres.
@@ -196,7 +212,10 @@ void main() {
         ),
       );
 
-      final erro = await controller.createTag(name: 'Moradia', color: '#66BB6A');
+      final erro = await controller.createTag(
+        name: 'Moradia',
+        color: '#66BB6A',
+      );
 
       expect(erro, 'Já existe uma tag chamada "Moradia"');
       expect(controller.generalFailure.value, isNull);

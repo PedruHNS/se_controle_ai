@@ -87,8 +87,11 @@ void _registerControllers() {
   // O detalhe recebe o id pelo `start`, e não pelo registro: id é dado de rota,
   // e quem o conhece é a view.
   getIt.registerFactory<IncomeFormController>(
-    () =>
-        IncomeFormController(getIt<IncomeRepository>(), getIt<TagRepository>()),
+    () => IncomeFormController(
+      getIt<IncomeRepository>(),
+      getIt<TagRepository>(),
+      getIt<SelectedMonthController>(),
+    ),
   );
 
   getIt.registerFactory<IncomeDetailController>(
@@ -139,6 +142,7 @@ void _registerControllers() {
       getIt<ExpenseRepository>(),
       getIt<CreditCardRepository>(),
       getIt<TagRepository>(),
+      getIt<SelectedMonthController>(),
     ),
   );
 

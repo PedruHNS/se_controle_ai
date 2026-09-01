@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_detail_controller.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
@@ -74,9 +75,16 @@ void main() {
 
   group('cadastro', () {
     late ExpenseFormController controller;
+    late SelectedMonthController month;
 
-    setUp(() => controller = ExpenseFormController(repository, cards, tags));
-    tearDown(() => controller.dispose());
+    setUp(() {
+      month = SelectedMonthController();
+      controller = ExpenseFormController(repository, cards, tags, month);
+    });
+    tearDown(() {
+      controller.dispose();
+      month.dispose();
+    });
 
     test('nasce como fixo', () async {
       await controller.start();
@@ -332,7 +340,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Parcelado'), findsNothing);
-      expect(find.text('Fixo'), findsNothing);
+      expect(find.text('À vista'), findsNothing);
     });
   });
 }

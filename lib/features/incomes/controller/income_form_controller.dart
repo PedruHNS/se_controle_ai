@@ -2,8 +2,8 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
+import '../../../core/month/selected_month_controller.dart';
 import '../../../core/utils/base_controller.dart';
-import '../../../core/utils/month.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/income_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
@@ -18,10 +18,15 @@ import '../../../data/repositories/tag_repository.dart';
 /// `FormGroup`, `FormControl` e `Validators` não são widgets, então o controller
 /// continua testável sem `pumpWidget` — os widgets `Reactive*` ficam na view.
 class IncomeFormController extends BaseController {
-  IncomeFormController(this._repository, this._tagRepository);
+  IncomeFormController(
+    this._repository,
+    this._tagRepository,
+    this._selectedMonth,
+  );
 
   final IncomeRepository _repository;
   final TagRepository _tagRepository;
+  final SelectedMonthController _selectedMonth;
 
   /// Nomes dos campos como constante: eles aparecem na view, na validação e no
   /// `issues[].path` do backend, e um deles escrito errado falharia calado.
@@ -36,7 +41,9 @@ class IncomeFormController extends BaseController {
   /// assim que a pessoa corrige o campo.
   static const backendError = 'backend';
 
-  final form = FormGroup({
+  // `late` porque o padrão de competência vem de [_selectedMonth]: inicializador
+  // de campo não enxerga `this`.
+  late final form = FormGroup({
     description: FormControl<String>(validators: [Validators.required]),
     // TAG-07: sem `Validators.required` — no ganho a tag é opcional, ao
     // contrário do gasto. Exigir rótulo no cadastro mais comum do app
@@ -45,11 +52,14 @@ class IncomeFormController extends BaseController {
     amountCents: FormControl<int>(
       validators: [Validators.required, Validators.min(1)],
     ),
+    // O mês selecionado, não o de hoje — mesmo motivo do form de gastos.
     startMonth: FormControl<String>(
-      value: Month.current(),
+      value: _selectedMonth.month.value,
       validators: [Validators.required],
     ),
-    recurring: FormControl<bool>(value: true, disabled: false),
+    // Desligado por padrão, como no form de gastos: recorrência é escolha
+    // explícita, não o que acontece quando ninguém mexe no switch.
+    recurring: FormControl<bool>(value: false, disabled: false),
   });
 
   final _tags = signal<List<TagModel>>(const []);
@@ -98,7 +108,7 @@ class IncomeFormController extends BaseController {
       tagId: control<String>(tagId).value,
       amountCents: control<int>(amountCents).value!,
       startMonth: control<String>(startMonth).value!,
-      recurring: control<bool>(recurring).value ?? true,
+      recurring: control<bool>(recurring).value ?? false,
     );
 
     _saving.value = false;

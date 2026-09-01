@@ -5,6 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
@@ -57,27 +58,46 @@ void main() {
     return errors[IncomeFormController.backendError] as String?;
   }
 
+  late SelectedMonthController month;
+
   setUp(() {
+    month = SelectedMonthController();
     repository = incomeRepositoryMock();
     tags = MockTagRepository();
     stubTagList(tags);
-    controller = IncomeFormController(repository, tags);
+    controller = IncomeFormController(repository, tags, month);
   });
 
-  tearDown(() => controller.dispose());
+  tearDown(() {
+    controller.dispose();
+    month.dispose();
+  });
 
   group('estado inicial', () {
-    test('competência começa no mês corrente e recorrência ligada', () {
+    test('competência começa no mês corrente e sem recorrência', () {
       expect(
         controller.control<String>(IncomeFormController.startMonth).value,
         Month.current(),
       );
+      // Desligada por padrão, como no formulário de gasto: recorrência é
+      // escolha explícita, não o que acontece quando ninguém toca no switch.
       expect(
         controller.control<bool>(IncomeFormController.recurring).value,
-        isTrue,
+        isFalse,
       );
       expect(controller.saving.value, isFalse);
       expect(controller.generalFailure.value, isNull);
+    });
+
+    // O mês vem da AppBar, não do relógio — mesmo motivo do form de gastos.
+    test('a competência nasce no mês selecionado', () {
+      month.select('2026-12');
+      controller = IncomeFormController(repository, tags, month);
+
+      expect(
+        controller.control<String>(IncomeFormController.startMonth).value,
+        '2026-12',
+      );
     });
 
     test('formulário nasce inválido — descrição e valor são obrigatórios', () {

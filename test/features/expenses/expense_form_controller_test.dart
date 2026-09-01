@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/core/month/selected_month_controller.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
@@ -16,11 +17,13 @@ void main() {
   late MockCreditCardRepository cards;
   late MockTagRepository tags;
   late ExpenseFormController controller;
+  late SelectedMonthController month;
 
   ExpenseFormController build() =>
-      ExpenseFormController(repository, cards, tags);
+      ExpenseFormController(repository, cards, tags, month);
 
   setUp(() {
+    month = SelectedMonthController();
     repository = expenseRepositoryMock();
     cards = creditCardRepositoryMock();
     tags = MockTagRepository();
@@ -29,10 +32,13 @@ void main() {
     controller = build();
   });
 
-  tearDown(() => controller.dispose());
+  tearDown(() {
+    controller.dispose();
+    month.dispose();
+  });
 
   group('cadastro', () {
-    test('abre pronto, com débito e o mês corrente', () async {
+    test('abre pronto, com débito e sem recorrência', () async {
       await controller.start();
 
       expect(controller.ready.value, isTrue);
@@ -43,6 +49,36 @@ void main() {
             .value,
         PaymentMethod.debit,
       );
+      // Desligada por padrão: o gasto de uma vez só é o caso comum, e o switch
+      // ligado fazia um almoço virar cobrança mensal sem ninguém pedir.
+      expect(
+        controller.control<bool>(ExpenseFormController.recurring).value,
+        isFalse,
+      );
+    });
+
+    // O mês do formulário é o que a pessoa escolheu na AppBar, não o do
+    // relógio: quem navegou até outubro para lançar um gasto de outubro não
+    // deveria ter que corrigir o campo depois.
+    test('a competência nasce no mês selecionado, e não no corrente', () async {
+      month.select('2026-12');
+      controller = build();
+
+      await controller.start();
+
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        '2026-12',
+      );
+      expect(
+        controller.control<String>(ExpenseFormController.firstMonth).value,
+        '2026-12',
+      );
+    });
+
+    test('sem ninguém trocar o mês, vale o corrente', () async {
+      await controller.start();
+
       expect(
         controller.control<String>(ExpenseFormController.startMonth).value,
         Month.current(),
@@ -102,7 +138,7 @@ void main() {
           tagId: moradiaTagId,
           notes: null,
           creditCardId: null,
-          recurring: true,
+          recurring: false,
         ),
       ).called(1);
     });
@@ -179,7 +215,7 @@ void main() {
           tagId: any(named: 'tagId'),
           notes: null,
           creditCardId: 'cartao-1',
-          recurring: true,
+          recurring: false,
         ),
       ).called(1);
     });

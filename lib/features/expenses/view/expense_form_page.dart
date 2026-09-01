@@ -275,9 +275,10 @@ class _ExpenseForm extends StatelessWidget {
           // Dinheiro só no cadastro (GFX-06): depois de existir, o valor muda
           // pelas operações da tela do gasto.
           //
-          // O tipo também só aparece aqui: fixo e parcelado guardam dinheiro em
-          // lugares diferentes (GFX-09), e trocar o tipo de um gasto existente
-          // seria jogar fora a fonte da verdade dele. O backend nem oferece.
+          // O tipo também só aparece aqui: à vista e parcelado guardam dinheiro
+          // em lugares diferentes (GFX-09), e trocar o tipo de um gasto
+          // existente seria jogar fora a fonte da verdade dele. O backend nem
+          // oferece.
           if (!editing) ...[
             const SizedBox(height: 16),
             Text('Tipo', style: theme.textTheme.labelLarge),
@@ -287,10 +288,15 @@ class _ExpenseForm extends StatelessWidget {
               builder: (context, control, child) =>
                   SegmentedButton<ExpenseType>(
                     segments: const [
+                      // "À vista" e não "Fixo": o par de "Parcelado" é a forma
+                      // de pagar, e desde que a recorrência virou switch à
+                      // parte — desligado por padrão — chamar isto de fixo
+                      // contradizia o controle logo abaixo. O tipo no backend
+                      // continua `FIXED`; o que mudou é como se lê na tela.
                       ButtonSegment(
                         value: ExpenseType.fixed,
-                        icon: Icon(Icons.repeat),
-                        label: Text('Fixo'),
+                        icon: Icon(Icons.payments_outlined),
+                        label: Text('À vista'),
                       ),
                       ButtonSegment(
                         value: ExpenseType.installment,
@@ -348,7 +354,7 @@ class _ExpenseForm extends StatelessWidget {
   }
 }
 
-/// Os campos que só o gasto fixo tem: um valor por mês, a partir de uma
+/// Os campos do gasto à vista (`FIXED` no backend): um valor, a partir de uma
 /// competência, repetindo ou não.
 class _FixedFields extends StatelessWidget {
   const _FixedFields({required this.onSubmit});
@@ -379,7 +385,7 @@ class _FixedFields extends StatelessWidget {
           subtitle: ReactiveValueListenableBuilder<bool>(
             formControlName: ExpenseFormController.recurring,
             builder: (context, control, child) => Text(
-              control.value ?? true
+              control.value ?? false
                   ? 'Cobra todo mês até você encerrar.'
                   : 'Sai só nesta competência — presente, conserto, consulta.',
             ),

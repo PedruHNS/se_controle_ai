@@ -52,11 +52,15 @@ void main() {
   Finder fieldWithLabel(String label) =>
       find.ancestor(of: find.text(label), matching: find.byType(TextField));
 
-  testWidgets('abre no mês corrente, recorrente', (tester) async {
+  testWidgets('abre no mês corrente, sem recorrência', (tester) async {
     await pumpForm(tester);
 
     expect(find.text(Month.label(Month.current())), findsOneWidget);
-    expect(find.text('Segue todo mês até você encerrar.'), findsOneWidget);
+    // O switch nasce desligado, então a explicação é a do lançamento único.
+    expect(
+      find.text('Entra só nesta competência — 13º, freela, bônus.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('salvar vazio mostra o que falta e não chama o backend', (
@@ -89,7 +93,7 @@ void main() {
         description: 'Salário',
         amountCents: 500000,
         startMonth: Month.current(),
-        recurring: true,
+        recurring: false,
       ),
     ).called(1);
     expect(find.byType(IncomeFormPage), findsNothing);
@@ -113,30 +117,27 @@ void main() {
     ).called(1);
   });
 
-  testWidgets('desligar recorrente troca a explicação e o que é enviado', (
+  testWidgets('ligar recorrente troca a explicação e o que é enviado', (
     tester,
   ) async {
     await pumpForm(tester);
 
-    await tester.enterText(fieldWithLabel('Descrição'), '13º salário');
+    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
     await tester.enterText(fieldWithLabel('Valor'), '5000');
     await tester.tap(find.byType(SwitchListTile));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Entra só nesta competência — 13º, freela, bônus.'),
-      findsOneWidget,
-    );
+    expect(find.text('Segue todo mês até você encerrar.'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
 
     verify(
       () => repository.create(
-        description: '13º salário',
+        description: 'Salário',
         amountCents: 500000,
         startMonth: any(named: 'startMonth'),
-        recurring: false,
+        recurring: true,
       ),
     ).called(1);
   });
