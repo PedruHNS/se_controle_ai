@@ -21,7 +21,8 @@ import 'auth_interceptor.dart';
 Dio buildDio({AuthRepository? auth}) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: AppConfig.apiBaseUrl,
+      // baseUrl: AppConfig.apiBaseUrl,
+      baseUrl: 'https://secontroleai.duckdns.org',
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       sendTimeout: AppConfig.sendTimeout,
