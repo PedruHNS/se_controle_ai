@@ -5,68 +5,172 @@ import '../../../core/utils/money.dart';
 import '../../../data/models/credit_card_model.dart';
 
 /// Uma linha da lista de cartões: o rótulo, os dois dias e o limite.
-class CreditCardTile extends StatelessWidget {
-  const CreditCardTile({
+class CreditCardWidget extends StatelessWidget {
+  final CreditCardModel card;
+  final void Function()? onTap;
+  final void Function()? onDelete;
+
+  const CreditCardWidget({
     required this.card,
     this.onTap,
     this.onDelete,
     super.key,
   });
 
-  final CreditCardModel card;
-  final VoidCallback? onTap;
-  final VoidCallback? onDelete;
-
-  /// "Fecha dia 10 · vence 17/08" — o vencimento como data quando a busca trouxe
-  /// competência, e como dia do mês quando não trouxe.
-  ///
-  /// São informações diferentes de propósito: `dueDate` é o vencimento **daquele
-  /// mês**, já com o ajuste de mês seguinte (CAR-03) e de último dia (CAR-04);
-  /// `dueDay` é só a regra.
-  String get _subtitle {
-    final due = card.dueDate;
-    final vencimento = due == null
-        ? 'vence dia ${card.dueDay}'
-        : 'vence ${IsoDate.label(due)}';
-    return 'Fecha dia ${card.closingDay} · $vencimento';
-  }
+  CreditCardWidget.esqueleton({super.key})
+    : card = CreditCardModel(
+        id: '',
+        name: '',
+        label: '',
+        lastDigits: null,
+        closingDay: 0,
+        dueDay: 0,
+        limitCents: null,
+        dueDate: null,
+        totalCents: null,
+      ),
+      onDelete = null,
+      onTap = null;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final limit = card.limitCents;
+    final limit = card.limitCents ?? 0;
+    final totalCents = card.totalCents ?? 0;
+    final remainingLimit = limit - totalCents;
 
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(Icons.credit_card, color: theme.colorScheme.primary),
-      // O label vem derivado do backend (CAR-06) e é usado como vem: os dígitos
-      // já estão nele quando existem.
-      title: Text(card.label),
-      subtitle: Text(_subtitle),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (limit != null)
-            Text(
-              Money.formatCompact(limit),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+    return Material(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Ink(
+          padding: .all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: .fromRGBO(57, 51, 96, 0.1),
+                spreadRadius: 0,
+                blurRadius: 40,
+                offset: Offset(0, 1),
               ),
-            )
-          else
-            Text(
-              'sem limite',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
+            ],
+          ),
+
+          child: Column(
+            crossAxisAlignment: .start,
+
+            children: [
+              Row(
+                mainAxisAlignment: .spaceBetween,
+                children: [
+                  Text(card.name, style: theme.textTheme.titleSmall),
+                  InkWell(
+                    onTap: onDelete,
+                    child: Icon(Icons.delete, size: 20, color: Colors.red),
+                  ),
+                ],
               ),
-            ),
-          if (onDelete != null)
-            IconButton(
-              tooltip: 'Excluir cartão',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: onDelete,
-            ),
-        ],
+
+              Padding(
+                padding: .fromLTRB(8, 12, 0, 12),
+                child: Column(
+                  crossAxisAlignment: .start,
+                  children: [
+                    Text(
+                      'Limite',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      Money.formatCompact(remainingLimit),
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                child: Column(
+                  spacing: 8,
+                  children: [
+                    Row(
+                      mainAxisAlignment: .spaceBetween,
+                      children: [
+                        Text(
+                          Money.formatCompact(totalCents),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          Money.formatCompact(limit),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    LinearProgressIndicator(
+                      value: (totalCents / limit).clamp(0, 1).toDouble(),
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Divider(),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisAlignment: .spaceBetween,
+                  children: [
+                    Text(
+                      'Fecha dia ${card.closingDay}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      'Vence dia ${IsoDate.label(card.dueDay.toString())}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // leading: Icon(Icons.credit_card, color: theme.colorScheme.primary),
+          // // O label vem derivado do backend (CAR-06) e é usado como vem: os dígitos
+          // // já estão nele quando existem.
+          // title: Text(card.label),
+          // subtitle: Text(_subtitle),
+          // trailing: Row(
+          //   mainAxisSize: MainAxisSize.min,
+          //   children: [
+          //
+          //     if (onDelete != null)
+          //       IconButton(
+          //         tooltip: 'Excluir cartão',
+          //         icon: const Icon(Icons.delete_outline),
+          //         onPressed: onDelete,
+          //       ),
+          //   ],
+          // ),
+        ),
       ),
     );
   }

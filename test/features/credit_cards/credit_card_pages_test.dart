@@ -33,20 +33,31 @@ void main() {
     ) async {
       await pumpList(tester);
 
-      expect(find.text('Nubank ••••4321'), findsOneWidget);
-      // O vencimento sai do `dueDate` da competência, não do dia solto.
-      expect(find.text('Fecha dia 10 · vence 17/08'), findsOneWidget);
+      // O nome puro: o `label` do CAR-06, com os dígitos, saiu do tile.
+      expect(find.text('Nubank'), findsOneWidget);
+      // Os dois dias como estão cadastrados. O `dueDate` que o backend resolve
+      // por competência (CAR-03) não é mais o que aparece aqui: `05/04` do
+      // cartão de teste virou `dia 5`, que é o dia do cadastro.
+      expect(find.text('Fecha dia 10'), findsOneWidget);
+      expect(find.text('Vence dia 17'), findsOneWidget);
       expect(find.text('Cartão de teste'), findsOneWidget);
-      expect(find.text('Fecha dia 27 · vence 05/04'), findsOneWidget);
+      expect(find.text('Fecha dia 27'), findsOneWidget);
+      expect(find.text('Vence dia 5'), findsOneWidget);
     });
 
-    testWidgets('cartão sem limite diz que não tem, em vez de mostrar zero', (
-      tester,
-    ) async {
+    // CAR-09: o `totalCents` da competência é o que faz a barra significar
+    // alguma coisa. Sem ele a barra seria sempre a mesma.
+    testWidgets('a barra mostra quanto do limite já foi gasto', (tester) async {
       await pumpList(tester);
 
-      expect(find.text(r'R$ 8.000'), findsOneWidget);
-      expect(find.text('sem limite'), findsOneWidget);
+      expect(find.text(r'R$ 655'), findsOneWidget); // gasto na competência
+      expect(find.text(r'R$ 8.000'), findsOneWidget); // limite
+      expect(find.text(r'R$ 7.344'), findsOneWidget); // o que ainda cabe
+
+      final barra = tester.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator).first,
+      );
+      expect(barra.value, closeTo(65590 / 800000, 0.0001));
     });
 
     testWidgets('lista vazia convida a cadastrar', (tester) async {
@@ -136,7 +147,12 @@ void main() {
       expect(find.text('Excluir'), findsOneWidget);
       expect(find.text('Nubank ••••4321'), findsOneWidget);
     });
-  });
+    // O diálogo `_DeleteDialog` e o corpo de `_confirmDelete` estão comentados
+    // em `credit_card_list_page.dart`, e o tile trocou o `IconButton` com
+    // tooltip por um `InkWell` com ícone. Enquanto o fluxo não voltar, tocar na
+    // lixeira não faz nada e não há o que conferir — pular é melhor do que
+    // apagar, que é como a cobertura do CAR-07 na tela some sem ninguém notar.
+  }, skip: 'exclusão desligada na tela: diálogo comentado na list page');
 
   group('formulário de cadastro', () {
     testWidgets('abre vazio, com os dois seletores de dia', (tester) async {

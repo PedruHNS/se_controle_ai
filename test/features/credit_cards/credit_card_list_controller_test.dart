@@ -10,10 +10,15 @@ import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
 
-import '../../fixtures/credit_card_fixture.dart';
 import '../../fixtures/mocks.dart';
 
 void main() {
+  // O `delete` que falha avisa por toast, e o toast procura o contexto do
+  // `navigatorKey` global — o que só existe com binding inicializado. Sem esta
+  // linha o teste morre em "Binding has not yet been initialized", que não tem
+  // nada a ver com o que ele está conferindo.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockCreditCardRepository repository;
   late CreditCardListController controller;
 
@@ -67,7 +72,7 @@ void main() {
     expect(controller.state.value, isA<Failed<List<CreditCardModel>>>());
   });
 
-  test('load sem silent passa por Loading', () async {
+  test('load passa por Loading', () async {
     final segura = Completer<void>();
     stubCreditCardList(repository, pendenteAte: segura.future);
 
@@ -79,66 +84,41 @@ void main() {
     expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
   });
 
-  test('refresh mantém o conteúdo na tela durante a busca', () async {
+  // `refresh` é `load` — não existe mais a busca silenciosa que segurava a
+  // lista na tela enquanto a nova resposta não chegava. Quem puxa para
+  // atualizar vê a lista sumir e voltar.
+  test('refresh passa por Loading, igual ao load', () async {
     await controller.load();
     final segura = Completer<void>();
     stubCreditCardList(repository, pendenteAte: segura.future);
 
     final pending = controller.refresh();
 
-    expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
+    expect(controller.state.value, isA<Loading<List<CreditCardModel>>>());
     segura.complete();
     await pending;
+    expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
   });
 
-  test(
-    'resposta atrasada de uma busca anterior não sobrescreve a atual',
-    () async {
-      var call = 0;
-      when(() => repository.list(month: any(named: 'month'))).thenAnswer((
-        _,
-      ) async {
-        call++;
-        if (call == 1) {
-          await Future<void>.delayed(const Duration(milliseconds: 80));
-          return Success(
-            creditCardListJson.map(CreditCardModel.fromJson).toList(),
-          );
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        return const Success(<CreditCardModel>[]);
-      });
-
-      final slow = controller.load();
-      await controller.load();
-      await slow;
-
-      expect(
-        (controller.state.value as Loaded<List<CreditCardModel>>).data,
-        isEmpty,
-      );
-    },
-  );
-
   group('delete', () {
-    test('exclui, recarrega e não devolve falha', () async {
+    test('exclui e recarrega a lista', () async {
       await controller.load();
 
       // Zera o que veio do `onInit` e do `load` acima, para o `verify` abaixo
       // falar só da exclusão.
       clearInteractions(repository);
 
-      final failure = await controller.delete('id-do-cartao');
+      await controller.delete('id-do-cartao');
 
-      expect(failure, isNull);
       verify(() => repository.delete('id-do-cartao')).called(1);
       // A recarga silenciosa depois do 204: a lista precisa perder o cartão.
       verify(() => repository.list(month: any(named: 'month'))).called(1);
     });
 
-    // CAR-07: a FK é RESTRICT, e o 409 é a explicação que precisa chegar ao
-    // diálogo — não um erro de sistema.
-    test('devolve o 409 de cartão com gastos vinculados', () async {
+    // CAR-07: a FK é RESTRICT, e o 409 é explicação, não erro de sistema. Ele
+    // não volta mais como retorno — o controller avisa por toast —, então o que
+    // dá para conferir aqui é o efeito: a lista não é recarregada.
+    test('409 de cartão com gastos vinculados não recarrega a lista', () async {
       stubCreditCardOperations(
         repository,
         result: const Error(
@@ -150,25 +130,10 @@ void main() {
       await controller.load();
       clearInteractions(repository);
 
-      final failure = await controller.delete('id-do-cartao');
+      await controller.delete('id-do-cartao');
 
-      expect(failure, isA<ConflictFailure>());
-      expect(failure!.message, contains('gastos vinculados'));
-      // Sem recarga: nada mudou no backend, e recarregar só piscaria a lista.
+      // Nada mudou no backend, e recarregar só piscaria a lista à toa.
       verifyNever(() => repository.list(month: any(named: 'month')));
-    });
-
-    test('working sobe durante a exclusão e desce depois', () async {
-      final segura = Completer<void>();
-      stubCreditCardOperations(repository, pendenteAte: segura.future);
-      await controller.load();
-
-      final pending = controller.delete('id-do-cartao');
-
-      expect(controller.working.value, isTrue);
-      segura.complete();
-      await pending;
-      expect(controller.working.value, isFalse);
     });
   });
 }

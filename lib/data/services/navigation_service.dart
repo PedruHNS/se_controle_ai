@@ -27,8 +27,29 @@ class NavigationService {
     );
   }
 
+  /// Empilha por **caminho**: `/credit-cards/abc-123`.
+  ///
+  /// Para rota com parâmetro, use [pushNamed]. Passar um nome aqui não
+  /// funciona — o go_router procura a location literal, não acha, e cai na
+  /// tela de erro; e o `arguments` vira `extra`, que não preenche `:id`.
   Future<T?> push<T>(String route, {Object? arguments}) {
     return _router.push<T>(route, extra: arguments);
+  }
+
+  /// Empilha por **nome**, montando o caminho a partir dos parâmetros — o par
+  /// de [goNamed], que já existia sozinho aqui.
+  Future<T?> pushNamed<T>(
+    String route, {
+    Map<String, String> pathParameters = const <String, String>{},
+    Map<String, dynamic> queryParameters = const <String, dynamic>{},
+    Object? extra,
+  }) {
+    return _router.pushNamed<T>(
+      route,
+      pathParameters: pathParameters,
+      queryParameters: queryParameters,
+      extra: extra,
+    );
   }
 
   Future<T?> pushReplacement<T>(String route, {Object? arguments}) {

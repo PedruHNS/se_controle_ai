@@ -4,6 +4,12 @@
 // JSON copiado, não escrito à mão: fixture inventada concorda com o que o app
 // espera por construção, e é justamente a discordância entre app e backend que
 // o teste de model precisa pegar.
+//
+// **Exceção, e a única:** o `totalCents` do CAR-09 foi escrito à mão em
+// 01/09/2026 — capturar de novo exigiria um token do Firebase, que não existe
+// fora do aparelho. Os valores seguem o resto da fixture: o do Nubank é o mesmo
+// da fatura dele em `summary_fixture.dart`, que é o mesmo cartão na mesma
+// competência.
 
 /// Cartão completo, com dígitos e limite. `dueDay > closingDay`, então a fatura
 /// de agosto vence em agosto (CAR-03).
@@ -16,6 +22,7 @@ const nubankJson = <String, dynamic>{
   'dueDay': 17,
   'limitCents': 800000,
   'dueDate': '2026-08-17',
+  'totalCents': 65590,
 };
 
 /// Cartão mínimo: sem dígitos e sem limite, os dois campos opcionais em null.
@@ -32,6 +39,8 @@ const cartaoSimplesJson = <String, dynamic>{
   'dueDay': 5,
   'limitCents': null,
   'dueDate': '2026-04-05',
+  // Competência consultada, fatura limpa: zero, e não null.
+  'totalCents': 0,
 };
 
 /// O mesmo cartão buscado **sem** `?month`: sem competência não há fatura, então
@@ -45,6 +54,8 @@ const semCompetenciaJson = <String, dynamic>{
   'dueDay': 5,
   'limitCents': null,
   'dueDate': null,
+  // Sem competência não há fatura para somar, como não há o que vencer.
+  'totalCents': null,
 };
 
 const creditCardListJson = <Map<String, dynamic>>[

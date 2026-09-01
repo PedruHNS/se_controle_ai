@@ -14,6 +14,7 @@ class CreditCardModel {
     required this.dueDay,
     required this.limitCents,
     required this.dueDate,
+    required this.totalCents,
   });
 
   final String id;
@@ -42,6 +43,14 @@ class CreditCardModel {
   /// o que vencer. Quem exibe precisa tratar os dois casos.
   final String? dueDate;
 
+  /// Quanto já foi lançado no cartão na competência consultada, em centavos
+  /// (CAR-09).
+  ///
+  /// **Null quando a busca vai sem `?month`**, como o [dueDate] — sem
+  /// competência não há fatura para somar. Zero é diferente de null: significa
+  /// que o mês foi consultado e a fatura está limpa.
+  final int? totalCents;
+
   bool get hasLimit => limitCents != null;
 
   /// A fatura vence no mês **seguinte** ao da competência?
@@ -62,5 +71,6 @@ class CreditCardModel {
         dueDay: json['dueDay'] as int,
         limitCents: json['limitCents'] as int?,
         dueDate: json['dueDate'] as String?,
+        totalCents: json['totalCents'] as int?,
       );
 }

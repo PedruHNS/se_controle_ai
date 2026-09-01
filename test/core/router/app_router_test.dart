@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_expenses_page.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_form_page.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
@@ -22,6 +24,23 @@ void main() {
     setupIncomeTestInjector();
     setupCreditCardTestInjector();
     setupExpenseTestInjector();
+
+    // Aqui a navegação é a de verdade, e é o único lugar onde ela é.
+    //
+    // Os injectors de teste registram um `NavigationService` dublê, para um
+    // diálogo fechado num teste não mexer na pilha do seguinte. Este arquivo
+    // testa justamente o router, então precisa do oposto: a lista de cartões
+    // empilha por `_nav.pushNamed`, e com o dublê o toque no cartão não sai do
+    // lugar.
+    //
+    // Trocado **depois** dos setups, e não antes: `appRouter` é global e
+    // preguiçoso, e o `redirect` dele resolve o `AuthRepository` na primeira
+    // vez que alguém o toca. Tocá-lo antes de registrar os mocks estoura com
+    // "AuthRepository is not registered".
+    if (getIt.isRegistered<NavigationService>()) {
+      getIt.unregister<NavigationService>();
+    }
+    getIt.registerSingleton<NavigationService>(NavigationService(appRouter));
   });
 
   // O appRouter é global e guarda a pilha de navegação entre testes; sem isto,
@@ -85,7 +104,15 @@ void main() {
 
     expect(find.byType(CreditCardListPage), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FloatingActionButton, 'Novo cartão'));
+    // Pelo ícone: o FAB da lista deixou de ser `extended` e não tem mais
+    // rótulo. O texto "Novo cartão" agora só existe na tela de destino, que é
+    // justamente o que a asserção lá embaixo confere.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(FloatingActionButton),
+        matching: find.byIcon(Icons.add),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(CreditCardFormPage), findsOneWidget);
@@ -148,7 +175,9 @@ void main() {
     await tester.tap(find.text('Cartões'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Nubank ••••4321').first);
+    // O nome puro, e não o `label` do CAR-06: o tile passou a mostrar só o
+    // nome do cartão.
+    await tester.tap(find.text('Nubank').first);
     await tester.pumpAndSettle();
 
     expect(find.byType(CreditCardExpensesPage), findsOneWidget);

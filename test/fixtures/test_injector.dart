@@ -210,13 +210,23 @@ MockCreditCardRepository setupCreditCardTestInjector({
     getIt.unregister<CreditCardExpensesController>();
   }
 
+  // A lista de cartões navega pelo `NavigationService`, e não pelo `context`.
+  // Mesmo duplo que as tags usam, e pelo mesmo motivo — ver lá em cima.
+  if (!getIt.isRegistered<NavigationService>()) {
+    getIt.registerSingleton<NavigationService>(navigationServiceMock());
+  }
+
   getIt
     ..registerSingleton<CreditCardRepository>(repository)
-    ..registerFactory<CreditCardListController>(
+    // `lazySingleton` com `dispose:`, e não `factory`, pelo mesmo motivo do
+    // `TagListController`: a `CreditCardListPage` chama `resetLazySingleton` no
+    // seu `dispose`, e o get_it recusa isso em registro que não seja lazy.
+    ..registerLazySingleton<CreditCardListController>(
       () => CreditCardListController(
         getIt<CreditCardRepository>(),
         getIt<SelectedMonthController>(),
       ),
+      dispose: (controller) => controller.dispose(),
     )
     ..registerFactory<CreditCardFormController>(
       () => CreditCardFormController(getIt<CreditCardRepository>()),

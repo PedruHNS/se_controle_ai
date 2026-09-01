@@ -16,6 +16,8 @@ void main() {
       expect(card.dueDay, 17);
       expect(card.limitCents, 800000);
       expect(card.dueDate, '2026-08-17');
+      // CAR-09: o que já foi lançado no cartão na competência.
+      expect(card.totalCents, 65590);
     });
 
     test('lê os dois opcionais como null, e o label cai para o nome', () {
@@ -34,6 +36,14 @@ void main() {
       expect(card.dueDate, isNull);
       // O dia continua lá: é a regra, não a data.
       expect(card.dueDay, 5);
+    });
+
+    // Os dois nascem e morrem juntos: sem `?month` não há fatura para vencer
+    // nem para somar. E zero não é null — é fatura limpa num mês consultado.
+    test('totalCents acompanha o dueDate, e zero não vira null', () {
+      expect(CreditCardModel.fromJson(semCompetenciaJson).totalCents, isNull);
+      expect(CreditCardModel.fromJson(cartaoSimplesJson).totalCents, 0);
+      expect(CreditCardModel.fromJson(nubankJson).totalCents, 65590);
     });
   });
 
