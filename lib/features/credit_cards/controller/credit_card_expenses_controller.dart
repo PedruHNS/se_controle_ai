@@ -9,8 +9,7 @@ import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/credit_card_repository.dart';
 import '../../../data/repositories/expense_repository.dart';
 
-/// O que a tela de um cartão mostra: o cartão, tudo que foi lançado nele, e
-/// quanto disso cai na fatura do mês.
+/// O que a tela de um cartão mostra: o cartão e o que cai na fatura do mês.
 typedef CardWithExpenses = ({
   CreditCardModel card,
   List<ExpenseModel> expenses,
@@ -18,20 +17,23 @@ typedef CardWithExpenses = ({
   int monthTotalCents,
 });
 
-/// Um cartão e os gastos lançados nele.
+/// Um cartão e os gastos cobrados nele na competência selecionada.
 ///
-/// **Três buscas, e cada uma responde uma pergunta diferente:**
+/// **Duas buscas:**
 ///
 /// - o cartão com `?month` traz o vencimento da fatura já resolvido (CAR-03);
-/// - a lista **sem** `?month` traz tudo que já foi lançado no cartão, inclusive
-///   o que foi encerrado — é a pergunta "o que existe neste cartão";
 /// - a lista **com** `?month` traz só o que é cobrado neste mês, e com o valor
-///   preenchido, que é a pergunta "quanto vem na fatura".
+///   preenchido — é a pergunta "o que vem nesta fatura".
 ///
-/// A terceira não dá para deduzir da segunda: sem competência o backend manda
+/// Houve uma terceira, sem `?month`, que trazia tudo que já passou pelo cartão
+/// inclusive o encerrado. Ela saiu: um avulso de setembro reaparecendo na tela
+/// de outubro com o selo "Encerrado" responde uma pergunta que ninguém fez ali,
+/// e o cabeçalho da tela é uma fatura, de um mês só. Quem quer o histórico do
+/// que existe cadastrado tem a lista de gastos, que continua sem recorte.
+///
+/// O valor vem do backend e não é somado aqui: sem competência ele manda
 /// `amountCents: null`, e num gasto parcelado o valor do mês nem sequer está no
-/// `history` — está nas parcelas (GFX-09). Somar o que dá localmente daria um
-/// total que passa a mentir no dia em que existir parcelado.
+/// `history` — está nas parcelas (GFX-09).
 class CreditCardExpensesController extends BaseController {
   CreditCardExpensesController(
     this._expenses,
@@ -70,28 +72,24 @@ class CreditCardExpensesController extends BaseController {
     if (!silent) _state.value = const Loading();
 
     // Disparadas juntas e colhidas em seguida: são independentes, e esperar uma
-    // de cada vez triplicaria o tempo de abertura da tela.
+    // de cada vez dobraria o tempo de abertura da tela.
     final cardCall = _cards.getById(_id, month: month);
-    final allCall = _expenses.list(creditCardId: _id);
     final monthCall = _expenses.list(creditCardId: _id, month: month);
 
     final cardResult = await cardCall;
-    final allResult = await allCall;
     final monthResult = await monthCall;
 
     if (requestId != _requestId) return;
 
     final card = cardResult.tryGetSuccess();
-    final all = allResult.tryGetSuccess();
     final ofMonth = monthResult.tryGetSuccess();
 
-    if (card == null || all == null || ofMonth == null) {
-      // A primeira falha manda. As três buscas são a mesma tela: sem o cartão
-      // não há título nem limite, e sem uma das listas o número exibido estaria
-      // errado — mostrar meia tela seria pior que a tela de erro.
+    if (card == null || ofMonth == null) {
+      // A primeira falha manda. As duas buscas são a mesma tela: sem o cartão
+      // não há título nem limite, e sem a lista o número exibido estaria errado
+      // — mostrar meia tela seria pior que a tela de erro.
       _state.value = Failed(
         cardResult.tryGetError() ??
-            allResult.tryGetError() ??
             monthResult.tryGetError() ??
             const UnexpectedFailure(),
       );
@@ -100,7 +98,7 @@ class CreditCardExpensesController extends BaseController {
 
     _state.value = Loaded((
       card: card,
-      expenses: all,
+      expenses: ofMonth,
       month: month,
       monthTotalCents: ofMonth.fold(
         0,

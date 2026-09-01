@@ -35,7 +35,7 @@ void main() {
     );
     tearDown(() => controller.dispose());
 
-    test('busca o cartão e as duas listas', () async {
+    test('busca o cartão e a fatura do mês', () async {
       await controller.start('cartao-1');
 
       final state = controller.state.value;
@@ -47,16 +47,6 @@ void main() {
 
       // O cartão com competência, para o vencimento vir resolvido (CAR-03).
       verify(() => cards.getById('cartao-1', month: Month.current())).called(1);
-      // Uma lista sem competência — tudo que existe no cartão — e outra com,
-      // que é a que traz valor preenchido para somar a fatura.
-      verify(
-        () => expenses.list(
-          creditCardId: 'cartao-1',
-          month: null,
-          type: any(named: 'type'),
-          paymentMethod: any(named: 'paymentMethod'),
-        ),
-      ).called(1);
       verify(
         () => expenses.list(
           creditCardId: 'cartao-1',
@@ -65,6 +55,22 @@ void main() {
           paymentMethod: any(named: 'paymentMethod'),
         ),
       ).called(1);
+    });
+
+    // Houve uma segunda busca, sem competência, que trazia tudo que já passou
+    // pelo cartão. Ela saiu porque um avulso de setembro reaparecia na tela de
+    // outubro com o selo "Encerrado", contradizendo o total do cabeçalho.
+    test('não busca a lista sem competência', () async {
+      await controller.start('cartao-1');
+
+      verifyNever(
+        () => expenses.list(
+          creditCardId: any(named: 'creditCardId'),
+          month: null,
+          type: any(named: 'type'),
+          paymentMethod: any(named: 'paymentMethod'),
+        ),
+      );
     });
 
     // O total não pode sair da lista sem competência: lá `amountCents` vem
@@ -93,7 +99,7 @@ void main() {
       },
     );
 
-    test('falha em qualquer das três buscas vira Failed', () async {
+    test('falha em qualquer das duas buscas vira Failed', () async {
       stubExpenseList(
         expenses,
         result: const Error(NetworkFailure(message: 'sem rede')),
@@ -121,10 +127,10 @@ void main() {
       expect(find.textContaining('Fecha dia 10'), findsOneWidget);
     });
 
-    testWidgets('lista os gastos lançados no cartão', (tester) async {
+    testWidgets('lista o que é cobrado nesta fatura', (tester) async {
       await pump(tester);
 
-      expect(find.text('Lançados neste cartão'), findsOneWidget);
+      expect(find.text('Nesta fatura'), findsOneWidget);
       expect(find.text('Aluguel'), findsOneWidget);
       expect(find.text('Youtube Music'), findsOneWidget);
     });
@@ -136,7 +142,7 @@ void main() {
 
       await pump(tester);
 
-      expect(find.text('Nada lançado neste cartão'), findsOneWidget);
+      expect(find.text('Nada nesta fatura'), findsOneWidget);
     });
 
     testWidgets('falha mostra o card de erro', (tester) async {

@@ -155,14 +155,15 @@ class _CardExpenses extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Nada lançado neste cartão',
+                    'Nada nesta fatura',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Os gastos que você marcar como "Cartão" e escolher este '
-                    'aparecem aqui.',
+                    'Nenhum gasto deste cartão é cobrado em '
+                    '${Month.label(view.month)}. Trocar o mês no topo mostra '
+                    'as outras faturas.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -174,14 +175,11 @@ class _CardExpenses extends StatelessWidget {
           else ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'Lançados neste cartão',
-                style: theme.textTheme.titleSmall,
-              ),
+              child: Text('Nesta fatura', style: theme.textTheme.titleSmall),
             ),
-            // Tudo que existe no cartão, e não só o do mês: quem abre a tela do
-            // cartão quer saber o que está pendurado nele, inclusive o que já
-            // foi encerrado.
+            // Só o que é cobrado na competência, e não tudo que já passou pelo
+            // cartão: o cabeçalho acima é a fatura de um mês, e listar embaixo
+            // dele um avulso encerrado meses atrás contradiz o total exibido.
             for (final expense in view.expenses)
               ExpenseTile(
                 expense: expense,
