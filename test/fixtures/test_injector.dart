@@ -277,7 +277,10 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
   getIt
     ..registerSingleton<ExpenseRepository>(repository)
     ..registerFactory<ExpenseListController>(
-      () => ExpenseListController(getIt<ExpenseRepository>()),
+      () => ExpenseListController(
+        getIt<ExpenseRepository>(),
+        getIt<SelectedMonthController>(),
+      ),
     )
     ..registerFactory<ExpenseFormController>(
       () => ExpenseFormController(

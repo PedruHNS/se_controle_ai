@@ -133,7 +133,10 @@ void _registerControllers() {
   // fecha o critério da Fase 3), e o detalhe busca o nome do cartão do gasto
   // para não escrever só "No cartão".
   getIt.registerLazySingleton<ExpenseListController>(
-    () => ExpenseListController(getIt<ExpenseRepository>()),
+    () => ExpenseListController(
+      getIt<ExpenseRepository>(),
+      getIt<SelectedMonthController>(),
+    ),
     dispose: (e) => e.dispose(),
   );
 

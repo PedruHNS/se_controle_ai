@@ -26,9 +26,10 @@ class ExpenseListPage extends StatefulWidget {
 class _ExpenseListPageState extends State<ExpenseListPage> {
   final _controller = getIt<ExpenseListController>();
 
-  /// O mês que a home selecionou. A lista em si não depende dele — a busca é
-  /// sem `?month`, de propósito —, mas o valor de cada linha e o total do rodapé
-  /// dependem: é o mês que responde "quanto disto sai".
+  /// O mês que a home selecionou. Manda em tudo nesta tela: no valor de cada
+  /// linha, no total do rodapé e — desde o `?activeFrom` (GFX-11) — em quem
+  /// aparece, já que o que acabou antes dele não é mais assunto aqui. Quem
+  /// refaz a busca na troca de mês é o controller, com um `effect`.
   final _selectedMonth = getIt<SelectedMonthController>();
 
   /// Recarrega ao voltar do formulário ou do detalhe: as duas telas podem ter
@@ -125,9 +126,12 @@ class _ExpenseList extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (expenses.isEmpty) {
+      // "neste mês" e não "cadastrado": com o `?activeFrom`, a lista vazia pode
+      // ser tanto quem nunca cadastrou nada quanto quem só tem gasto que já
+      // acabou. Prometer "nenhum gasto cadastrado" para o segundo seria mentira.
       return EmptyStateWidget(
         icon: Icons.payments_outlined,
-        title: 'Nenhum gasto cadastrado',
+        title: 'Nenhum gasto em ${Month.label(month)}',
         message:
             'Comece pelo que se repete todo mês — aluguel, streaming, escola.',
         onRefresh: onRefresh,

@@ -23,11 +23,14 @@ abstract interface class ExpenseRepository {
   /// `amountCents: null` — o valor sai do `history`. Com [month], só os
   /// cobrados naquela competência, já com o valor de lá (GFX-10).
   ///
-  /// A lista da tela busca sem competência de propósito: esconder um gasto
-  /// encerrado porque hoje é dezembro deixaria o usuário sem como consultar ou
-  /// apagar o que cadastrou. Quem recorta por mês é a home, em `/summary`.
+  /// [activeFrom] é o outro recorte, e não se confunde com [month] (GFX-11):
+  /// tira o que **acabou antes** daquela competência, sem esconder o que ainda
+  /// vai começar nem trocar a semântica do valor. É o que a lista de gastos usa
+  /// — a fatura de um cartão continua usando [month], porque ali a pergunta é
+  /// "o que vem nesta fatura".
   Future<Result<List<ExpenseModel>, Failure>> list({
     String? month,
+    String? activeFrom,
     ExpenseType? type,
     PaymentMethod? paymentMethod,
     String? creditCardId,
@@ -135,6 +138,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   @override
   Future<Result<List<ExpenseModel>, Failure>> list({
     String? month,
+    String? activeFrom,
     ExpenseType? type,
     PaymentMethod? paymentMethod,
     String? creditCardId,
@@ -144,6 +148,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
         '/expenses',
         queryParameters: {
           'month': month,
+          'activeFrom': activeFrom,
           'type': type?.wire,
           'paymentMethod': paymentMethod?.wire,
           'creditCardId': creditCardId,

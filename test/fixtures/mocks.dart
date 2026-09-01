@@ -614,6 +614,7 @@ void stubExpenseList(
   when(
     () => mock.list(
       month: any(named: 'month'),
+      activeFrom: any(named: 'activeFrom'),
       type: any(named: 'type'),
       paymentMethod: any(named: 'paymentMethod'),
       creditCardId: any(named: 'creditCardId'),

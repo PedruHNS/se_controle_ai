@@ -138,8 +138,8 @@ void main() {
       getIt<SelectedMonthController>().select(proximo);
       await tester.pumpAndSettle();
 
-      // A tela não foi remontada nem buscou de novo — o mês trocou e o rodapé
-      // se refez sozinho, agora com o presente somado.
+      // A tela não foi remontada: o mês trocou, o controller refez a busca com
+      // o novo `activeFrom` e o rodapé se recompôs, agora com o presente somado.
       expect(
         find.descendant(
           of: find.widgetWithText(ListTile, 'Sai em ${Month.label(proximo)}'),
@@ -156,7 +156,19 @@ void main() {
 
       await pumpList(tester);
 
-      expect(find.text('Nenhum gasto cadastrado'), findsOneWidget);
+      // "em <mês>" e não "cadastrado": com o `?activeFrom` (GFX-11), lista
+      // vazia também é o mês em que nada é cobrado.
+      //
+      // O mês sai do controller e não de `Month.current()`: o
+      // `SelectedMonthController` é singleton do `getIt` e sobrevive entre os
+      // testes deste arquivo — o de cima deixa a home no mês seguinte.
+      expect(
+        find.text(
+          'Nenhum gasto em '
+          '${Month.label(getIt<SelectedMonthController>().month.value)}',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('falha mostra o card de erro', (tester) async {
