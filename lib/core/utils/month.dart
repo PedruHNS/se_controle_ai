@@ -9,7 +9,11 @@
 abstract final class Month {
   /// Faixa que o backend aceita. Fora dela ele responde 400, então a navegação
   /// para nos limites em vez de gerar requisição inválida.
-  static const minYear = 2020;
+  ///
+  /// Os dois números são os `MIN_YEAR`/`MAX_YEAR` do `shared/http/schemas.ts`.
+  /// Apertar só deste lado não protege nada e não é o que a constante promete:
+  /// mudar aqui pede mudar lá junto.
+  static const minYear = 2000;
   static const maxYear = 2100;
 
   static const _names = [
