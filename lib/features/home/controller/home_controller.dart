@@ -32,38 +32,47 @@ class HomeController extends BaseController {
   final SummaryRepository _repository;
   final SelectedMonthController _selectedMonth;
 
-  // Quatro estados e não um: cada seção tem rota própria e pinta quando
-  // chega. Um estado só obrigaria a tela a esperar a resposta mais lenta para
-  // mostrar qualquer coisa — e uma falha em faturas apagaria os ganhos que já
-  // tinham chegado.
+  // Um estado por seção e não um só: cada seção tem rota própria e pinta
+  // quando chega. Um estado só obrigaria a tela a esperar a resposta mais lenta
+  // para mostrar qualquer coisa — e uma falha em faturas apagaria os ganhos que
+  // já tinham chegado.
   final _balance = signal<ViewState<MonthlyBalanceModel>>(const Loading());
   final _incomes = signal<ViewState<SummarySectionModel>>(const Loading());
+  final _expenses = signal<ViewState<SummarySectionModel>>(const Loading());
   final _debit = signal<ViewState<SummarySectionModel>>(const Loading());
   final _creditCards = signal<ViewState<List<CreditCardInvoiceModel>>>(
     const Loading(),
   );
 
   /// Cresce a cada requisição. Serve para descartar resposta atrasada — ver
-  /// [load]. É um contador só para as quatro buscas: elas saem juntas e são a
+  /// [load]. É um contador só para todas as buscas: elas saem juntas e são a
   /// mesma pergunta, "o que aconteceu neste mês".
   int _requestId = 0;
 
   ReadonlySignal<ViewState<MonthlyBalanceModel>> get balance => _balance;
   ReadonlySignal<ViewState<SummarySectionModel>> get incomes => _incomes;
+
+  /// Tudo que sai no mês, débito e cartão juntos (RES-18). É a seção que a
+  /// [debit] não consegue ser: um gasto lançado no cartão aparece aqui, e não
+  /// só enterrado dentro da fatura.
+  ReadonlySignal<ViewState<SummarySectionModel>> get expenses => _expenses;
+
+  /// Só o que sai do dinheiro — o recorte de [expenses] que não vai na fatura.
   ReadonlySignal<ViewState<SummarySectionModel>> get debit => _debit;
   ReadonlySignal<ViewState<List<CreditCardInvoiceModel>>> get creditCards =>
       _creditCards;
 
-  /// A falha quando **as quatro** seções falharam; null se ao menos uma foi.
+  /// A falha quando **todas** as seções falharam; null se ao menos uma foi.
   ///
-  /// Quatro buscas separadas trocam um erro de tela inteira por quatro erros de
-  /// seção — o que é ganho quando só uma cai, e perda quando a rede some: seriam
-  /// quatro cartões empilhados dizendo "Sem conexão". Neste caso a notícia é uma
-  /// só e a tela volta a mostrá-la uma vez.
+  /// Buscas separadas trocam um erro de tela inteira por um erro por seção — o
+  /// que é ganho quando só uma cai, e perda quando a rede some: seriam cinco
+  /// cartões empilhados dizendo "Sem conexão". Neste caso a notícia é uma só e a
+  /// tela volta a mostrá-la uma vez.
   late final ReadonlySignal<Failure?> wholeScreenFailure = computed(() {
     final states = <ViewState<Object?>>[
       _balance.value,
       _incomes.value,
+      _expenses.value,
       _debit.value,
       _creditCards.value,
     ];
@@ -97,7 +106,7 @@ class HomeController extends BaseController {
     await load();
   }
 
-  /// Busca as quatro seções da competência selecionada.
+  /// Busca as seções da competência selecionada.
   ///
   /// Elas saem juntas e cada uma se publica quando volta — não há `Future.wait`
   /// antes de escrever no signal, senão a tela voltaria a esperar a mais lenta.
@@ -114,6 +123,7 @@ class HomeController extends BaseController {
     if (!silent) {
       _balance.value = const Loading();
       _incomes.value = const Loading();
+      _expenses.value = const Loading();
       _debit.value = const Loading();
       _creditCards.value = const Loading();
     }
@@ -121,6 +131,7 @@ class HomeController extends BaseController {
     await Future.wait([
       _fill(_balance, requestId, () => _repository.getBalance(month: month)),
       _fill(_incomes, requestId, () => _repository.getIncomes(month: month)),
+      _fill(_expenses, requestId, () => _repository.getExpenses(month: month)),
       _fill(_debit, requestId, () => _repository.getDebit(month: month)),
       _fill(
         _creditCards,
@@ -171,11 +182,12 @@ class HomeController extends BaseController {
     // "voltar para o mês atual" a partir de uma tela de erro no próprio mês
     // atual não faria nada, e a tela ficaria presa no erro.
     //
-    // "Na tela" agora exige as quatro: com uma seção em erro, repetir o mês
-    // tem que rebuscar, que é o caminho de quem toca em "Tentar de novo" ali.
+    // "Na tela" exige todas: com uma seção em erro, repetir o mês tem que
+    // rebuscar, que é o caminho de quem toca em "Tentar de novo" ali.
     final alreadyLoaded = [
       _balance.value,
       _incomes.value,
+      _expenses.value,
       _debit.value,
       _creditCards.value,
     ].every((state) => state is Loaded);
@@ -196,6 +208,7 @@ class HomeController extends BaseController {
   void dispose() {
     _balance.dispose();
     _incomes.dispose();
+    _expenses.dispose();
     _debit.dispose();
     _creditCards.dispose();
     super.dispose();

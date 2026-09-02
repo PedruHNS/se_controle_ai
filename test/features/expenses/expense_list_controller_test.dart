@@ -40,6 +40,79 @@ void main() {
     ),
   ).captured;
 
+  /// Os `paymentMethod` que o mock recebeu, em ordem de chamada.
+  List<Object?> capturedPaymentMethods() => verify(
+    () => repository.list(
+      month: any(named: 'month'),
+      activeFrom: any(named: 'activeFrom'),
+      type: any(named: 'type'),
+      paymentMethod: captureAny(named: 'paymentMethod'),
+      creditCardId: any(named: 'creditCardId'),
+    ),
+  ).captured;
+
+  // O filtro nasceu com a segunda seção de gasto da home: a de cima leva à
+  // lista inteira, a de baixo ao recorte de dinheiro. É a mesma tela, e é o
+  // filtro que muda.
+  group('filtro por forma de pagamento', () {
+    test('sem filtro, a busca vai sem paymentMethod', () async {
+      await controller.load();
+
+      expect(capturedPaymentMethods(), everyElement(isNull));
+    });
+
+    test('applyFilter troca o filtro e rebusca', () async {
+      clearInteractions(repository);
+
+      await controller.applyFilter(PaymentMethod.debit);
+
+      expect(controller.paymentMethod, PaymentMethod.debit);
+      expect(capturedPaymentMethods(), [PaymentMethod.debit]);
+    });
+
+    // A guarda existe porque a view reafirma o filtro a cada montagem: sem
+    // ela, toda entrada na tela custaria uma requisição a mais.
+    test('applyFilter com o mesmo filtro não rebusca', () async {
+      await controller.applyFilter(PaymentMethod.debit);
+      clearInteractions(repository);
+
+      await controller.applyFilter(PaymentMethod.debit);
+
+      verifyNever(
+        () => repository.list(
+          month: any(named: 'month'),
+          activeFrom: any(named: 'activeFrom'),
+          type: any(named: 'type'),
+          paymentMethod: any(named: 'paymentMethod'),
+          creditCardId: any(named: 'creditCardId'),
+        ),
+      );
+    });
+
+    // O controller é singleton e sobrevive à saída da tela. Voltar à lista
+    // inteira depois do recorte tem de limpar o filtro, senão a tela "Gastos"
+    // mostraria só o dinheiro.
+    test('applyFilter com nulo volta à lista inteira', () async {
+      await controller.applyFilter(PaymentMethod.debit);
+      clearInteractions(repository);
+
+      await controller.applyFilter(null);
+
+      expect(controller.paymentMethod, isNull);
+      expect(capturedPaymentMethods(), [null]);
+    });
+
+    test('a troca de mês mantém o filtro', () async {
+      await controller.applyFilter(PaymentMethod.debit);
+      clearInteractions(repository);
+
+      selectedMonth.goToNext();
+      await pumpEventQueue();
+
+      expect(capturedPaymentMethods(), everyElement(PaymentMethod.debit));
+    });
+  });
+
   test('busca os gastos e fica em Loaded', () async {
     await controller.load();
 

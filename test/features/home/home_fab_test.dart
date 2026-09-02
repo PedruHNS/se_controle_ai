@@ -20,7 +20,7 @@ void main() {
 
   /// As opções não têm rótulo: são o ícone e nada mais. Por isso o teste
   /// procura pelo ícone — e **escopado no [HomeFab]**, porque os mesmos dois
-  /// ícones abrem as seções Ganhos e Dinheiro e crédito no corpo da tela.
+  /// ícones abrem as seções Ganhos e Dinheiro no corpo da tela.
   ///
   /// As opções continuam na árvore com o menu fechado — o `SizeTransition` as
   /// deixa com altura zero em vez de arrancá-las, que é o que permite a

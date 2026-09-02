@@ -20,7 +20,10 @@ abstract interface class SummaryRepository {
   /// A seção Ganhos.
   Future<Result<SummarySectionModel, Failure>> getIncomes({String? month});
 
-  /// A seção de débito.
+  /// A seção de gastos: tudo que sai no mês, débito e cartão juntos.
+  Future<Result<SummarySectionModel, Failure>> getExpenses({String? month});
+
+  /// A seção de débito — só o que **não** vai na fatura.
   Future<Result<SummarySectionModel, Failure>> getDebit({String? month});
 
   /// Uma fatura por cartão, com total da competência e as linhas dela.
@@ -61,6 +64,14 @@ class SummaryRepositoryImpl implements SummaryRepository {
       );
 
   @override
+  Future<Result<SummarySectionModel, Failure>> getExpenses({String? month}) =>
+      _read(
+        '/summary/expenses',
+        month,
+        (data) => SummarySectionModel.fromJson(Decode.object(data)),
+      );
+
+  @override
   Future<Result<SummarySectionModel, Failure>> getDebit({String? month}) =>
       _read(
         '/summary/debit',
@@ -77,8 +88,8 @@ class SummaryRepositoryImpl implements SummaryRepository {
     (data) => Decode.listOf(data, CreditCardInvoiceModel.fromJson),
   );
 
-  /// As quatro rotas da home só diferem no caminho e no decode. Repetir o
-  /// `try/catch` quatro vezes seria quatro lugares para esquecer o
+  /// As rotas de seção da home só diferem no caminho e no decode. Repetir o
+  /// `try/catch` em cada uma seria um lugar por seção para esquecer o
   /// [_serializationFailure] — o que transforma campo com tipo trocado em
   /// crash, em vez de erro tratado.
   Future<Result<T, Failure>> _read<T>(

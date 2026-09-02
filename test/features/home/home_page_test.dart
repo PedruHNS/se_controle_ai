@@ -22,7 +22,26 @@ void main() {
   setUp(() => repository = setupTestInjector());
   // tearDown(resetInjector);
 
-  Future<void> pumpHome(WidgetTester tester, {ThemeData? theme}) async {
+  /// Monta a home numa tela alta o bastante para o resumo inteiro caber.
+  ///
+  /// O que está fora do viewport de um sliver não está na árvore, e desde que a
+  /// home ganhou a segunda seção de gasto ela passa dos 600px do surface padrão
+  /// do `flutter_test` — sem isto, `find.text('Nubank ••••4321')` acharia zero e
+  /// a asserção estaria medindo altura de card, não conteúdo.
+  ///
+  /// [inteira] existe para os dois testes que medem a AppBar em tela estreita:
+  /// eles escolhem o próprio tamanho, e a tela alta o desfaria.
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    ThemeData? theme,
+    bool inteira = true,
+  }) async {
+    if (inteira) {
+      tester.view.physicalSize = const Size(400, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+    }
+
     await tester.pumpWidget(MaterialApp(theme: theme, home: const HomePage()));
     await tester.pumpAndSettle();
   }
@@ -60,12 +79,16 @@ void main() {
       final segura = Completer<void>();
       stubHome(repository, pendenteAte: segura.future);
 
+      tester.view.physicalSize = const Size(400, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
       await tester.pumpWidget(const MaterialApp(home: HomePage()));
       await tester.pump();
 
-      // Quatro: uma por seção. Cada uma guarda o próprio lugar enquanto não
+      // Cinco: uma por seção. Cada uma guarda o próprio lugar enquanto não
       // chega, para o conteúdo não pular quando as respostas entram.
-      expect(find.byType(CircularProgressIndicator), findsNWidgets(4));
+      expect(find.byType(CircularProgressIndicator), findsNWidgets(5));
 
       // Sem soltar a resposta, o `pumpAndSettle` esperaria para sempre: o
       // indicador de progresso é uma animação que nunca acaba.
@@ -82,7 +105,9 @@ void main() {
       // 5.000,00 aparece 3x: no cartão de saldo, no total da seção Ganhos e na
       // linha do Salário — que é o único ganho do mês.
       expect(find.text('R\$ 5.000,00'), findsNWidgets(3));
-      expect(find.text('R\$ 2.455,90'), findsOneWidget); // gasto
+      // 2x: o "Sai" do cartão de saldo e o total de "Dinheiro e crédito". São o
+      // mesmo número por construção — a seção é tudo que sai no mês.
+      expect(find.text('R\$ 2.455,90'), findsNWidgets(2)); // gasto
       expect(find.text('R\$ 2.544,10'), findsOneWidget); // saldo
       expect(find.text('Sobram'), findsOneWidget);
       // Rótulos do cartão são curtos, para não repetir o nome das seções.
@@ -97,13 +122,47 @@ void main() {
       expect(find.text('49.1%'), findsOneWidget);
     });
 
-    testWidgets('lista ganhos e débito', (tester) async {
+    testWidgets('lista ganhos e as duas seções de gasto', (tester) async {
       await pumpHome(tester);
 
       expect(find.text('Ganhos'), findsOneWidget);
       expect(find.text('Salário'), findsOneWidget);
       expect(find.text('Dinheiro e crédito'), findsOneWidget);
-      expect(find.text('Aluguel'), findsOneWidget);
+      expect(find.text('Dinheiro'), findsOneWidget);
+      // Uma vez em cada seção de gasto: o aluguel é débito, e débito também é
+      // gasto. É a repetição que as duas seções assumem.
+      expect(find.text('Aluguel'), findsNWidgets(2));
+    });
+
+    // A razão de a seção de cima existir: sem ela, um gasto no cartão só
+    // aparece dentro da fatura, lá embaixo. As duas seções não são a mesma
+    // coisa com nomes diferentes — os totais provam.
+    testWidgets('a seção de tudo mostra o cartão; a de dinheiro, não', (
+      tester,
+    ) async {
+      await pumpHome(tester);
+
+      final naSecaoDeTudo = find.descendant(
+        of: find.ancestor(
+          of: find.text('Dinheiro e crédito'),
+          matching: find.byType(Card),
+        ),
+        matching: find.text('Netflix'),
+      );
+      final naSecaoDeDinheiro = find.descendant(
+        of: find.ancestor(
+          of: find.text('Dinheiro'),
+          matching: find.byType(Card),
+        ),
+        matching: find.text('Netflix'),
+      );
+
+      expect(naSecaoDeTudo, findsOneWidget);
+      expect(naSecaoDeDinheiro, findsNothing);
+
+      // R$ 2.455,90 é tudo que sai; R$ 1.800,00 é só o aluguel, que é o que
+      // sai do dinheiro. A diferença é a fatura.
+      expect(find.text('R\$ 1.800,00'), findsNWidgets(3));
     });
 
     // A fatura do resumo é a segunda porta do cartão — a outra é a lista de
@@ -134,11 +193,18 @@ void main() {
     testWidgets('item parcelado mostra a parcela; fixo não', (tester) async {
       await pumpHome(tester);
 
-      expect(find.text('Notebook'), findsOneWidget);
-      expect(find.text('Parcela 3/10'), findsOneWidget);
+      // Escopado na fatura: os mesmos itens aparecem na seção de gasto do mês,
+      // e sem o escopo a contagem falaria de repetição, não de parcela.
+      Finder naFatura(Finder alvo) => find.descendant(
+        of: find.byType(CreditCardInvoiceCard),
+        matching: alvo,
+      );
+
+      expect(naFatura(find.text('Notebook')), findsOneWidget);
+      expect(naFatura(find.text('Parcela 3/10')), findsOneWidget);
       // Netflix é gasto fixo — installmentLabel nulo, nada de "Parcela".
-      expect(find.text('Netflix'), findsOneWidget);
-      expect(find.textContaining('Parcela'), findsOneWidget);
+      expect(naFatura(find.text('Netflix')), findsOneWidget);
+      expect(naFatura(find.textContaining('Parcela')), findsOneWidget);
     });
   });
 
@@ -334,7 +400,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      await pumpHome(tester);
+      await pumpHome(tester, inteira: false);
 
       final label = find.text(Month.shortLabel(Month.current()));
       final paragraph = tester.renderObject<RenderParagraph>(label);

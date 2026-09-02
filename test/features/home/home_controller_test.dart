@@ -26,7 +26,7 @@ void main() {
 
   tearDown(() => controller.dispose());
 
-  /// As quatro buscas saem do mesmo `load`, então uma delas basta para
+  /// As buscas saem todas do mesmo `load`, então uma delas basta para
   /// descrever "buscou" ou "não buscou". O saldo é a escolhida em todo o
   /// arquivo, por ser a que a tela mostra primeiro.
   void verificaBuscou({required String month, int vezes = 1}) =>
@@ -36,14 +36,16 @@ void main() {
     // O BaseController chama onInit() no construtor, e o onInit do HomeController
     // dispara load(). Ou seja: construir já busca — quando o corpo do teste roda,
     // a busca do setUp terminou.
-    test('busca as quatro seções sozinho ao ser construído', () {
+    test('busca as cinco seções sozinho ao ser construído', () {
       verificaBuscou(month: Month.current());
       verify(() => repository.getIncomes(month: Month.current())).called(1);
+      verify(() => repository.getExpenses(month: Month.current())).called(1);
       verify(() => repository.getDebit(month: Month.current())).called(1);
       verify(() => repository.getCreditCards(month: Month.current())).called(1);
 
       expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
       expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
+      expect(controller.expenses.value, isA<Loaded<SummarySectionModel>>());
       expect(controller.debit.value, isA<Loaded<SummarySectionModel>>());
       expect(
         controller.creditCards.value,
@@ -77,8 +79,34 @@ void main() {
     });
   });
 
-  // O motivo de existirem quatro rotas em vez de uma. Se estes três caírem, a
-  // separação virou custo sem benefício: seria uma busca só, com mais passos.
+  // As duas seções de gasto leem a mesma competência com filtros diferentes, e
+  // é a diferença entre elas que justifica as duas existirem: a de cima traz o
+  // que foi no cartão, a de baixo não.
+  group('gastos e débito', () {
+    test('a seção de gastos traz tudo que sai; a de débito, só o dinheiro', () {
+      final gastos = controller.expenses.value as Loaded<SummarySectionModel>;
+      final debito = controller.debit.value as Loaded<SummarySectionModel>;
+
+      expect(
+        gastos.data.items.map((item) => item.description),
+        containsAll(['Aluguel', 'Netflix', 'Notebook']),
+      );
+      expect(
+        debito.data.items.map((item) => item.description),
+        ['Aluguel'],
+      );
+    });
+
+    test('o total da seção de gastos é o do saldo', () {
+      final saldo = controller.balance.value as Loaded<MonthlyBalanceModel>;
+      final gastos = controller.expenses.value as Loaded<SummarySectionModel>;
+
+      expect(gastos.data.totalCents, saldo.data.expenseCents);
+    });
+  });
+
+  // O motivo de existirem rotas separadas em vez de uma. Se estes três caírem,
+  // a separação virou custo sem benefício: seria uma busca só, com mais passos.
   group('seções independentes', () {
     test('uma seção que falha não apaga as que chegaram', () async {
       stubHome(repository);
@@ -92,6 +120,7 @@ void main() {
       );
       expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
       expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
+      expect(controller.expenses.value, isA<Loaded<SummarySectionModel>>());
       expect(controller.debit.value, isA<Loaded<SummarySectionModel>>());
     });
 
@@ -103,9 +132,10 @@ void main() {
       final pending = controller.load();
       await pumpEventQueue();
 
-      // As três rápidas já estão na tela com a quarta ainda em voo.
+      // As rápidas já estão na tela com a de faturas ainda em voo.
       expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
       expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
+      expect(controller.expenses.value, isA<Loaded<SummarySectionModel>>());
       expect(controller.debit.value, isA<Loaded<SummarySectionModel>>());
       expect(
         controller.creditCards.value,
@@ -120,7 +150,7 @@ void main() {
       );
     });
 
-    test('load só termina quando as quatro terminam', () async {
+    test('load só termina quando todas terminam', () async {
       final presa = Completer<void>();
       stubHome(repository);
       stubDebitSection(repository, pendenteAte: presa.future);
@@ -243,7 +273,7 @@ void main() {
       );
     });
 
-    // Uma seção em erro basta: `alreadyLoaded` exige as quatro carregadas, que é
+    // Uma seção em erro basta: `alreadyLoaded` exige todas carregadas, que é
     // o que faz o "tentar de novo" da seção quebrada funcionar.
     test('mesmo mês com UMA seção em erro rebusca', () async {
       stubCreditCardSections(repository, result: const Error(NetworkFailure()));

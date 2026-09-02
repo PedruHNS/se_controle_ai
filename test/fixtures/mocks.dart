@@ -125,9 +125,9 @@ void stubMonthly(
   });
 }
 
-/// Stubs das quatro rotas da home, derivados do **mesmo** [summaryJson].
+/// Stubs das rotas de seção da home, derivados do **mesmo** [summaryJson].
 ///
-/// Derivar em vez de escrever quatro fixtures novos é o que mantém o contrato
+/// Derivar em vez de escrever um fixture por seção é o que mantém o contrato
 /// verificado num lugar só: o JSON continua sendo resposta real copiada do
 /// backend, e as seções são recortes dele. Se o formato mudar, muda ali.
 void stubBalance(
@@ -160,6 +160,26 @@ void stubIncomeSection(
         }),
       );
   when(() => mock.getIncomes(month: any(named: 'month'))).thenAnswer((_) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
+void stubExpenseSection(
+  MockSummaryRepository mock, {
+  Map<String, dynamic>? json,
+  Result<SummarySectionModel, Failure>? result,
+  Future<void>? pendenteAte,
+}) {
+  final fonte = json ?? summaryJson;
+  final answer =
+      result ??
+      Success(
+        SummarySectionModel.fromJson(fonte['expenses'] as Map<String, dynamic>),
+      );
+  when(() => mock.getExpenses(month: any(named: 'month'))).thenAnswer((
+    _,
+  ) async {
     if (pendenteAte != null) await pendenteAte;
     return answer;
   });
@@ -206,7 +226,7 @@ void stubCreditCardSections(
   });
 }
 
-/// As quatro de uma vez, que é como a home as pede.
+/// Todas de uma vez, que é como a home as pede.
 ///
 /// [failure] derruba todas — é a falha de rede, que não escolhe endpoint. Para
 /// derrubar só uma seção, chame o stub dela depois deste com o erro que quiser:
@@ -224,6 +244,12 @@ void stubHome(
     pendenteAte: pendenteAte,
   );
   stubIncomeSection(
+    mock,
+    json: json,
+    result: failure == null ? null : Error(failure),
+    pendenteAte: pendenteAte,
+  );
+  stubExpenseSection(
     mock,
     json: json,
     result: failure == null ? null : Error(failure),
@@ -284,7 +310,7 @@ MockSummaryRepository summaryRepositoryMock({
 ///
 /// `verify` **consome** o que foi gravado, então chamar duas vezes no mesmo
 /// teste devolve lista vazia na segunda. Use uma vez, no fim.
-/// Sai do `getBalance` e não das quatro: elas partem juntas do mesmo `load`,
+/// Sai do `getBalance` e não de todas: elas partem juntas do mesmo `load`,
 /// então uma basta para descrever a sequência de meses pedidos.
 List<String?> capturedMonths(MockSummaryRepository mock) => verify(
   () => mock.getBalance(month: captureAny(named: 'month')),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/models/expense_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../config/globals.dart';
 
@@ -157,7 +158,15 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.expensesPath,
       name: AppRoutes.expenses,
-      builder: (context, state) => const ExpenseListPage(),
+      // O filtro vem da query e é **lido aqui**, não dentro do controller: o
+      // construtor do controller só recebe dependência, e dado de rota chega
+      // pela view. Valor desconhecido cai em nulo — a lista completa —, que é o
+      // que uma URL digitada errado deve dar, não uma tela de erro.
+      builder: (context, state) => ExpenseListPage(
+        paymentMethod: PaymentMethod.tryFromWire(
+          state.uri.queryParameters[AppRoutes.paymentMethodParam],
+        ),
+      ),
       routes: [
         // `form` antes de `:id`, pela mesma razão de ganhos e cartões: o
         // go_router casa na ordem, e invertido a rota de cadastro viraria um

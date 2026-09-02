@@ -79,6 +79,16 @@ abstract final class AppRoutes {
   static const expenseEdit = 'expense-edit';
   static const expenseEditPath = 'edit';
 
+  /// Filtro da lista de gastos por forma de pagamento, na query
+  /// (`/expenses?paymentMethod=DEBIT`). O valor é o do backend — `DEBIT`,
+  /// `CREDIT_CARD` —, o mesmo que a rota do backend recebe, para não haver duas
+  /// grafias da mesma coisa entre a URL da tela e a da API.
+  ///
+  /// Na query e não no caminho: filtrar não cria outra tela, e uma rota
+  /// `/expenses/debito` diria que cria. Sem o parâmetro a lista é a de sempre,
+  /// com tudo.
+  static const paymentMethodParam = 'paymentMethod';
+
   // Projeção — Fase 6
   static const projection = 'projection';
   static const projectionPath = '/projection';

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/core/shared/widgets/app_drawer.dart';
+import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
@@ -133,6 +134,51 @@ void main() {
     expect(find.byType(TagListPage), findsNothing);
     expect(find.byType(AppDrawer), findsNothing);
     expect(find.byIcon(Icons.menu), findsOneWidget);
+  });
+
+  // As duas seções de gasto da home levam à mesma tela, com filtros
+  // diferentes. É o que permite a lista continuar sendo uma só.
+  group('seções de gasto', () {
+    /// A home é mais alta que o surface padrão do teste, e o que está fora do
+    /// viewport de um sliver não está na árvore para ser tocado.
+    Future<void> abrirHome(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(400, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('"Dinheiro e crédito" leva à lista inteira', (tester) async {
+      await abrirHome(tester);
+
+      await tester.tap(find.text('Dinheiro e crédito'));
+      await tester.pumpAndSettle();
+
+      final page = tester.widget<ExpenseListPage>(
+        find.byType(ExpenseListPage),
+      );
+      expect(page.paymentMethod, isNull);
+      expect(find.text('Gastos'), findsWidgets);
+    });
+
+    testWidgets('"Dinheiro" leva à mesma lista, filtrada no débito', (
+      tester,
+    ) async {
+      await abrirHome(tester);
+
+      await tester.tap(find.text('Dinheiro'));
+      await tester.pumpAndSettle();
+
+      final page = tester.widget<ExpenseListPage>(
+        find.byType(ExpenseListPage),
+      );
+      expect(page.paymentMethod, PaymentMethod.debit);
+      // O título separa os dois destinos: sem ele, o recorte é
+      // indistinguível da lista completa que veio faltando.
+      expect(find.text('Gastos no dinheiro'), findsOneWidget);
+    });
   });
 
   // O botão de criar da home é o atalho para o cadastro: sem ele, lançar um

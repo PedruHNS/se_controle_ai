@@ -35,6 +35,18 @@ class ExpenseListController extends BaseController {
 
   final _state = signal<ViewState<List<ExpenseModel>>>(const Loading());
 
+  /// Filtro por forma de pagamento, ou nulo para a lista inteira.
+  ///
+  /// **Entra por [applyFilter], não pelo construtor.** Ele vem da query da rota
+  /// (`/expenses?paymentMethod=DEBIT`), e dado de rota é assunto da view — o
+  /// construtor daqui só recebe dependência. É também o que permite este
+  /// controller continuar sendo um singleton: a mesma tela serve a lista
+  /// completa e o recorte de dinheiro, trocando o filtro em vez de trocar de
+  /// controller.
+  PaymentMethod? _paymentMethod;
+
+  PaymentMethod? get paymentMethod => _paymentMethod;
+
   /// Cresce a cada requisição. Serve para descartar resposta atrasada — mesmo
   /// contador do `HomeController`.
   int _requestId = 0;
@@ -56,6 +68,18 @@ class ExpenseListController extends BaseController {
     });
   }
 
+  /// Troca o filtro e rebusca, se ele mudou.
+  ///
+  /// Quem chama é a view, no `initState` — inclusive com nulo, que é o que
+  /// devolve a lista completa depois de uma visita ao recorte. Sem a guarda de
+  /// igualdade, toda entrada na tela custaria uma requisição a mais.
+  Future<void> applyFilter(PaymentMethod? paymentMethod) async {
+    if (_paymentMethod == paymentMethod) return;
+
+    _paymentMethod = paymentMethod;
+    await load();
+  }
+
   /// [silent] mantém a lista na tela durante a busca, para o pull-to-refresh
   /// não piscar e para a volta de uma ação não apagar o conteúdo.
   Future<void> load({bool silent = false}) async {
@@ -65,6 +89,7 @@ class ExpenseListController extends BaseController {
 
     final result = await _repository.list(
       activeFrom: _selectedMonth.month.value,
+      paymentMethod: _paymentMethod,
     );
 
     // Duas buscas em voo podem voltar fora de ordem — um refresh depois de uma

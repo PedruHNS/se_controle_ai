@@ -9,6 +9,7 @@ import '../../../core/shared/widgets/app_drawer.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/summary_section_placeholder.dart';
 import '../../../data/models/credit_card_invoice_model.dart';
+import '../../../data/models/expense_model.dart';
 import '../../../data/models/monthly_balance_model.dart';
 import '../../../data/models/summary_section_model.dart';
 import '../controller/home_controller.dart';
@@ -127,8 +128,8 @@ class _HomePageState extends State<HomePage> {
               builder: (context) {
                 final falhaGeral = _controller.wholeScreenFailure.value;
 
-                // Nem toda falha é de seção: quando as quatro caem junto, o
-                // que houve foi rede ou sessão, e a tela diz isso uma vez.
+                // Nem toda falha é de seção: quando todas caem junto, o que
+                // houve foi rede ou sessão, e a tela diz isso uma vez.
                 if (falhaGeral == null) {
                   return _SummaryContent(controller: _controller);
                 }
@@ -195,7 +196,7 @@ class _BackToCurrentMonth extends StatelessWidget {
 
 /// Conteúdo do mês carregado. É um sliver: vive dentro do [CustomScrollView] da
 /// [HomePage], que também carrega a faixa fixa e o pull-to-refresh.
-/// O corpo da home: quatro seções, cada uma no seu próprio estado.
+/// O corpo da home: cada seção no seu próprio estado.
 ///
 /// Não há um `switch` só envolvendo tudo porque não há mais uma busca só. Uma
 /// seção que ainda está vindo mostra o seu lugar reservado, e uma que falhou
@@ -239,24 +240,57 @@ class _SummaryContent extends StatelessWidget {
           // da lista de gastos, e uma porta que só aparece depois do primeiro
           // gasto não serve para cadastrar o primeiro gasto. É a mesma escolha
           // já feita em Ganhos.
+          //
+          // As duas seções abaixo leem a mesma coisa com filtros diferentes, e
+          // é de propósito. A de cima é o que sai do mês inteiro — o único
+          // lugar do corpo do resumo onde um gasto no cartão aparece sem abrir
+          // a fatura. A de baixo separa o dinheiro do que vai na fatura, que é
+          // a pergunta de quem quer saber quanto ainda sai da conta este mês.
           const SizedBox(height: 16),
           SignalBuilder(
             builder: (context) => _Section<SummarySectionModel>(
-              state: controller.debit.value,
+              state: controller.expenses.value,
               onRetry: controller.load,
               builder: (section) => SummarySection(
                 title: 'Dinheiro e crédito',
-                icon: Icons.payments_outlined,
+                // Espelha o `trending_up` de Ganhos: as duas seções são os dois
+                // lados do mês, e o par de setas diz isso antes de ler o rótulo.
+                icon: Icons.trending_down,
                 items: section.items,
                 totalCents: section.totalCents,
                 emptyMessage:
-                    'Nenhum gasto no débito. Toque para adicionar um.',
+                    'Nenhum gasto neste mês. Toque para adicionar um.',
                 onTap: () => context.pushNamed(AppRoutes.expenses),
                 // O resumo é panorama, não lista: quatro linhas cabem na tela
                 // sem empurrar as faturas dos cartões para fora. Quem quer
                 // todas toca no cabeçalho. A ordem vem do backend, do
                 // lançamento mais recente para o mais antigo, então o que
                 // acabou de ser cadastrado aparece.
+                maxItems: 4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SignalBuilder(
+            builder: (context) => _Section<SummarySectionModel>(
+              state: controller.debit.value,
+              onRetry: controller.load,
+              builder: (section) => SummarySection(
+                title: 'Dinheiro',
+                icon: Icons.payments_outlined,
+                items: section.items,
+                totalCents: section.totalCents,
+                emptyMessage:
+                    'Nenhum gasto no dinheiro. Toque para adicionar um.',
+                // A mesma lista da seção de cima, filtrada — e não uma tela
+                // nova: o filtro viaja na URL, então a lista continua sendo uma
+                // só e o destino é compartilhável.
+                onTap: () => context.pushNamed(
+                  AppRoutes.expenses,
+                  queryParameters: {
+                    AppRoutes.paymentMethodParam: PaymentMethod.debit.wire,
+                  },
+                ),
                 maxItems: 4,
               ),
             ),
@@ -295,9 +329,9 @@ class _SummaryContent extends StatelessWidget {
 
 /// Uma seção da home nos seus três estados.
 ///
-/// O erro fica dentro do lugar da seção, e não ocupando a tela: com quatro
-/// buscas independentes, uma falha é notícia sobre um pedaço, não sobre o mês.
-/// O "tentar de novo" refaz as quatro — são baratas, e uma falha de rede
+/// O erro fica dentro do lugar da seção, e não ocupando a tela: com uma busca
+/// por seção, uma falha é notícia sobre um pedaço, não sobre o mês.
+/// O "tentar de novo" refaz todas — são baratas, e uma falha de rede
 /// raramente atinge só uma.
 class _Section<T> extends StatelessWidget {
   const _Section({

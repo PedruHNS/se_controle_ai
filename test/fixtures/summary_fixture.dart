@@ -1,6 +1,11 @@
 /// Resposta real de `GET /summary?month=2026-08`, copiada do backend rodando em
 /// Docker — não é JSON inventado. É o que garante que o model bate com o
 /// contrato de verdade, incluindo os campos que vêm nulos.
+///
+/// A chave `expenses` **não** vem do `/summary`: é o corpo de
+/// `GET /summary/expenses`, guardado aqui junto do resto para os stubs lerem
+/// tudo de um lugar só. Ela é o débito somado às faturas — a mesma soma da
+/// RES-02 —, e por isso o total bate com o `expenseCents`.
 const summaryJson = <String, dynamic>{
   'month': '2026-08',
   'incomeCents': 500000,
@@ -20,6 +25,44 @@ const summaryJson = <String, dynamic>{
       },
     },
   ],
+  'expenses': {
+    'totalCents': 245590,
+    'items': [
+      {
+        'id': 'a0843022-eea2-48ef-8c43-2ab4e4f9bc1f',
+        'description': 'Notebook',
+        'amountCents': 60000,
+        'installmentLabel': '3/10',
+        'tag': {
+          'id': '1519d248-272f-407c-9853-87fcfb7ff789',
+          'name': 'Moradia',
+          'color': '#4CAF50',
+        },
+      },
+      {
+        'id': '9181aacb-7609-4354-82ad-2cdfc51af015',
+        'description': 'Netflix',
+        'amountCents': 5590,
+        'installmentLabel': null,
+        'tag': {
+          'id': '1519d248-272f-407c-9853-87fcfb7ff789',
+          'name': 'Moradia',
+          'color': '#4CAF50',
+        },
+      },
+      {
+        'id': '6a78f6a7-7b40-4175-9f46-8e76437cc6b9',
+        'description': 'Aluguel',
+        'amountCents': 180000,
+        'installmentLabel': null,
+        'tag': {
+          'id': '1519d248-272f-407c-9853-87fcfb7ff789',
+          'name': 'Moradia',
+          'color': '#4CAF50',
+        },
+      },
+    ],
+  },
   'debit': {
     'totalCents': 180000,
     'items': [
@@ -81,6 +124,7 @@ const emptySummaryJson = <String, dynamic>{
   'balanceCents': 0,
   'committedPercent': null,
   'incomes': <dynamic>[],
+  'expenses': {'totalCents': 0, 'items': <dynamic>[]},
   'debit': {'totalCents': 0, 'items': <dynamic>[]},
   'creditCards': <dynamic>[],
 };
@@ -105,6 +149,24 @@ const negativeSummaryJson = <String, dynamic>{
       },
     },
   ],
+  // Um mês só de cartão: `expenses` tem o que `debit` não tem, que é
+  // exatamente a diferença entre as duas seções da home.
+  'expenses': {
+    'totalCents': 450000,
+    'items': [
+      {
+        'id': 'e1',
+        'description': 'Compra grande',
+        'amountCents': 450000,
+        'installmentLabel': null,
+        'tag': {
+          'id': '1519d248-272f-407c-9853-87fcfb7ff789',
+          'name': 'Moradia',
+          'color': '#4CAF50',
+        },
+      },
+    ],
+  },
   'debit': {'totalCents': 0, 'items': <dynamic>[]},
   'creditCards': [
     {

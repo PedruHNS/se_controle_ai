@@ -18,6 +18,12 @@ enum PaymentMethod {
 
   static PaymentMethod fromWire(String value) =>
       values.firstWhere((method) => method.wire == value);
+
+  /// Como [fromWire], mas devolve nulo em vez de estourar no valor
+  /// desconhecido. É para ler o que vem de fora do app — hoje a query da rota
+  /// da lista de gastos, que qualquer um pode digitar errado.
+  static PaymentMethod? tryFromWire(String? value) =>
+      value == null ? null : values.where((m) => m.wire == value).firstOrNull;
 }
 
 /// Fixo (valor versionado por vigência) ou parcelado (parcelas materializadas).

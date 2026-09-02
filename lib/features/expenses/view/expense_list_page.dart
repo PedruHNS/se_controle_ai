@@ -16,8 +16,16 @@ import '../controller/expense_list_controller.dart';
 import '../widgets/expense_tile.dart';
 
 /// Lista de gastos — a porta de entrada do CRUD.
+///
+/// A mesma tela serve a lista inteira e o recorte por forma de pagamento: quem
+/// vem da seção "Dinheiro e crédito" da home chega sem filtro, quem vem da
+/// seção "Dinheiro" chega com `DEBIT`. O filtro é lido da rota pelo router e
+/// entregue aqui — o controller não conhece `GoRouterState`.
 class ExpenseListPage extends StatefulWidget {
-  const ExpenseListPage({super.key});
+  const ExpenseListPage({this.paymentMethod, super.key});
+
+  /// Nulo = tudo que sai no mês, débito e cartão.
+  final PaymentMethod? paymentMethod;
 
   @override
   State<ExpenseListPage> createState() => _ExpenseListPageState();
@@ -32,6 +40,16 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
   /// refaz a busca na troca de mês é o controller, com um `effect`.
   final _selectedMonth = getIt<SelectedMonthController>();
 
+  /// O controller é singleton e sobrevive à saída da tela, então o filtro tem
+  /// de ser reafirmado a cada montagem — senão voltar da seção "Dinheiro" para
+  /// a lista completa mostraria o recorte anterior. `applyFilter` só rebusca
+  /// quando o filtro muda de fato.
+  @override
+  void initState() {
+    super.initState();
+    _controller.applyFilter(widget.paymentMethod);
+  }
+
   /// Recarrega ao voltar do formulário ou do detalhe: as duas telas podem ter
   /// criado, reajustado ou apagado, e a lista não fica sabendo sozinha.
   Future<void> _openAndReload(Future<Object?> navigation) async {
@@ -40,10 +58,18 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
     await _controller.refresh();
   }
 
+  /// O título diz qual recorte está na tela: sem ele, a lista filtrada é
+  /// indistinguível da completa que faltou carregar.
+  String get _title => switch (widget.paymentMethod) {
+    null => 'Gastos',
+    PaymentMethod.debit => 'Gastos no dinheiro',
+    PaymentMethod.creditCard => 'Gastos no cartão',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gastos'), centerTitle: true),
+      appBar: AppBar(title: Text(_title), centerTitle: true),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () =>
             _openAndReload(context.pushNamed(AppRoutes.expenseForm)),
