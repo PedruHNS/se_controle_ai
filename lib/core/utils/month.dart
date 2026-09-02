@@ -9,7 +9,7 @@
 abstract final class Month {
   /// Faixa que o backend aceita. Fora dela ele responde 400, então a navegação
   /// para nos limites em vez de gerar requisição inválida.
-  static const minYear = 2000;
+  static const minYear = 2020;
   static const maxYear = 2100;
 
   static const _names = [

@@ -8,7 +8,7 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 *Atualizado em 01/09/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **525 testes verdes** · `flutter analyze` com
+Flutter 3.44.9 · Dart 3.12.2 · **530 testes verdes** · `flutter analyze` com
 **1 aviso** (`_createTag` não referenciado — veja "O que falta").
 
 | Fase | Status |
@@ -52,6 +52,17 @@ verdade, não um cache, e só sai barata com o contrato parado.
 - [ ] **Três comentários citam "Fase 10" para offline-first** (`app.dart`,
       `selected_month_controller.dart`, `theme_controller.dart`). Offline-first é
       a **11**; a 10 é notificações.
+- [ ] **Trocar o FAB da home pelo `flutter_expandable_fab` 3.0.0.** Hoje o menu
+      é feito à mão em `home_fab.dart` (144 linhas): `AnimationController`,
+      `CurvedAnimation` e um `didUpdateWidget` que segue o `expanded` vindo de
+      fora, mais a cortina que a `HomePage` desenha por conta própria — é por
+      ela que existe o `fabMenuDuration` exportado, para as duas animações
+      terminarem juntas. A lib faz o menu **e** o escurecimento no mesmo widget,
+      e a versão a fixar é a **3.0.0** (ainda não está no `pubspec`). Ao trocar,
+      decidir o que acontece com o estado controlado — o `_fabExpanded` mora na
+      `HomePage` (`home_page.dart:36`) — e refazer o `home_fab_test.dart` (106
+      linhas), que acha as ações pelo ícone. Sem pressa: o botão de hoje
+      funciona e está coberto.
 - [ ] **Fase 8 — Qualidade.** Testes de model, repositório, controller e widget
       nas telas principais, com `flutter analyze` sem issue como porta de
       entrada. Boa parte já entrou junto com cada fase; o que a fase 8 seria hoje
