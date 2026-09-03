@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
@@ -25,6 +26,7 @@ class CreditCardFormPage extends StatefulWidget {
 
 class _CreditCardFormPageState extends State<CreditCardFormPage> {
   final _controller = getIt<CreditCardFormController>();
+  final _controllerList = getIt<CreditCardListController>();
 
   @override
   void initState() {
@@ -89,7 +91,10 @@ class _CreditCardFormPageState extends State<CreditCardFormPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return _CreditCardForm(controller: _controller, onSubmit: _submit);
+          return _CreditCardForm(
+            controller: _controllerList,
+            onSubmit: _submit,
+          );
         },
       ),
     );
@@ -99,7 +104,7 @@ class _CreditCardFormPageState extends State<CreditCardFormPage> {
 class _CreditCardForm extends StatelessWidget {
   const _CreditCardForm({required this.controller, required this.onSubmit});
 
-  final CreditCardFormController controller;
+  final CreditCardListController controller;
   final VoidCallback onSubmit;
 
   @override
@@ -179,17 +184,9 @@ class _CreditCardForm extends StatelessWidget {
           const SizedBox(height: 24),
           SignalBuilder(
             builder: (context) {
-              final saving = controller.saving.value;
-
               return FilledButton(
-                onPressed: saving ? null : onSubmit,
-                child: saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Salvar'),
+                onPressed: onSubmit,
+                child: const Text('Salvar'),
               );
             },
           ),

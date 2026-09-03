@@ -35,7 +35,7 @@ void main() {
   tearDown(() => controller.dispose());
 
   test('busca os cartões e fica em Loaded', () async {
-    await controller.load();
+    await controller.refresh();
 
     final state = controller.state.value;
     expect(state, isA<Loaded<List<CreditCardModel>>>());
@@ -47,7 +47,7 @@ void main() {
   test(
     'a busca leva a competência corrente, para o dueDate vir resolvido',
     () async {
-      await controller.load();
+      await controller.refresh();
 
       final captured = verify(
         () => repository.list(month: captureAny(named: 'month')),
@@ -67,28 +67,17 @@ void main() {
       result: const Error(NetworkFailure(message: 'sem rede')),
     );
 
-    await controller.load();
+    await controller.refresh();
 
     expect(controller.state.value, isA<Failed<List<CreditCardModel>>>());
   });
 
-  test('load passa por Loading', () async {
-    final segura = Completer<void>();
-    stubCreditCardList(repository, pendenteAte: segura.future);
-
-    final pending = controller.load();
-
-    expect(controller.state.value, isA<Loading<List<CreditCardModel>>>());
-    segura.complete();
-    await pending;
-    expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
-  });
-
-  // `refresh` é `load` — não existe mais a busca silenciosa que segurava a
-  // lista na tela enquanto a nova resposta não chegava. Quem puxa para
-  // atualizar vê a lista sumir e voltar.
-  test('refresh passa por Loading, igual ao load', () async {
-    await controller.load();
+  // A busca não é mais pública: quem chama de fora é o `refresh`, e a carga
+  // inicial vem do `effect` do mês. Não existe busca silenciosa — quem puxa
+  // para atualizar vê a lista sumir e voltar, porque o estado passa por
+  // `Loading` antes da resposta.
+  test('refresh passa por Loading antes de voltar a Loaded', () async {
+    await controller.refresh();
     final segura = Completer<void>();
     stubCreditCardList(repository, pendenteAte: segura.future);
 
@@ -102,7 +91,7 @@ void main() {
 
   group('delete', () {
     test('exclui e tira o cartão da lista sem rebuscar', () async {
-      await controller.load();
+      await controller.refresh();
       final antes =
           (controller.state.value as Loaded<List<CreditCardModel>>).data;
       final excluido = antes.first.id;
@@ -133,7 +122,7 @@ void main() {
     test('delete antes de a lista chegar não faz nada', () async {
       final segura = Completer<void>();
       stubCreditCardList(repository, pendenteAte: segura.future);
-      final pending = controller.load();
+      final pending = controller.refresh();
 
       await controller.delete('id-do-cartao');
 
@@ -156,7 +145,7 @@ void main() {
           ),
         ),
       );
-      await controller.load();
+      await controller.refresh();
       clearInteractions(repository);
 
       await controller.delete('id-do-cartao');

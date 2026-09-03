@@ -25,12 +25,6 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
   final _controller = getIt<CreditCardListController>();
   final _nav = getIt<NavigationService>();
 
-  Future<void> _openAndReload(Future<Object?> navigation) async {
-    await navigation;
-    if (!mounted) return;
-    await _controller.refresh();
-  }
-
   Future<void> _confirmDelete(CreditCardModel card) async {
     showDialog<void>(
       context: context,
@@ -58,8 +52,7 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Cartões'), centerTitle: true),
       floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            _openAndReload(context.pushNamed(AppRoutes.creditCardForm)),
+        onPressed: () => _nav.pushNamed(AppRoutes.creditCardForm),
         child: const Icon(Icons.add),
       ),
       body: SignalBuilder(
@@ -86,12 +79,11 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
             Loaded(data: final cards) => _CreditCardList(
               cards: cards,
               onRefresh: _controller.refresh,
-              onOpen: (card) => _openAndReload(
-                _nav.pushNamed(
-                  AppRoutes.creditCardExpenses,
-                  pathParameters: {RouteParams.id: card.id},
-                ),
+              onOpen: (card) => _nav.pushNamed(
+                AppRoutes.creditCardExpenses,
+                pathParameters: {RouteParams.id: card.id},
               ),
+
               onDelete: _confirmDelete,
             ),
           };

@@ -1,3 +1,4 @@
+import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
 import 'package:signals/signals.dart';
 
@@ -22,6 +23,7 @@ class CreditCardListController extends BaseController with MessageMixin {
   /// A inscrição no mês **é** a carga inicial: o `effect` roda uma vez ao ser
   /// criado, e de novo a cada troca de mês na home. Um `load()` aqui além dele
   /// só duplicaria a primeira requisição.
+
   @override
   void onInit() {
     super.onInit();
@@ -31,11 +33,21 @@ class CreditCardListController extends BaseController with MessageMixin {
       // `untracked` para o efeito depender **só** do mês: sem ele, qualquer
       // signal que o `load` venha a ler vira dependência sem querer, e a busca
       // passa a acontecer por motivos que ninguém escreveu aqui.
-      untracked(load);
+      untracked(_load);
     });
   }
 
-  Future<void> load() async {
+  final form = FormGroup({
+    'name': FormControl<String>(validators: [Validators.required]),
+    'lastDigits': FormControl<String>(
+      validators: [Validators.pattern(r'^\d{4}$')],
+    ),
+    'closingDay': FormControl<int>(value: 1, validators: [Validators.required]),
+    'dueDay': FormControl<int>(value: 10, validators: [Validators.required]),
+    'limitCents': FormControl<int>(),
+  });
+
+  Future<void> _load() async {
     _state.value = const Loading();
     final result = await _repository.list(month: _selectedMonth.month.value);
     result.when(
@@ -44,7 +56,7 @@ class CreditCardListController extends BaseController with MessageMixin {
     );
   }
 
-  Future<void> refresh() => load();
+  Future<void> refresh() async => await _load();
 
   Future<void> delete(String id) async {
     final current = _state.value;
@@ -54,6 +66,11 @@ class CreditCardListController extends BaseController with MessageMixin {
     return result.when(
       (_) async {
         _state.value = Loaded(current.data.where((e) => e.id != id).toList());
+
+        Future.delayed(
+          Duration(milliseconds: 300),
+          () => toastSucess('Cartão deletado com sucesso'),
+        );
       },
       (error) async => Future.delayed(
         Duration(milliseconds: 300),
