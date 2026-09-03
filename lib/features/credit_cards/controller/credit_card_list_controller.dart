@@ -37,9 +37,7 @@ class CreditCardListController extends BaseController with MessageMixin {
 
   Future<void> load() async {
     _state.value = const Loading();
-
     final result = await _repository.list(month: _selectedMonth.month.value);
-
     result.when(
       (success) => _state.value = Loaded(success),
       (err) => _state.value = Failed(err),
@@ -49,11 +47,13 @@ class CreditCardListController extends BaseController with MessageMixin {
   Future<void> refresh() => load();
 
   Future<void> delete(String id) async {
+    final current = _state.value;
+    if (current is! Loaded<List<CreditCardModel>>) return;
     final result = await _repository.delete(id);
 
     return result.when(
       (_) async {
-        await load();
+        _state.value = Loaded(current.data.where((e) => e.id != id).toList());
       },
       (error) async => Future.delayed(
         Duration(milliseconds: 300),

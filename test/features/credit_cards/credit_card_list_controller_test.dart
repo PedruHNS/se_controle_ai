@@ -101,18 +101,47 @@ void main() {
   });
 
   group('delete', () {
-    test('exclui e recarrega a lista', () async {
+    test('exclui e tira o cartão da lista sem rebuscar', () async {
       await controller.load();
+      final antes =
+          (controller.state.value as Loaded<List<CreditCardModel>>).data;
+      final excluido = antes.first.id;
 
       // Zera o que veio do `onInit` e do `load` acima, para o `verify` abaixo
       // falar só da exclusão.
       clearInteractions(repository);
 
+      await controller.delete(excluido);
+
+      verify(() => repository.delete(excluido)).called(1);
+
+      // O cartão sai da lista que já está na tela, em vez de a lista ser
+      // buscada de novo: o backend já confirmou o 204, e rebuscar só custaria
+      // uma volta de rede para chegar ao mesmo resultado — piscando a lista no
+      // caminho.
+      verifyNever(() => repository.list(month: any(named: 'month')));
+
+      final depois =
+          (controller.state.value as Loaded<List<CreditCardModel>>).data;
+      expect(depois, hasLength(antes.length - 1));
+      expect(depois.map((card) => card.id), isNot(contains(excluido)));
+    });
+
+    // A exclusão escreve sobre a lista que está na tela, então sem lista na
+    // tela não há o que escrever — e `Loaded` é a única forma de estado que
+    // carrega os cartões.
+    test('delete antes de a lista chegar não faz nada', () async {
+      final segura = Completer<void>();
+      stubCreditCardList(repository, pendenteAte: segura.future);
+      final pending = controller.load();
+
       await controller.delete('id-do-cartao');
 
-      verify(() => repository.delete('id-do-cartao')).called(1);
-      // A recarga silenciosa depois do 204: a lista precisa perder o cartão.
-      verify(() => repository.list(month: any(named: 'month'))).called(1);
+      verifyNever(() => repository.delete(any()));
+      expect(controller.state.value, isA<Loading<List<CreditCardModel>>>());
+
+      segura.complete();
+      await pending;
     });
 
     // CAR-07: a FK é RESTRICT, e o 409 é explicação, não erro de sistema. Ele

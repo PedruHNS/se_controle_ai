@@ -147,12 +147,18 @@ void main() {
       expect(find.text('Excluir'), findsOneWidget);
       expect(find.text('Nubank ••••4321'), findsOneWidget);
     });
-    // O diálogo `_DeleteDialog` e o corpo de `_confirmDelete` estão comentados
-    // em `credit_card_list_page.dart`, e o tile trocou o `IconButton` com
-    // tooltip por um `InkWell` com ícone. Enquanto o fluxo não voltar, tocar na
-    // lixeira não faz nada e não há o que conferir — pular é melhor do que
-    // apagar, que é como a cobertura do CAR-07 na tela some sem ninguém notar.
-  }, skip: 'exclusão desligada na tela: diálogo comentado na list page');
+    // O diálogo voltou, mas estes três ainda descrevem a tela de antes e por
+    // isso seguem pulados — agora por dois motivos, e nenhum é "está desligado":
+    //
+    // - o tile trocou o `IconButton` com tooltip por um `InkWell` com ícone,
+    //   então `find.byTooltip('Excluir cartão')` não acha nada;
+    // - o 409 do CAR-07 não mora mais dentro do diálogo. Quem avisa é o
+    //   controller, por toast, e o diálogo fecha de qualquer jeito — o terceiro
+    //   teste descreve um comportamento que a tela deixou de ter.
+    //
+    // Pular é melhor do que apagar: é assim que a cobertura do CAR-07 na tela
+    // some sem ninguém notar. Reescrevê-los é o próximo passo.
+  }, skip: 'os testes ainda descrevem a tela anterior — ver a nota acima');
 
   group('formulário de cadastro', () {
     testWidgets('abre vazio, com os dois seletores de dia', (tester) async {

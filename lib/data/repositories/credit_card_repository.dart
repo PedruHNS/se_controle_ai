@@ -45,8 +45,6 @@ abstract interface class CreditCardRepository {
     Patch<int> limitCents,
   });
 
-  /// Recusado com 409 quando há gasto vinculado (CAR-07) — a FK é `RESTRICT`.
-  /// Nesse caso o cartão continua lá, e quem chamou mostra a explicação.
   Future<Result<bool, Failure>> delete(String id);
 }
 
