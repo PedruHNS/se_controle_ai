@@ -62,3 +62,20 @@ const creditCardListJson = <Map<String, dynamic>>[
   nubankJson,
   cartaoSimplesJson,
 ];
+
+/// O que o `POST /credit-cards` devolve desde 04/09/2026: o cartão inteiro, no
+/// formato da listagem, e não mais só o `id`. É o que deixa a tela inserir na
+/// lista o que ela acabou de cadastrar, sem uma segunda volta ao servidor.
+///
+/// `dueDate` null, e `totalCents` **ausente**: cadastrar não é perguntar por
+/// fatura de mês nenhum, então não há competência para calcular nem para somar.
+const cartaoCriadoJson = <String, dynamic>{
+  'id': 'c0ffee00-1111-4222-8333-444444444444',
+  'name': 'Inter',
+  'label': 'Inter ••••9999',
+  'lastDigits': '9999',
+  'closingDay': 3,
+  'dueDay': 12,
+  'limitCents': 1200000,
+  'dueDate': null,
+};

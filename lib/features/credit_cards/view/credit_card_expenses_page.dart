@@ -65,18 +65,9 @@ class _CreditCardExpensesPageState extends State<CreditCardExpensesPage> {
           }),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Editar cartão',
-            onPressed: () => _openAndReload(
-              context.pushNamed(
-                AppRoutes.creditCardEdit,
-                pathParameters: {RouteParams.id: widget.id},
-              ),
-            ),
-          ),
-        ],
+        // Sem ação de editar: esta tela é a fatura, e editar o cadastro do
+        // cartão saiu daqui para o menu do card na lista. Um lugar só para a
+        // ação evita a dúvida de qual das duas portas é a certa.
       ),
       body: SignalBuilder(
         builder: (context) {

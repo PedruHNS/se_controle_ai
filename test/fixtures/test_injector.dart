@@ -9,8 +9,7 @@ import 'package:se_controle_ai/data/repositories/tag_repository.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/auth/controller/login_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
-import 'package:se_controle_ai/features/credit_cards/controller/credit_card_form_controller.dart';
-import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
+import 'package:se_controle_ai/features/credit_cards/controller/credit_card_controller.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_detail_controller.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
@@ -200,11 +199,8 @@ MockCreditCardRepository setupCreditCardTestInjector({
   if (getIt.isRegistered<CreditCardRepository>()) {
     getIt.unregister<CreditCardRepository>();
   }
-  if (getIt.isRegistered<CreditCardListController>()) {
-    getIt.unregister<CreditCardListController>();
-  }
-  if (getIt.isRegistered<CreditCardFormController>()) {
-    getIt.unregister<CreditCardFormController>();
+  if (getIt.isRegistered<CreditCardController>()) {
+    getIt.unregister<CreditCardController>();
   }
   if (getIt.isRegistered<CreditCardExpensesController>()) {
     getIt.unregister<CreditCardExpensesController>();
@@ -221,15 +217,12 @@ MockCreditCardRepository setupCreditCardTestInjector({
     // `lazySingleton` com `dispose:`, e não `factory`, pelo mesmo motivo do
     // `TagListController`: a `CreditCardListPage` chama `resetLazySingleton` no
     // seu `dispose`, e o get_it recusa isso em registro que não seja lazy.
-    ..registerLazySingleton<CreditCardListController>(
-      () => CreditCardListController(
+    ..registerLazySingleton<CreditCardController>(
+      () => CreditCardController(
         getIt<CreditCardRepository>(),
         getIt<SelectedMonthController>(),
       ),
       dispose: (controller) => controller.dispose(),
-    )
-    ..registerFactory<CreditCardFormController>(
-      () => CreditCardFormController(getIt<CreditCardRepository>()),
     )
     // A tela do cartão mostra os gastos dele, então precisa do repositório de
     // gastos registrado também — na prática, [setupExpenseTestInjector]. Como é

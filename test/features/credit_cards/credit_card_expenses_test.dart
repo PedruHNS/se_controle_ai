@@ -159,10 +159,13 @@ void main() {
 
     // A edição saiu do toque na lista e virou o lápis daqui; sem ele, editar um
     // cartão ficaria inalcançável.
-    testWidgets('o lápis da barra existe para editar o cartão', (tester) async {
+    // O lápis saiu da barra: editar o cadastro passou para o menu do card, na
+    // lista. Esta tela é a fatura do mês, não o cadastro do cartão — e uma
+    // porta só evita a dúvida de qual das duas é a certa.
+    testWidgets('a barra não oferece editar o cartão', (tester) async {
       await pump(tester);
 
-      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
     });
   });
 }

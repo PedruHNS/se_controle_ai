@@ -9,11 +9,13 @@ import '../../../data/models/credit_card_model.dart';
 class CreditCardWidget extends StatelessWidget {
   final CreditCardModel card;
   final void Function()? onTap;
+  final void Function()? onEdit;
   final void Function()? onDelete;
 
   const CreditCardWidget({
     required this.card,
     this.onTap,
+    this.onEdit,
     this.onDelete,
     super.key,
   });
@@ -30,6 +32,7 @@ class CreditCardWidget extends StatelessWidget {
         dueDate: null,
         totalCents: null,
       ),
+      onEdit = null,
       onDelete = null,
       onTap = null;
 
@@ -60,11 +63,14 @@ class CreditCardWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: .spaceBetween,
                   children: [
-                    Text(card.name, style: theme.textTheme.titleSmall),
-                    InkWell(
-                      onTap: onDelete,
-                      child: Icon(Icons.delete, size: 20, color: Colors.red),
+                    Expanded(
+                      child: Text(
+                        card.name,
+                        style: theme.textTheme.titleSmall,
+                        overflow: .ellipsis,
+                      ),
                     ),
+                    _MenuDeAcoes(onEdit: onEdit, onDelete: onDelete),
                   ],
                 ),
 
@@ -147,27 +153,62 @@ class CreditCardWidget extends StatelessWidget {
                 ),
               ],
             ),
-
-            // leading: Icon(Icons.credit_card, color: theme.colorScheme.primary),
-            // // O label vem derivado do backend (CAR-06) e é usado como vem: os dígitos
-            // // já estão nele quando existem.
-            // title: Text(card.label),
-            // subtitle: Text(_subtitle),
-            // trailing: Row(
-            //   mainAxisSize: MainAxisSize.min,
-            //   children: [
-            //
-            //     if (onDelete != null)
-            //       IconButton(
-            //         tooltip: 'Excluir cartão',
-            //         icon: const Icon(Icons.delete_outline),
-            //         onPressed: onDelete,
-            //       ),
-            //   ],
-            // ),
           ),
         ),
       ),
+    );
+  }
+}
+
+enum _Acao { editar, excluir }
+
+class _MenuDeAcoes extends StatelessWidget {
+  const _MenuDeAcoes({required this.onEdit, required this.onDelete});
+
+  final void Function()? onEdit;
+  final void Function()? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return PopupMenuButton<_Acao>(
+      icon: const Icon(Icons.more_vert),
+      tooltip: 'Mais opções',
+      padding: .zero,
+      style: IconButton.styleFrom(
+        padding: .zero,
+        minimumSize: const Size(24, 24),
+        tapTargetSize: .shrinkWrap,
+      ),
+      enabled: onEdit != null || onDelete != null,
+      onSelected: (acao) {
+        switch (acao) {
+          case .editar:
+            onEdit?.call();
+          case .excluir:
+            onDelete?.call();
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: .editar,
+          child: ListTile(
+            contentPadding: .zero,
+            leading: Icon(Icons.edit_outlined),
+            title: Text('Editar'),
+          ),
+        ),
+        PopupMenuItem(
+          value: .excluir,
+          child: ListTile(
+            contentPadding: .zero,
+            iconColor: theme.colorScheme.error,
+            textColor: theme.colorScheme.error,
+            leading: Icon(Icons.delete_outline),
+            title: Text('Excluir'),
+          ),
+        ),
+      ],
     );
   }
 }

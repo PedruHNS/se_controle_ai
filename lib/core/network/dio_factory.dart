@@ -7,13 +7,15 @@ import 'auth_interceptor.dart';
 
 /// Constrói a única instância de Dio do app.
 ///
-/// **O endereço vem do [AppConfig], nunca escrito aqui.** Chegou a ficar
-/// chumbado em `https://secontroleai.duckdns.org` durante um teste em aparelho,
-/// com a linha do [AppConfig] comentada logo abaixo — e isso anulava em
-/// silêncio os `env/*.json` de 30/08: o `--dart-define-from-file` continuava
-/// sendo lido e ignorado, então `flutter run` na máquina de casa falava com a
-/// VPS de produção sem ninguém perceber. É o mesmo estrago que os arquivos de
-/// ambiente vieram evitar, só que ao contrário.
+/// **O endereço deve vir do [AppConfig], nunca escrito aqui** — e no momento
+/// não vem: o `baseUrl` está chumbado logo abaixo, com a linha do [AppConfig]
+/// comentada, para um teste em aparelho.
+///
+/// Enquanto estiver assim, os `env/*.json` de 30/08 estão anulados em silêncio:
+/// o `--dart-define-from-file` continua sendo lido e ignorado, então
+/// `flutter run` na máquina de casa fala com a VPS de produção sem ninguém
+/// perceber. É o mesmo estrago que os arquivos de ambiente vieram evitar, só
+/// que ao contrário. Devolver a linha do [AppConfig] é o que encerra isso.
 ///
 /// [auth] é opcional porque nem todo Dio precisa se identificar: os testes que
 /// só verificam serialização montam um sem autenticação nenhuma. Em produção

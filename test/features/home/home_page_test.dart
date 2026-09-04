@@ -7,6 +7,7 @@ import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
 import 'package:se_controle_ai/features/home/widgets/credit_card_invoice_card.dart';
 
@@ -188,6 +189,49 @@ void main() {
       expect(find.text('Vence em 17/08'), findsOneWidget);
       expect(find.text('R\$ 655,90'), findsOneWidget);
       expect(find.textContaining('do limite de R\$ 8.000,00'), findsOneWidget);
+    });
+
+    // Com um cartão só, empilhar ou deslizar dá na mesma tela — é com dois que
+    // a diferença aparece. Aqui a home é montada de ponta a ponta, e não o
+    // carrossel isolado: o que se testa é que a seção continua ligada nele.
+    testWidgets('duas faturas saem lado a lado, e não uma sob a outra', (
+      tester,
+    ) async {
+      final faturas = (summaryJson['creditCards'] as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .map(CreditCardInvoiceModel.fromJson)
+          .toList();
+      final segunda = CreditCardInvoiceModel(
+        cardId: 'id-inter',
+        name: 'Inter',
+        label: 'Inter ••••9999',
+        dueDate: '2026-08-12',
+        limitCents: 200000,
+        totalCents: 12000,
+        items: const [],
+      );
+      stubCreditCardSections(
+        repository,
+        result: Success([...faturas, segunda]),
+      );
+
+      await pumpHome(tester);
+
+      final primeiro = tester.getRect(
+        find.ancestor(
+          of: find.text('Nubank ••••4321'),
+          matching: find.byType(CreditCardInvoiceCard),
+        ),
+      );
+      final segundo = tester.getRect(
+        find.ancestor(
+          of: find.text('Inter ••••9999'),
+          matching: find.byType(CreditCardInvoiceCard),
+        ),
+      );
+
+      expect(segundo.left, greaterThan(primeiro.right));
+      expect(segundo.top, primeiro.top);
     });
 
     testWidgets('item parcelado mostra a parcela; fixo não', (tester) async {

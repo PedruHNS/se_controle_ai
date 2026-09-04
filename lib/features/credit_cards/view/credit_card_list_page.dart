@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -10,7 +9,7 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../data/models/credit_card_model.dart';
-import '../controller/credit_card_list_controller.dart';
+import '../controller/credit_card_controller.dart';
 import '../widgets/credit_card_tile.dart';
 
 /// Lista de cartões — a porta de entrada do CRUD.
@@ -22,7 +21,7 @@ class CreditCardListPage extends StatefulWidget {
 }
 
 class _CreditCardListPageState extends State<CreditCardListPage> {
-  final _controller = getIt<CreditCardListController>();
+  final _controller = getIt<CreditCardController>();
   final _nav = getIt<NavigationService>();
 
   Future<void> _confirmDelete(CreditCardModel card) async {
@@ -44,7 +43,7 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
   @override
   void dispose() {
     super.dispose();
-    getIt.resetLazySingleton<CreditCardListController>();
+    getIt.resetLazySingleton<CreditCardController>();
   }
 
   @override
@@ -58,7 +57,6 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
       body: SignalBuilder(
         builder: (context) {
           final state = _controller.state.value;
-
           return switch (state) {
             Loading() => ListView.separated(
               padding: .all(24),
@@ -69,7 +67,7 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
             ),
             Failed(failure: final failure) => Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const .all(16),
                 child: FailureCardWidget(
                   failure: failure,
                   onRetry: _controller.refresh,
@@ -84,6 +82,13 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
                 pathParameters: {RouteParams.id: card.id},
               ),
 
+              // Vai o cartão, e só ele: a lista acabou de desenhar esse
+              // cartão, e mandar o id para a tela buscá-lo de novo daria uma
+              // tela em branco até a resposta chegar, e um erro de rede a
+              // mais.
+              onEdit: (card) =>
+                  _nav.pushNamed(AppRoutes.creditCardEdit, extra: card),
+
               onDelete: _confirmDelete,
             ),
           };
@@ -94,20 +99,23 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
 }
 
 class _CreditCardList extends StatelessWidget {
+  final List<CreditCardModel> cards;
+  final Future<void> Function() onRefresh;
+  final void Function(CreditCardModel card) onOpen;
+  final void Function(CreditCardModel card) onEdit;
+  final void Function(CreditCardModel card) onDelete;
+
   const _CreditCardList({
     required this.cards,
     required this.onRefresh,
     required this.onOpen,
+    required this.onEdit,
     required this.onDelete,
   });
 
-  final List<CreditCardModel> cards;
-  final Future<void> Function() onRefresh;
-  final void Function(CreditCardModel card) onOpen;
-  final void Function(CreditCardModel card) onDelete;
-
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
     if (cards.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.credit_card,
@@ -121,12 +129,13 @@ class _CreditCardList extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView.separated(
         separatorBuilder: (_, _) => const SizedBox(height: 12),
-        padding: .all(24),
+        padding: .fromLTRB(24, 24, 24, bottomPadding + 80),
         itemCount: cards.length,
         itemBuilder: (_, i) {
           return CreditCardWidget(
             card: cards[i],
             onTap: () => onOpen(cards[i]),
+            onEdit: () => onEdit(cards[i]),
             onDelete: () => onDelete(cards[i]),
           );
         },

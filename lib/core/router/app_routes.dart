@@ -58,9 +58,13 @@ abstract final class AppRoutes {
   static const creditCardExpenses = 'credit-card-expenses';
   static const creditCardExpensesPath = ':id';
 
-  /// Edição usa a mesma tela do cadastro, com o id na rota. É **filha** da tela
-  /// do cartão (`/credit-cards/:id/edit`): fechar a edição volta para o cartão,
-  /// que é de onde se entra nela.
+  /// Edição usa a mesma tela do cadastro, e **sem id na rota**
+  /// (`/credit-cards/edit`): quem preenche a tela é o cartão que vai por
+  /// `extra`, e um id no caminho seria um segundo endereço para o mesmo
+  /// cartão, sem ninguém para lê-lo.
+  ///
+  /// Irmã do cadastro, e não filha da tela do cartão: a edição se abre pelo
+  /// menu da lista, e é para a lista que ela volta.
   static const creditCardEdit = 'credit-card-edit';
   static const creditCardEditPath = 'edit';
 

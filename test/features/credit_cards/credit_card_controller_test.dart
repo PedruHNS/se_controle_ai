@@ -8,7 +8,7 @@ import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
-import 'package:se_controle_ai/features/credit_cards/controller/credit_card_list_controller.dart';
+import 'package:se_controle_ai/features/credit_cards/controller/credit_card_controller.dart';
 
 import '../../fixtures/mocks.dart';
 
@@ -20,13 +20,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MockCreditCardRepository repository;
-  late CreditCardListController controller;
+  late CreditCardController controller;
 
   setUp(() {
     repository = MockCreditCardRepository();
     stubCreditCardList(repository);
     stubCreditCardOperations(repository);
-    controller = CreditCardListController(
+    controller = CreditCardController(
       repository,
       SelectedMonthController(),
     );
