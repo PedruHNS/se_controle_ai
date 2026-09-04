@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/models/credit_card_model.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../config/globals.dart';
@@ -138,19 +139,24 @@ final GoRouter appRouter = GoRouter(
           name: AppRoutes.creditCardForm,
           builder: (context, state) => const CreditCardFormPage(),
         ),
+        // `edit` também antes de `:id`, e pela mesma razão que `form`.
+        GoRoute(
+          path: AppRoutes.creditCardEditPath,
+          name: AppRoutes.creditCardEdit,
+          // O cartão vai inteiro por `extra`, e não por um id na rota: quem
+          // empilha já tem o cartão na mão — é o mesmo que a lista desenhou —,
+          // então buscá-lo de novo seria pedir o que já se tem.
+          //
+          // Sem `extra` — link colado, app reaberto na rota — o `card` vem
+          // null e a tela abre em cadastro.
+          builder: (context, state) =>
+              CreditCardFormPage(card: state.extra as CreditCardModel?),
+        ),
         GoRoute(
           path: AppRoutes.creditCardExpensesPath,
           name: AppRoutes.creditCardExpenses,
           builder: (context, state) =>
               CreditCardExpensesPage(id: state.pathParameters[RouteParams.id]!),
-          routes: [
-            GoRoute(
-              path: AppRoutes.creditCardEditPath,
-              name: AppRoutes.creditCardEdit,
-              builder: (context, state) =>
-                  CreditCardFormPage(id: state.pathParameters[RouteParams.id]!),
-            ),
-          ],
         ),
       ],
     ),

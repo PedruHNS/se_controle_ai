@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
+import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_expenses_page.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_form_page.dart';
@@ -14,6 +15,7 @@ import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 
+import '../../fixtures/credit_card_fixture.dart';
 import '../../fixtures/test_injector.dart';
 
 void main() {
@@ -182,7 +184,15 @@ void main() {
 
     expect(find.byType(CreditCardExpensesPage), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // A edição entra pelo menu do card, e não mais pelo lápis da fatura: a
+    // lista é quem conhece o cadastro inteiro. Voltar cai na lista, que é de
+    // onde a tela foi empilhada.
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar'));
     await tester.pumpAndSettle();
 
     expect(find.byType(CreditCardFormPage), findsOneWidget);
@@ -190,23 +200,27 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.byType(CreditCardExpensesPage), findsOneWidget);
+    expect(find.byType(CreditCardListPage), findsOneWidget);
   });
 
-  // `form` antes de `:id` no router: invertido, esta rota viraria uma edição de
-  // cartão com id "form".
+  // `form` e `edit` antes de `:id` no router: invertido, estas rotas virariam
+  // a tela de um cartão de id "form" ou "edit".
   testWidgets('a rota de edição abre o formulário preenchido', (tester) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
+    // Só o cartão, sem id na rota: quem preenche a tela é o objeto, e não havia
+    // ninguém do outro lado para ler o id.
     appRouter.goNamed(
       AppRoutes.creditCardEdit,
-      pathParameters: {RouteParams.id: 'id-nubank'},
+      extra: CreditCardModel.fromJson(nubankJson),
     );
     await tester.pumpAndSettle();
 
     expect(find.byType(CreditCardFormPage), findsOneWidget);
     expect(find.text('Editar cartão'), findsOneWidget);
+    // Preenchido, e não só aberto: é o `extra` chegando no `loadCardCredit` —
+    // a rota entregando o cartão não vale de nada se o form não o receber.
     expect(find.text('Nubank'), findsOneWidget);
   });
 

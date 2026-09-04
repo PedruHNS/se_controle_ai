@@ -523,21 +523,22 @@ void stubCreditCardDetail(
 }
 
 /// Stub de criação, edição e exclusão.
-///
-/// O `update` casa com qualquer `Patch`, para o teste que **verifica** o patch
-/// poder olhar o argumento capturado em vez de precisar de um stub por
-/// combinação — são três estados em dois campos.
 void stubCreditCardOperations(
   MockCreditCardRepository mock, {
   Result<bool, Failure> result = const Success(true),
-  Result<String, Failure> createResult = const Success('novo-cartao'),
+  // Nullable com o padrão resolvido no corpo, e não um valor no cabeçalho:
+  // desde que o `create` devolve o cartão, o padrão sai de um `fromJson` — que
+  // não é const, e parâmetro opcional exige const.
+  Result<CreditCardModel, Failure>? createResult,
+  // O `update` devolve o cartão editado (CAR-08/CAR-10), como o de tag. Sem um
+  // valor aqui o padrão é o Nubank da listagem — o cartão que a maioria dos
+  // testes edita.
+  Result<CreditCardModel, Failure>? updateResult,
   Future<void>? pendenteAte,
 }) {
-  // `Patch` não é anulável no `update`, e para esses o mocktail precisa de um
-  // valor de reserva antes de aceitar `any()`. Registrar aqui, e não em um
-  // `setUpAll` de cada teste, mantém o custo do detalhe dentro do stub.
-  registerFallbackValue(const Patch<String>.keep());
-  registerFallbackValue(const Patch<int>.keep());
+  final criado =
+      createResult ?? Success(CreditCardModel.fromJson(cartaoCriadoJson));
+  final editado = updateResult ?? Success(CreditCardModel.fromJson(nubankJson));
 
   Future<T> answer<T>(T value) async {
     if (pendenteAte != null) await pendenteAte;
@@ -552,7 +553,7 @@ void stubCreditCardOperations(
       lastDigits: any(named: 'lastDigits'),
       limitCents: any(named: 'limitCents'),
     ),
-  ).thenAnswer((_) => answer(createResult));
+  ).thenAnswer((_) => answer(criado));
 
   when(
     () => mock.update(
@@ -562,10 +563,11 @@ void stubCreditCardOperations(
       dueDay: any(named: 'dueDay'),
       lastDigits: any(named: 'lastDigits'),
       limitCents: any(named: 'limitCents'),
+      month: any(named: 'month'),
     ),
   ).thenAnswer((invocation) {
     _recordUpdateBody(mock, invocation);
-    return answer(result);
+    return answer(editado);
   });
 
   when(() => mock.delete(any())).thenAnswer((_) => answer(result));
@@ -577,7 +579,9 @@ MockCreditCardRepository creditCardRepositoryMock({
   Result<List<CreditCardModel>, Failure>? list,
   Result<CreditCardModel, Failure>? detail,
   Result<bool, Failure> operations = const Success(true),
-  Result<String, Failure> create = const Success('novo-cartao'),
+  // O `create` devolve o cartão inteiro desde 04/09; null aqui é "o cartão
+  // recém-criado padrão", montado no stub a partir de `cartaoCriadoJson`.
+  Result<CreditCardModel, Failure>? create,
   Future<void>? pendenteAte,
 }) {
   final mock = MockCreditCardRepository();
@@ -592,40 +596,36 @@ MockCreditCardRepository creditCardRepositoryMock({
   return mock;
 }
 
-/// Os corpos de `PATCH` que o mock recebeu, na ordem, montados como o
-/// repositório montaria.
+/// Os corpos de edição que o mock recebeu, na ordem, montados como o repositório
+/// os montaria.
 ///
 /// Escrito pelo próprio stub, e não lido do `captured` do mocktail: lá os
 /// argumentos nomeados voltam numa ordem que não é a da declaração, e reconstruir
-/// o corpo por posição dava `_Keep<String>` no lugar do nome.
+/// o corpo por posição trocava um campo pelo outro.
+///
+/// As cinco chaves saem **sempre**, inclusive as nulas: desde o CAR-08 a edição
+/// é substituição, e um corpo com chave faltando não é "não mexi" — seria um
+/// campo apagado sem querer. É exatamente isso que estes testes vigiam.
 final _updateBodies = <MockCreditCardRepository, List<Map<String, dynamic>>>{};
 
 void _recordUpdateBody(MockCreditCardRepository mock, Invocation invocation) {
   final named = invocation.namedArguments;
 
-  final body = <String, dynamic>{
-    'name': ?named[const Symbol('name')] as String?,
-    'closingDay': ?named[const Symbol('closingDay')] as int?,
-    'dueDay': ?named[const Symbol('dueDay')] as int?,
-  };
-
-  // O mesmo `writeTo` da produção decide o que entra: é o mapeamento do CAR-08,
-  // e ele próprio está coberto em `patch_test.dart`.
-  (named[const Symbol('lastDigits')] as Patch<String>? ??
-          const Patch<String>.keep())
-      .writeTo(body, 'lastDigits');
-  (named[const Symbol('limitCents')] as Patch<int>? ?? const Patch<int>.keep())
-      .writeTo(body, 'limitCents');
-
-  (_updateBodies[mock] ??= []).add(body);
+  (_updateBodies[mock] ??= []).add(<String, dynamic>{
+    'name': named[const Symbol('name')],
+    'closingDay': named[const Symbol('closingDay')],
+    'dueDay': named[const Symbol('dueDay')],
+    'lastDigits': named[const Symbol('lastDigits')],
+    'limitCents': named[const Symbol('limitCents')],
+  });
 }
 
 /// Todos os corpos de `update` recebidos por este mock.
 List<Map<String, dynamic>> updateBodies(MockCreditCardRepository mock) =>
     _updateBodies[mock] ?? const [];
 
-/// O corpo do último `update`. É o que os testes do CAR-08 afirmam: quais chaves
-/// foram enviadas, e com quê.
+/// O corpo do último `update`. É o que os testes do CAR-08 afirmam: o cartão
+/// inteiro foi enviado, e com quê.
 Map<String, dynamic> capturedUpdateBody(MockCreditCardRepository mock) =>
     updateBodies(mock).last;
 

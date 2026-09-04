@@ -6,10 +6,11 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 01/09/2026.*
+*Atualizado em 04/09/2026.*
 
-Flutter 3.44.9 · Dart 3.12.2 · **530 testes verdes** · `flutter analyze` com
-**1 aviso** (`_createTag` não referenciado — veja "O que falta").
+Flutter 3.47.1 · Dart 3.13.1 · **546 testes verdes** (1 pulado) ·
+`flutter analyze` com **1 aviso** (`_createTag` não referenciado — veja "O que
+falta").
 
 | Fase | Status |
 |---|---|
@@ -45,7 +46,8 @@ verdade, não um cache, e só sai barata com o contrato parado.
 ### Dívidas sem fase
 
 - [ ] **O botão "nova categoria" está comentado** no formulário de gasto
-      (`expense_form_page.dart:171`), e é ele o único aviso do `analyze`:
+      (`expense_form_page.dart:176`), e é ele o único aviso do `analyze`
+      (`_createTag`, declarado na 510):
       `_createTag` existe, tem teste de controller passando e **não tem como ser
       chamado pela tela**. Ou o botão volta, ou a função sai — hoje "criar tag
       sem sair do formulário" está no código e não no app.
@@ -101,7 +103,7 @@ de conta encosta em todas as tabelas, e é a que menos aceita ficar para o fim.
 
 ## Refatoração
 
-Situação por feature, conferida contra o código em **01/09/2026**. O detalhe de
+Situação por feature, conferida contra o código em **04/09/2026**. O detalhe de
 cada item — e a lista de repetições que estão lá **de propósito** — fica em
 [`REFATORACAO.md`](REFATORACAO.md).
 
@@ -109,15 +111,15 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 |---|---|---|
 | `tags` | ✅ **refatorado** | Nada. A tela caiu de 359 para 172 linhas, com `TagTile` e o diálogo de criação extraídos |
 | `core` (DI) | ✅ **refatorado** | `injector.dart` virou 79 linhas com um `part` por camada (rede, repositórios, controllers, services) |
-| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (8 controllers), `applyFailure` (8 cópias), `serializationFailure` (5), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (276) por feature |
+| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (8 controllers), `applyFailure` (8 cópias), `serializationFailure` (5), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (285) por feature |
 | `auth` | 🟡 parcial | A parte com regra já saiu do router: `rotaParaEstado` em `auth_gate.dart` (48 linhas, 14 testes). O que sobra é tela — `login_page` 209, `auth_repository` 225 |
-| `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (541) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
-| `home` | ⬜ pendente | `home_page.dart` **cresceu para 297** e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
+| `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
+| `home` | ⬜ pendente | `home_page.dart` **cresceu para 361** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
-| `credit_cards` | ⬜ pendente | O diff do CAR-08 está no meio do `credit_card_form_controller` (271); extraído, vira função pura testável sem `FormGroup`. E o `CreditCardExpensesController` é o único do app que dispara três buscas e monta um record — a tela dele tem 262 linhas |
+| `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (372), como em tags. O diff do CAR-08 continua no meio dele; extraído, vira função pura testável sem `FormGroup`. E o `CreditCardExpensesController` é o único do app que dispara três buscas e monta um record — a tela dele tem 262 linhas |
 | `projection` | ⬜ pendente | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho |
-| `data` | ⬜ pendente | `ExpenseModel` (213) acumula os dois tipos de gasto num só; avaliar `sealed` com dois filhos, sabendo que mexe em toda tela de gasto. `fromJson` manual em 12 models |
-| `test/fixtures` | ⬜ pendente | **Piorou desde 25/08**: `mocks.dart` foi de 566 para **787** e `test_injector.dart` de 207 para **309**. Dividir por feature e manter um arquivo que reexporta |
+| `data` | ⬜ pendente | `ExpenseModel` (219) acumula os dois tipos de gasto num só; avaliar `sealed` com dois filhos, sabendo que mexe em toda tela de gasto. `fromJson` manual em 12 models |
+| `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **814** e `test_injector.dart` de 207 para **322**. Dividir por feature e manter um arquivo que reexporta |
 | `notifications` | — | Só o estado vazio. Vira código de verdade com a Etapa 8 do backend; nada a refatorar antes |
 
 ---
@@ -205,6 +207,34 @@ return Success(MonthlySummaryModel.fromJson(Decode.object(response.data)));
 - **Ação disparada de dentro de diálogo devolve `Failure?`**, em vez de guardar
   em signal: o erro precisa aparecer no diálogo, e a tela de trás continua certa
   — quem falhou foi a ação, não a busca.
+
+### Cadastro sem recarregar
+
+O `POST` devolve o **objeto inteiro**, não o id (CAR-10 no backend; tag já era
+assim). O controller insere o que voltou na lista que já está na tela, e ninguém
+volta ao servidor para ler o que acabou de escrever.
+
+**Cartão entra no fim, sem ordenar.** Tag é ordenada alfabeticamente porque a
+lista dela é um vocabulário que se consulta pelo nome. Cartão é um punhado de
+itens reconhecidos de relance, e reordenar faria o recém-criado pular para o
+meio no instante em que a pessoa o procura.
+
+**Lista e formulário no mesmo controller.** Separados, o formulário salvava num
+lugar e a lista relia de outro, e a única forma de concordarem era uma volta ao
+servidor. O preço é o reset no começo do `startForm`: o controller agora
+sobrevive entre uma abertura e a seguinte, e sem limpar, cadastrar depois de
+editar abriria a tela com o cartão anterior nos campos.
+
+### Menu de ações do card
+
+O `more_vert` com **Editar** e **Excluir** estreou na `TagTile` e agora é também
+o do `CreditCardWidget`: `PopupMenuButton` com `tooltip: 'Mais opções'`, o item
+de excluir pintado com `colorScheme.error`, e `enabled` amarrado a ter ao menos
+um callback — o esqueleto do `Skeletonizer` passa os dois nulos e o menu nasce
+desligado sozinho.
+
+**Uma ação mora em um lugar só.** Editar cartão saiu da AppBar da fatura quando
+entrou no menu do card: a lista conhece o cadastro, a fatura é sobre o mês.
 
 ### Formulário
 
@@ -456,6 +486,10 @@ aparece lá sem duplicar.
   `--dart-define-from-file=env/dev.json`. `env/*.json` fica fora do git,
   `env/*.example.json` vai junto. O motivo não foi estética — saiu um APK
   apontando para a rede local em vez de produção, e só apareceu com `strings`.
+- **Os `env/*.example.json` mostram o formato, não o endereço** (04/09). Eles
+  traziam a porta da API e o domínio de produção em claro, e arquivo de exemplo
+  versionado é lido por qualquer um que clone. Quem builda já sabe para onde
+  aponta; **o valor real vive só no `env/*.json`, que não vai para o git.**
 - **`AppConfig` importa `dart:io` e não compila para web.** Rodar no Chrome
   exigiria `kIsWeb` + import condicional.
 - **Erro de sintaxe apontando para dentro do `.pub-cache` quase nunca é o seu

@@ -14,8 +14,8 @@ import '../../../data/models/monthly_balance_model.dart';
 import '../../../data/models/summary_section_model.dart';
 import '../controller/home_controller.dart';
 import '../widgets/balance_card.dart';
-import '../widgets/credit_card_invoice_card.dart';
 import '../widgets/home_fab.dart';
+import '../widgets/invoice_carousel.dart';
 import '../widgets/summary_section.dart';
 
 /// Resumo do mês — tela inicial.
@@ -301,23 +301,26 @@ class _SummaryContent extends StatelessWidget {
               onRetry: controller.load,
               // As faturas são uma seção só, e não uma por cartão: elas vêm da
               // mesma resposta, então falham e chegam juntas de qualquer jeito.
-              builder: (invoices) => Column(
-                children: [
-                  for (final invoice in invoices) ...[
-                    const SizedBox(height: 16),
-                    // A fatura do resumo é a segunda porta do cartão: quem está
-                    // olhando o mês e quer saber o que compõe aquele total já
-                    // está com o dedo em cima do card certo.
-                    CreditCardInvoiceCard(
-                      invoice: invoice,
-                      onTap: () => context.pushNamed(
-                        AppRoutes.creditCardExpenses,
-                        pathParameters: {RouteParams.id: invoice.cardId},
+              //
+              // Lado a lado, e não empilhadas: o mês tem um fim, e cada cartão
+              // empurrando o resto para baixo fazia a home crescer com o número
+              // de cartões. O espaço vazio quando não há fatura nenhuma
+              // continua sendo espaço nenhum.
+              builder: (invoices) => invoices.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      // A fatura do resumo é a segunda porta do cartão: quem
+                      // está olhando o mês e quer saber o que compõe aquele
+                      // total já está com o dedo em cima do card certo.
+                      child: InvoiceCarousel(
+                        invoices: invoices,
+                        onOpen: (invoice) => context.pushNamed(
+                          AppRoutes.creditCardExpenses,
+                          pathParameters: {RouteParams.id: invoice.cardId},
+                        ),
                       ),
                     ),
-                  ],
-                ],
-              ),
             ),
           ),
           const SizedBox(height: 24),

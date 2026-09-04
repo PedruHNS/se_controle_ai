@@ -98,21 +98,20 @@ void _registerControllers() {
     () => IncomeDetailController(getIt<IncomeRepository>()),
   );
 
-  // Cartões seguem a mesma divisão: a lista é lazySingleton com dispose pelo
-  // get_it, o formulário é factory porque precisa nascer limpo — e aqui isso
-  // pesa mais que em ganhos, já que a mesma tela serve para cadastrar e para
-  // editar. Um formulário reaproveitado abriria a edição com o cartão anterior
-  // ainda no `_cardOnOpen`, e o diff do CAR-08 sairia contra o cartão errado.
-  getIt.registerLazySingleton<CreditCardListController>(
-    () => CreditCardListController(
+  // Cartões têm **um** controller, como tags: a lista e o formulário no mesmo
+  // objeto, que é o que permite o cadastro entrar na lista sem recarregá-la.
+  //
+  // Foi factory enquanto o formulário era separado, porque precisava nascer
+  // limpo — a mesma tela cadastra e edita, e um formulário reaproveitado abriria
+  // a edição com o cartão anterior ainda no `_cardOnOpen`, fazendo o diff do
+  // CAR-08 sair contra o cartão errado. Agora que ele é singleton junto com a
+  // lista, quem garante isso é o reset no começo do `startForm`.
+  getIt.registerLazySingleton<CreditCardController>(
+    () => CreditCardController(
       getIt<CreditCardRepository>(),
       getIt<SelectedMonthController>(),
     ),
     dispose: (e) => e.dispose(),
-  );
-
-  getIt.registerFactory<CreditCardFormController>(
-    () => CreditCardFormController(getIt<CreditCardRepository>()),
   );
 
   // Factory pelo mesmo motivo do detalhe de ganho: dois cartões podem estar na
