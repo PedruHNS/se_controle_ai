@@ -35,7 +35,7 @@ void main() {
   tearDown(() => controller.dispose());
 
   test('busca os cartões e fica em Loaded', () async {
-    await controller.load();
+    await controller.refresh();
 
     final state = controller.state.value;
     expect(state, isA<Loaded<List<CreditCardModel>>>());
@@ -47,7 +47,7 @@ void main() {
   test(
     'a busca leva a competência corrente, para o dueDate vir resolvido',
     () async {
-      await controller.load();
+      await controller.refresh();
 
       final captured = verify(
         () => repository.list(month: captureAny(named: 'month')),
@@ -67,28 +67,17 @@ void main() {
       result: const Error(NetworkFailure(message: 'sem rede')),
     );
 
-    await controller.load();
+    await controller.refresh();
 
     expect(controller.state.value, isA<Failed<List<CreditCardModel>>>());
   });
 
-  test('load passa por Loading', () async {
-    final segura = Completer<void>();
-    stubCreditCardList(repository, pendenteAte: segura.future);
-
-    final pending = controller.load();
-
-    expect(controller.state.value, isA<Loading<List<CreditCardModel>>>());
-    segura.complete();
-    await pending;
-    expect(controller.state.value, isA<Loaded<List<CreditCardModel>>>());
-  });
-
-  // `refresh` é `load` — não existe mais a busca silenciosa que segurava a
-  // lista na tela enquanto a nova resposta não chegava. Quem puxa para
-  // atualizar vê a lista sumir e voltar.
-  test('refresh passa por Loading, igual ao load', () async {
-    await controller.load();
+  // A busca não é mais pública: quem chama de fora é o `refresh`, e a carga
+  // inicial vem do `effect` do mês. Não existe busca silenciosa — quem puxa
+  // para atualizar vê a lista sumir e voltar, porque o estado passa por
+  // `Loading` antes da resposta.
+  test('refresh passa por Loading antes de voltar a Loaded', () async {
+    await controller.refresh();
     final segura = Completer<void>();
     stubCreditCardList(repository, pendenteAte: segura.future);
 
@@ -101,18 +90,47 @@ void main() {
   });
 
   group('delete', () {
-    test('exclui e recarrega a lista', () async {
-      await controller.load();
+    test('exclui e tira o cartão da lista sem rebuscar', () async {
+      await controller.refresh();
+      final antes =
+          (controller.state.value as Loaded<List<CreditCardModel>>).data;
+      final excluido = antes.first.id;
 
       // Zera o que veio do `onInit` e do `load` acima, para o `verify` abaixo
       // falar só da exclusão.
       clearInteractions(repository);
 
+      await controller.delete(excluido);
+
+      verify(() => repository.delete(excluido)).called(1);
+
+      // O cartão sai da lista que já está na tela, em vez de a lista ser
+      // buscada de novo: o backend já confirmou o 204, e rebuscar só custaria
+      // uma volta de rede para chegar ao mesmo resultado — piscando a lista no
+      // caminho.
+      verifyNever(() => repository.list(month: any(named: 'month')));
+
+      final depois =
+          (controller.state.value as Loaded<List<CreditCardModel>>).data;
+      expect(depois, hasLength(antes.length - 1));
+      expect(depois.map((card) => card.id), isNot(contains(excluido)));
+    });
+
+    // A exclusão escreve sobre a lista que está na tela, então sem lista na
+    // tela não há o que escrever — e `Loaded` é a única forma de estado que
+    // carrega os cartões.
+    test('delete antes de a lista chegar não faz nada', () async {
+      final segura = Completer<void>();
+      stubCreditCardList(repository, pendenteAte: segura.future);
+      final pending = controller.refresh();
+
       await controller.delete('id-do-cartao');
 
-      verify(() => repository.delete('id-do-cartao')).called(1);
-      // A recarga silenciosa depois do 204: a lista precisa perder o cartão.
-      verify(() => repository.list(month: any(named: 'month'))).called(1);
+      verifyNever(() => repository.delete(any()));
+      expect(controller.state.value, isA<Loading<List<CreditCardModel>>>());
+
+      segura.complete();
+      await pending;
     });
 
     // CAR-07: a FK é RESTRICT, e o 409 é explicação, não erro de sistema. Ele
@@ -127,7 +145,7 @@ void main() {
           ),
         ),
       );
-      await controller.load();
+      await controller.refresh();
       clearInteractions(repository);
 
       await controller.delete('id-do-cartao');
