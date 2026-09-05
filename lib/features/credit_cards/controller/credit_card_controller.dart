@@ -1,7 +1,7 @@
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
 import 'package:signals/signals.dart';
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../data/models/credit_card_model.dart';
@@ -9,7 +9,7 @@ import '../../../data/repositories/credit_card_repository.dart';
 
 class CreditCardController extends BaseController with MessageMixin {
   final CreditCardRepository _repository;
-  final SelectedMonthController _selectedMonth;
+  final SelectedMonthService _selectedMonth;
   CreditCardController(this._repository, this._selectedMonth);
 
   EffectCleanup? _watchingMonth;

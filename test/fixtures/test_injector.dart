@@ -1,5 +1,5 @@
 import 'package:se_controle_ai/core/di/injector.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';
@@ -48,11 +48,11 @@ import 'mocks.dart';
 /// unregister, e um controller do teste anterior que ainda tivesse referência
 /// estouraria ao ler um signal morto.
 void setupSelectedMonth() {
-  if (getIt.isRegistered<SelectedMonthController>()) {
-    getIt.unregister<SelectedMonthController>();
+  if (getIt.isRegistered<SelectedMonthService>()) {
+    getIt.unregister<SelectedMonthService>();
   }
 
-  getIt.registerSingleton<SelectedMonthController>(SelectedMonthController());
+  getIt.registerSingleton<SelectedMonthService>(SelectedMonthService());
 }
 
 MockSummaryRepository setupTestInjector() {
@@ -85,14 +85,14 @@ MockSummaryRepository setupTestInjector() {
     ..registerFactory<HomeController>(
       () => HomeController(
         getIt<SummaryRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
     )
     // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
     ..registerFactory<ProjectionController>(
       () => ProjectionController(
         getIt<SummaryRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
     )
     // O tema não é de feature nenhuma, mas o menu lateral o resolve — e o menu
@@ -154,7 +154,7 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   final repository = mock ?? incomeRepositoryMock();
   setupTagTestInjector();
 
-  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
+  if (!getIt.isRegistered<SelectedMonthService>()) setupSelectedMonth();
 
   if (getIt.isRegistered<IncomeRepository>()) {
     getIt.unregister<IncomeRepository>();
@@ -178,7 +178,7 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       () => IncomeFormController(
         getIt<IncomeRepository>(),
         getIt<TagRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
     )
     ..registerFactory<IncomeDetailController>(
@@ -194,7 +194,7 @@ MockCreditCardRepository setupCreditCardTestInjector({
 }) {
   final repository = mock ?? creditCardRepositoryMock();
 
-  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
+  if (!getIt.isRegistered<SelectedMonthService>()) setupSelectedMonth();
 
   if (getIt.isRegistered<CreditCardRepository>()) {
     getIt.unregister<CreditCardRepository>();
@@ -220,7 +220,7 @@ MockCreditCardRepository setupCreditCardTestInjector({
     ..registerLazySingleton<CreditCardController>(
       () => CreditCardController(
         getIt<CreditCardRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
       dispose: (controller) => controller.dispose(),
     )
@@ -230,9 +230,8 @@ MockCreditCardRepository setupCreditCardTestInjector({
     // hora de construir.
     ..registerFactory<CreditCardExpensesController>(
       () => CreditCardExpensesController(
-        getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
     );
 
@@ -252,7 +251,7 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
 
   // A lista e o detalhe de gasto leem o mês para saber qual valor mostrar, e
   // este setup é chamado por testes que não passam pela home.
-  if (!getIt.isRegistered<SelectedMonthController>()) setupSelectedMonth();
+  if (!getIt.isRegistered<SelectedMonthService>()) setupSelectedMonth();
 
   if (getIt.isRegistered<ExpenseRepository>()) {
     getIt.unregister<ExpenseRepository>();
@@ -272,7 +271,7 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
     ..registerFactory<ExpenseListController>(
       () => ExpenseListController(
         getIt<ExpenseRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
     )
     ..registerFactory<ExpenseFormController>(
@@ -280,7 +279,7 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
         getIt<ExpenseRepository>(),
         getIt<CreditCardRepository>(),
         getIt<TagRepository>(),
-        getIt<SelectedMonthController>(),
+        getIt<SelectedMonthService>(),
       ),
     )
     ..registerFactory<ExpenseDetailController>(

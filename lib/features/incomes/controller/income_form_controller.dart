@@ -2,7 +2,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/income_repository.dart';
@@ -26,7 +26,7 @@ class IncomeFormController extends BaseController {
 
   final IncomeRepository _repository;
   final TagRepository _tagRepository;
-  final SelectedMonthController _selectedMonth;
+  final SelectedMonthService _selectedMonth;
 
   /// Nomes dos campos como constante: eles aparecem na view, na validação e no
   /// `issues[].path` do backend, e um deles escrito errado falharia calado.

@@ -3,6 +3,8 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/patch.dart';
 import 'package:se_controle_ai/data/models/auth_user_model.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/data/models/credit_card_bill_model.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
@@ -522,6 +524,41 @@ void stubCreditCardDetail(
   );
 }
 
+/// Stub da fatura: `GET /credit-cards/:id/invoice`, que é a tela do cartão
+/// inteira numa resposta.
+///
+/// O total sai da soma dos gastos, como o backend o calcula — assim o teste que
+/// mexe na lista não precisa lembrar de acertar o total à mão.
+void stubCreditCardBill(
+  MockCreditCardRepository mock, {
+  Result<CreditCardBillModel, Failure>? result,
+  List<ExpenseModel>? expenses,
+  Future<void>? pendenteAte,
+}) {
+  final gastos =
+      expenses ?? expenseListJson.map(ExpenseModel.fromJson).toList();
+  final answer =
+      result ??
+      Success(
+        CreditCardBillModel(
+          card: CreditCardModel.fromJson(nubankJson),
+          expenses: gastos,
+          month: SelectedMonthService.initial(),
+          totalCents: gastos.fold(
+            0,
+            (total, expense) => total + (expense.amountCents ?? 0),
+          ),
+        ),
+      );
+
+  when(
+    () => mock.getBill(any(), month: any(named: 'month')),
+  ).thenAnswer((_) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
 /// Stub de criação, edição e exclusão.
 void stubCreditCardOperations(
   MockCreditCardRepository mock, {
@@ -578,6 +615,7 @@ void stubCreditCardOperations(
 MockCreditCardRepository creditCardRepositoryMock({
   Result<List<CreditCardModel>, Failure>? list,
   Result<CreditCardModel, Failure>? detail,
+  Result<CreditCardBillModel, Failure>? bill,
   Result<bool, Failure> operations = const Success(true),
   // O `create` devolve o cartão inteiro desde 04/09; null aqui é "o cartão
   // recém-criado padrão", montado no stub a partir de `cartaoCriadoJson`.
@@ -587,6 +625,7 @@ MockCreditCardRepository creditCardRepositoryMock({
   final mock = MockCreditCardRepository();
   stubCreditCardList(mock, result: list, pendenteAte: pendenteAte);
   stubCreditCardDetail(mock, result: detail);
+  stubCreditCardBill(mock, result: bill, pendenteAte: pendenteAte);
   stubCreditCardOperations(
     mock,
     result: operations,

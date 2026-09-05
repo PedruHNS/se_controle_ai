@@ -77,6 +77,9 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
             Loaded(data: final cards) => _CreditCardList(
               cards: cards,
               onRefresh: _controller.refresh,
+              // Só o id: a tela do cartão busca a fatura inteira numa
+              // requisição, então mandar o objeto junto pouparia zero idas à
+              // rede e daria dois caminhos para o mesmo dado.
               onOpen: (card) => _nav.pushNamed(
                 AppRoutes.creditCardExpenses,
                 pathParameters: {RouteParams.id: card.id},

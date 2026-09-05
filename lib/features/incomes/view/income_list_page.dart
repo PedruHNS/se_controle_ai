@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
@@ -29,7 +29,7 @@ class _IncomeListPageState extends State<IncomeListPage> {
   /// O mês que a home selecionou. A lista em si não depende dele — a busca é
   /// sem `?month`, de propósito —, mas o valor de cada linha e o total do rodapé
   /// dependem: é o mês que responde "quanto disto entra".
-  final _selectedMonth = getIt<SelectedMonthController>();
+  final _selectedMonth = getIt<SelectedMonthService>();
 
   /// Recarrega ao voltar do formulário ou do detalhe: as duas telas podem ter
   /// criado, reajustado ou apagado, e a lista não fica sabendo sozinha.

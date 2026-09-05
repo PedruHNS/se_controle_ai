@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/data/models/credit_card_bill_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_expenses_page.dart';
@@ -28,86 +28,80 @@ void main() {
 
     setUp(
       () => controller = CreditCardExpensesController(
-        expenses,
         cards,
-        SelectedMonthController(),
+        SelectedMonthService(),
       ),
     );
     tearDown(() => controller.dispose());
 
-    test('busca o cartão e a fatura do mês', () async {
+    test('busca a fatura do mês numa requisição só', () async {
       await controller.start('cartao-1');
 
       final state = controller.state.value;
-      expect(state, isA<Loaded<CardWithExpenses>>());
+      expect(state, isA<Loaded<CreditCardBillModel>>());
 
-      final view = (state as Loaded<CardWithExpenses>).data;
+      final view = (state as Loaded<CreditCardBillModel>).data;
       expect(view.card.label, 'Nubank ••••4321');
       expect(view.expenses, hasLength(3));
 
-      // O cartão com competência, para o vencimento vir resolvido (CAR-03).
-      verify(() => cards.getById('cartao-1', month: Month.current())).called(1);
       verify(
-        () => expenses.list(
-          creditCardId: 'cartao-1',
-          month: Month.current(),
-          type: any(named: 'type'),
-          paymentMethod: any(named: 'paymentMethod'),
-        ),
+        () => cards.getBill('cartao-1', month: SelectedMonthService.initial()),
       ).called(1);
     });
 
-    // Houve uma segunda busca, sem competência, que trazia tudo que já passou
-    // pelo cartão. Ela saiu porque um avulso de setembro reaparecia na tela de
-    // outubro com o selo "Encerrado", contradizendo o total do cabeçalho.
-    test('não busca a lista sem competência', () async {
+    // O ponto da mudança: a tela era duas rotas — o cartão e a lista de gastos
+    // — juntadas no cliente. Uma tela, uma resposta.
+    test('não pede mais o cartão e os gastos em rotas separadas', () async {
       await controller.start('cartao-1');
 
+      verifyNever(() => cards.getById(any(), month: any(named: 'month')));
       verifyNever(
         () => expenses.list(
           creditCardId: any(named: 'creditCardId'),
-          month: null,
+          month: any(named: 'month'),
           type: any(named: 'type'),
           paymentMethod: any(named: 'paymentMethod'),
         ),
       );
     });
 
-    // O total não pode sair da lista sem competência: lá `amountCents` vem
-    // null, e num parcelado o valor do mês nem está no histórico.
-    test(
-      'a fatura do mês soma o amountCents da lista com competência',
-      () async {
-        when(
-          () => expenses.list(
-            creditCardId: any(named: 'creditCardId'),
-            month: Month.current(),
-            type: any(named: 'type'),
-            paymentMethod: any(named: 'paymentMethod'),
-          ),
-        ).thenAnswer(
-          (_) async => Success([
-            ExpenseModel.fromJson({...youtubeJson, 'amountCents': 2490}),
-            ExpenseModel.fromJson({...presenteJson, 'amountCents': 18000}),
-          ]),
-        );
+    // O total vem pronto do backend: num parcelado o valor do mês não está no
+    // histórico, está nas parcelas (GFX-09), e refazer a conta aqui seria a
+    // mesma regra escrita em dois lugares que podem discordar.
+    test('o total da fatura vem do backend, não é somado aqui', () async {
+      stubCreditCardBill(
+        cards,
+        expenses: [
+          ExpenseModel.fromJson({...youtubeJson, 'amountCents': 2490}),
+          ExpenseModel.fromJson({...presenteJson, 'amountCents': 18000}),
+        ],
+      );
 
-        await controller.start('cartao-1');
+      await controller.start('cartao-1');
 
-        final view = (controller.state.value as Loaded<CardWithExpenses>).data;
-        expect(view.monthTotalCents, 20490);
-      },
-    );
+      final view =
+          (controller.state.value as Loaded<CreditCardBillModel>).data;
+      expect(view.totalCents, 20490);
+    });
 
-    test('falha em qualquer das duas buscas vira Failed', () async {
-      stubExpenseList(
-        expenses,
+    test('o refresh rebusca a fatura', () async {
+      await controller.start('cartao-1');
+      await controller.refresh();
+
+      verify(
+        () => cards.getBill('cartao-1', month: SelectedMonthService.initial()),
+      ).called(2);
+    });
+
+    test('falha na busca vira Failed', () async {
+      stubCreditCardBill(
+        cards,
         result: const Error(NetworkFailure(message: 'sem rede')),
       );
 
       await controller.start('cartao-1');
 
-      expect(controller.state.value, isA<Failed<CardWithExpenses>>());
+      expect(controller.state.value, isA<Failed<CreditCardBillModel>>());
     });
   });
 
@@ -136,9 +130,7 @@ void main() {
     });
 
     testWidgets('cartão sem gasto explica o que aparece ali', (tester) async {
-      setupExpenseTestInjector(
-        mock: expenseRepositoryMock(list: const Success([])),
-      );
+      stubCreditCardBill(cards, expenses: const []);
 
       await pump(tester);
 
@@ -146,10 +138,9 @@ void main() {
     });
 
     testWidgets('falha mostra o card de erro', (tester) async {
-      setupExpenseTestInjector(
-        mock: expenseRepositoryMock(
-          list: const Error(NetworkFailure(message: 'Sem conexão.')),
-        ),
+      stubCreditCardBill(
+        cards,
+        result: const Error(NetworkFailure(message: 'Sem conexão.')),
       );
 
       await pump(tester);

@@ -1,3 +1,4 @@
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -52,10 +53,10 @@ void main() {
   Finder fieldWithLabel(String label) =>
       find.ancestor(of: find.text(label), matching: find.byType(TextField));
 
-  testWidgets('abre no mês corrente, sem recorrência', (tester) async {
+  testWidgets('abre no mês selecionado, sem recorrência', (tester) async {
     await pumpForm(tester);
 
-    expect(find.text(Month.label(Month.current())), findsOneWidget);
+    expect(find.text(Month.label(SelectedMonthService.initial())), findsOneWidget);
     // O switch nasce desligado, então a explicação é a do lançamento único.
     expect(
       find.text('Entra só nesta competência — 13º, freela, bônus.'),
@@ -92,7 +93,7 @@ void main() {
       () => repository.create(
         description: 'Salário',
         amountCents: 500000,
-        startMonth: Month.current(),
+        startMonth: SelectedMonthService.initial(),
         recurring: false,
       ),
     ).called(1);
@@ -150,7 +151,7 @@ void main() {
     await tester.tap(find.byTooltip('Próximo mês'));
     await tester.pumpAndSettle();
 
-    expect(find.text(Month.label(Month.next(Month.current()))), findsOneWidget);
+    expect(find.text(Month.label(Month.next(SelectedMonthService.initial()))), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
@@ -159,7 +160,7 @@ void main() {
       () => repository.create(
         description: 'Aluguel recebido',
         amountCents: 120000,
-        startMonth: Month.next(Month.current()),
+        startMonth: Month.next(SelectedMonthService.initial()),
         recurring: any(named: 'recurring'),
       ),
     ).called(1);

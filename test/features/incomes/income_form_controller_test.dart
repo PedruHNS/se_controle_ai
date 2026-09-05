@@ -5,9 +5,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
 
 import '../../fixtures/mocks.dart';
@@ -58,10 +57,10 @@ void main() {
     return errors[IncomeFormController.backendError] as String?;
   }
 
-  late SelectedMonthController month;
+  late SelectedMonthService month;
 
   setUp(() {
-    month = SelectedMonthController();
+    month = SelectedMonthService();
     repository = incomeRepositoryMock();
     tags = MockTagRepository();
     stubTagList(tags);
@@ -74,10 +73,10 @@ void main() {
   });
 
   group('estado inicial', () {
-    test('competência começa no mês corrente e sem recorrência', () {
+    test('competência começa no mês em que o app abre e sem recorrência', () {
       expect(
         controller.control<String>(IncomeFormController.startMonth).value,
-        Month.current(),
+        SelectedMonthService.initial(),
       );
       // Desligada por padrão, como no formulário de gasto: recorrência é
       // escolha explícita, não o que acontece quando ninguém toca no switch.

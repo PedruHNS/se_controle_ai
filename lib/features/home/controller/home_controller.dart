@@ -2,7 +2,7 @@ import 'package:se_controle_ai/core/utils/base_controller.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:signals/signals.dart';
 
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/month.dart';
 import '../../../core/errors/failure.dart';
@@ -23,14 +23,14 @@ import '../../../data/repositories/summary_repository.dart';
 /// - nenhum `import` de Flutter aqui. O controller é testável sem `pumpWidget`.
 ///
 /// **O mês não é dele.** As setas ficam na AppBar da home, mas a competência
-/// mora no [SelectedMonthController], que o app inteiro lê — ver a explicação
+/// mora no [SelectedMonthService], que o app inteiro lê — ver a explicação
 /// lá. Aqui ficaram os atalhos que a home já usava, agora delegando: a view não
 /// mudou de interlocutor.
 class HomeController extends BaseController {
   HomeController(this._repository, this._selectedMonth);
 
   final SummaryRepository _repository;
-  final SelectedMonthController _selectedMonth;
+  final SelectedMonthService _selectedMonth;
 
   // Um estado por seção e não um só: cada seção tem rota própria e pinta
   // quando chega. Um estado só obrigaria a tela a esperar a resposta mais lenta
@@ -202,7 +202,7 @@ class HomeController extends BaseController {
   /// liberados, e o `computed` continua inscrito na fonte. O get_it chama isto
   /// pelo `dispose:` do registro.
   ///
-  /// O mês **não** é liberado aqui: ele é do [SelectedMonthController], que
+  /// O mês **não** é liberado aqui: ele é do [SelectedMonthService], que
   /// vive mais que esta tela. Liberá-lo derrubaria o resto do app junto.
   @override
   void dispose() {

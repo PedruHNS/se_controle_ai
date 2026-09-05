@@ -26,16 +26,6 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
-  // O mês selecionado também não pertence a feature nenhuma: a home o troca, e
-  // gastos, ganhos, cartões e projeção o leem. lazySingleton pelo motivo mais
-  // forte da lista — se fosse `factory`, cada tela receberia uma instância e
-  // cada uma voltaria a olhar um mês diferente, que é exatamente o bug que ele
-  // existe para fechar.
-  getIt.registerLazySingleton<SelectedMonthController>(
-    SelectedMonthController.new,
-    dispose: (e) => e.dispose(),
-  );
-
   // Controller como lazySingleton, e quem libera os signals é o `dispose:` do
   // get_it — a página não chama `dispose` no controller. O dono da instância é o
   // container, não a tela: sair da home e voltar reaproveita o mesmo resumo já
@@ -47,7 +37,7 @@ void _registerControllers() {
   getIt.registerLazySingleton<HomeController>(
     () => HomeController(
       getIt<SummaryRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
     dispose: (e) => e.dispose(),
   );
@@ -57,7 +47,7 @@ void _registerControllers() {
   getIt.registerLazySingleton<ProjectionController>(
     () => ProjectionController(
       getIt<SummaryRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
     dispose: (e) => e.dispose(),
   );
@@ -90,7 +80,7 @@ void _registerControllers() {
     () => IncomeFormController(
       getIt<IncomeRepository>(),
       getIt<TagRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
   );
 
@@ -109,7 +99,7 @@ void _registerControllers() {
   getIt.registerLazySingleton<CreditCardController>(
     () => CreditCardController(
       getIt<CreditCardRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
     dispose: (e) => e.dispose(),
   );
@@ -118,9 +108,8 @@ void _registerControllers() {
   // pilha, e cada tela fala do seu.
   getIt.registerFactory<CreditCardExpensesController>(
     () => CreditCardExpensesController(
-      getIt<ExpenseRepository>(),
       getIt<CreditCardRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
   );
 
@@ -134,7 +123,7 @@ void _registerControllers() {
   getIt.registerLazySingleton<ExpenseListController>(
     () => ExpenseListController(
       getIt<ExpenseRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
     dispose: (e) => e.dispose(),
   );
@@ -144,7 +133,7 @@ void _registerControllers() {
       getIt<ExpenseRepository>(),
       getIt<CreditCardRepository>(),
       getIt<TagRepository>(),
-      getIt<SelectedMonthController>(),
+      getIt<SelectedMonthService>(),
     ),
   );
 

@@ -2,7 +2,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/errors/failure.dart';
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../core/utils/text_order.dart';
@@ -42,7 +42,7 @@ class ExpenseFormController extends BaseController {
   final ExpenseRepository _repository;
   final CreditCardRepository _cardRepository;
   final TagRepository _tagRepository;
-  final SelectedMonthController _selectedMonth;
+  final SelectedMonthService _selectedMonth;
 
   /// Nomes dos campos, iguais aos do backend porque é assim que o
   /// `issues[].path` de um 400 encontra o campo certo.

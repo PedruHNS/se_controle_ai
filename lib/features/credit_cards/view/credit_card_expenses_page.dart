@@ -10,6 +10,7 @@ import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
+import '../../../data/models/credit_card_bill_model.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
 import '../../expenses/widgets/expense_tile.dart';
@@ -111,7 +112,7 @@ class _CardExpenses extends StatelessWidget {
     required this.onOpen,
   });
 
-  final CardWithExpenses view;
+  final CreditCardBillModel view;
   final Future<void> Function() onRefresh;
   final void Function(ExpenseModel expense) onOpen;
 
@@ -130,7 +131,7 @@ class _CardExpenses extends StatelessWidget {
             child: _InvoiceCard(
               card: view.card,
               month: view.month,
-              totalCents: view.monthTotalCents,
+              totalCents: view.totalCents,
             ),
           ),
 

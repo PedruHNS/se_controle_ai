@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -21,7 +21,7 @@ void main() {
 
   setUp(() {
     repository = summaryRepositoryMock();
-    controller = HomeController(repository, SelectedMonthController());
+    controller = HomeController(repository, SelectedMonthService());
   });
 
   tearDown(() => controller.dispose());
@@ -37,11 +37,12 @@ void main() {
     // dispara load(). Ou seja: construir já busca — quando o corpo do teste roda,
     // a busca do setUp terminou.
     test('busca as cinco seções sozinho ao ser construído', () {
-      verificaBuscou(month: Month.current());
-      verify(() => repository.getIncomes(month: Month.current())).called(1);
-      verify(() => repository.getExpenses(month: Month.current())).called(1);
-      verify(() => repository.getDebit(month: Month.current())).called(1);
-      verify(() => repository.getCreditCards(month: Month.current())).called(1);
+      final inicial = SelectedMonthService.initial();
+      verificaBuscou(month: inicial);
+      verify(() => repository.getIncomes(month: inicial)).called(1);
+      verify(() => repository.getExpenses(month: inicial)).called(1);
+      verify(() => repository.getDebit(month: inicial)).called(1);
+      verify(() => repository.getCreditCards(month: inicial)).called(1);
 
       expect(controller.balance.value, isA<Loaded<MonthlyBalanceModel>>());
       expect(controller.incomes.value, isA<Loaded<SummarySectionModel>>());
@@ -51,8 +52,11 @@ void main() {
         controller.creditCards.value,
         isA<Loaded<List<CreditCardInvoiceModel>>>(),
       );
-      expect(controller.month.value, Month.current());
-      expect(controller.isCurrentMonth.value, isTrue);
+      expect(controller.month.value, inicial);
+      // Falso de propósito: o app abre no mês seguinte, então o mês da tela
+      // não é o do relógio. É justamente isso que acende o atalho de "voltar
+      // para o mês atual" já na abertura.
+      expect(controller.isCurrentMonth.value, isFalse);
     });
 
     test('fica em Loading enquanto a resposta não volta', () async {
@@ -60,7 +64,7 @@ void main() {
       final slowRepository = summaryRepositoryMock(pendenteAte: segura.future);
       final slowController = HomeController(
         slowRepository,
-        SelectedMonthController(),
+        SelectedMonthService(),
       );
       addTearDown(slowController.dispose);
 
@@ -75,7 +79,7 @@ void main() {
     });
 
     test('monthLabel é derivado do mês', () {
-      expect(controller.monthLabel.value, Month.shortLabel(Month.current()));
+      expect(controller.monthLabel.value, Month.shortLabel(SelectedMonthService.initial()));
     });
   });
 
@@ -178,7 +182,7 @@ void main() {
       final state = controller.balance.value;
       expect(state, isA<Loaded<MonthlyBalanceModel>>());
       expect((state as Loaded<MonthlyBalanceModel>).data.month, '2026-08');
-      verificaBuscou(month: Month.current());
+      verificaBuscou(month: SelectedMonthService.initial());
     });
 
     test('falha vira Failed com a falha traduzida', () async {
@@ -237,10 +241,13 @@ void main() {
       expect(controller.month.value, Month.current());
     });
 
-    test('já no mês corrente e com dado na tela, não refaz a busca', () async {
+    test('já no mês da tela e com dado carregado, não refaz a busca', () async {
       clearInteractions(repository);
 
-      await controller.goToCurrentMonth();
+      // Pede o mês que já está na tela, e não `goToCurrentMonth`: desde que o
+      // app abre no mês seguinte, "voltar para o atual" é uma troca de
+      // verdade, e aí buscar de novo é o comportamento certo.
+      await controller.goToMonth(controller.month.value);
 
       verifyNever(() => repository.getBalance(month: any(named: 'month')));
     });
@@ -252,7 +259,7 @@ void main() {
       final failing = summaryRepositoryMock(failure: const NetworkFailure());
       final controllerInError = HomeController(
         failing,
-        SelectedMonthController(),
+        SelectedMonthService(),
       );
       addTearDown(controllerInError.dispose);
       await Future<void>.delayed(Duration.zero);
@@ -283,7 +290,7 @@ void main() {
       stubHome(repository);
       await controller.goToMonth(controller.month.value);
 
-      verificaBuscou(month: Month.current());
+      verificaBuscou(month: SelectedMonthService.initial());
       expect(
         controller.creditCards.value,
         isA<Loaded<List<CreditCardInvoiceModel>>>(),

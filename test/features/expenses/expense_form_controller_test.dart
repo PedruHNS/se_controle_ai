@@ -3,8 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
 
@@ -17,13 +16,13 @@ void main() {
   late MockCreditCardRepository cards;
   late MockTagRepository tags;
   late ExpenseFormController controller;
-  late SelectedMonthController month;
+  late SelectedMonthService month;
 
   ExpenseFormController build() =>
       ExpenseFormController(repository, cards, tags, month);
 
   setUp(() {
-    month = SelectedMonthController();
+    month = SelectedMonthService();
     repository = expenseRepositoryMock();
     cards = creditCardRepositoryMock();
     tags = MockTagRepository();
@@ -76,12 +75,12 @@ void main() {
       );
     });
 
-    test('sem ninguém trocar o mês, vale o corrente', () async {
+    test('sem ninguém trocar o mês, vale o mês em que o app abriu', () async {
       await controller.start();
 
       expect(
         controller.control<String>(ExpenseFormController.startMonth).value,
-        Month.current(),
+        SelectedMonthService.initial(),
       );
     });
 

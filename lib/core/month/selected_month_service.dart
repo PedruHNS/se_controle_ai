@@ -1,6 +1,5 @@
 import 'package:signals/signals.dart';
 
-import '../utils/base_controller.dart';
 import '../utils/month.dart';
 
 /// A competência que o app inteiro está olhando.
@@ -12,17 +11,32 @@ import '../utils/month.dart';
 /// por conta própria, e o relógio do aparelho vencia a escolha da pessoa.
 ///
 /// Fica em `core` e não em `features/home` de propósito: gastos não deve
-/// importar controller de home para saber que mês mostrar.
+/// importar código de home para saber que mês mostrar.
 ///
-/// **Não é um controller de tela.** Não tem `ViewState`, não busca nada e não
-/// é liberado ao sair de página nenhuma — é `lazySingleton` no `getIt` e vive o
-/// app inteiro. Quem busca é quem depende dele.
+/// **É um service, e não um controller.** Não tem `ViewState`, não busca nada,
+/// não é liberado ao sair de página nenhuma e não pertence a tela alguma — é
+/// `lazySingleton` no `getIt` e vive o app inteiro. Quem busca é quem depende
+/// dele. Foi um `BaseController` até aqui, e herdava dele só o log de `onInit`:
+/// o nome dizia "tela" para algo que sete telas compartilham.
 ///
 /// A escolha não sobrevive a fechar o app, pelo mesmo motivo do tema: guardar
-/// exige armazenamento local, que chega na Fase 10. Abrir de novo volta para o
-/// mês corrente, que é o padrão certo para quem só abriu para ver o mês.
-class SelectedMonthController extends BaseController {
-  final _month = signal<String>(Month.current());
+/// exige armazenamento local, que chega na Fase 10.
+///
+/// **Abrir cai no mês seguinte, não no corrente.** Quem abre o app está
+/// lançando o que ainda vai acontecer — a fatura que fecha, o salário que
+/// entra — e não conferindo o mês que já correu. O corrente continua a um
+/// toque: é a seta de voltar, e é para onde [goToCurrent] leva, que segue
+/// sendo o mês do relógio e não este de partida.
+class SelectedMonthService {
+  /// O mês em que o app abre — ver a explicação na classe.
+  ///
+  /// É `static` e público porque teste e código precisam do mesmo valor. Sem
+  /// ele, "o mês em que o app abre" e "o mês do relógio" seriam a mesma
+  /// expressão escrita nos dois casos, e a próxima mudança de padrão teria de
+  /// separar um do outro a olho, teste por teste.
+  static String initial() => Month.next(Month.current());
+
+  final _month = signal<String>(initial());
 
   /// Para ler dentro de `build`/`SignalBuilder`, onde a leitura precisa ser
   /// rastreada — trocar o mês repinta quem depende dele.
@@ -75,9 +89,9 @@ class SelectedMonthController extends BaseController {
 
   bool goToCurrent() => select(Month.current());
 
-  @override
-  void dispose() {
-    _month.dispose();
-    super.dispose();
-  }
+  /// Na prática não roda: nada em produção chama `getIt.reset()` — o
+  /// `resetInjector` está comentado — e o registro de teste é feito sem
+  /// `dispose:` de propósito. Existe para o dia em que o reset voltar, e para
+  /// o registro não prometer uma limpeza que não sabe fazer.
+  void dispose() => _month.dispose();
 }

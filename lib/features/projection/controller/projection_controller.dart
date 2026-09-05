@@ -1,6 +1,6 @@
 import 'package:signals/signals.dart';
 
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../data/models/month_projection_model.dart';
@@ -15,7 +15,7 @@ class ProjectionController extends BaseController {
   ProjectionController(this._repository, this._selectedMonth);
 
   final SummaryRepository _repository;
-  final SelectedMonthController _selectedMonth;
+  final SelectedMonthService _selectedMonth;
 
   /// Desfaz a inscrição no mês — ver [onInit].
   EffectCleanup? _watchingMonth;

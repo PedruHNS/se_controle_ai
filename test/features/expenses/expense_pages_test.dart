@@ -4,7 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
@@ -103,7 +103,7 @@ void main() {
     testWidgets('o total e as linhas seguem o mês selecionado na home', (
       tester,
     ) async {
-      final atual = Month.current();
+      final atual = SelectedMonthService.initial();
       final proximo = Month.next(atual);
       final presenteNoProximo = <String, dynamic>{
         ...presenteJson,
@@ -135,7 +135,7 @@ void main() {
         findsOneWidget,
       );
 
-      getIt<SelectedMonthController>().select(proximo);
+      getIt<SelectedMonthService>().select(proximo);
       await tester.pumpAndSettle();
 
       // A tela não foi remontada: o mês trocou, o controller refez a busca com
@@ -160,12 +160,12 @@ void main() {
       // vazia também é o mês em que nada é cobrado.
       //
       // O mês sai do controller e não de `Month.current()`: o
-      // `SelectedMonthController` é singleton do `getIt` e sobrevive entre os
+      // `SelectedMonthService` é singleton do `getIt` e sobrevive entre os
       // testes deste arquivo — o de cima deixa a home no mês seguinte.
       expect(
         find.text(
           'Nenhum gasto em '
-          '${Month.label(getIt<SelectedMonthController>().month.value)}',
+          '${Month.label(getIt<SelectedMonthService>().month.value)}',
         ),
         findsOneWidget,
       );

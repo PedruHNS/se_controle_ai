@@ -4,7 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
@@ -43,10 +43,10 @@ void main() {
       expect(find.text(r'R$ 5.000,00'), findsWidgets);
     });
 
-    testWidgets('avulso do mês corrente entra no total, sem selo de encerrado', (
+    testWidgets('avulso do mês exibido entra no total, sem selo de encerrado', (
       tester,
     ) async {
-      final month = Month.current();
+      final month = SelectedMonthService.initial();
       stubIncomeList(
         repository,
         result: Success(
@@ -103,7 +103,7 @@ void main() {
         find.descendant(
           of: find.widgetWithText(
             ListTile,
-            'Entra em ${Month.label(Month.current())}',
+            'Entra em ${Month.label(SelectedMonthService.initial())}',
           ),
           matching: find.text(r'R$ 5.000,00'),
         ),
@@ -114,7 +114,7 @@ void main() {
     // Mesmo bug da lista de gastos, mesma correção: o rodapé seguia o relógio
     // do aparelho em vez do mês escolhido na home.
     testWidgets('o total segue o mês selecionado na home', (tester) async {
-      final atual = Month.current();
+      final atual = SelectedMonthService.initial();
       final proximo = Month.next(atual);
       stubIncomeList(
         repository,
@@ -135,7 +135,7 @@ void main() {
         findsOneWidget,
       );
 
-      getIt<SelectedMonthController>().select(proximo);
+      getIt<SelectedMonthService>().select(proximo);
       await tester.pumpAndSettle();
 
       expect(

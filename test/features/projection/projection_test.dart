@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
@@ -28,17 +28,17 @@ void main() {
     setUp(
       () => controller = ProjectionController(
         repository,
-        SelectedMonthController(),
+        SelectedMonthService(),
       ),
     );
     tearDown(() => controller.dispose());
 
-    test('abre em doze meses, a partir da competência corrente', () async {
+    test('abre em doze meses, a partir do mês em que o app abre', () async {
       await controller.load();
 
       expect(controller.months.value, 12);
       verify(
-        () => repository.getProjection(from: Month.current(), months: 12),
+        () => repository.getProjection(from: SelectedMonthService.initial(), months: 12),
       ).called(greaterThanOrEqualTo(1));
     });
 

@@ -7,7 +7,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_controller.dart';
 
@@ -23,7 +23,7 @@ void main() {
   // lista se inscreve nele — e é a lista carregada que o `create` altera.
   setUp(() {
     repository = creditCardRepositoryMock();
-    controller = CreditCardController(repository, SelectedMonthController());
+    controller = CreditCardController(repository, SelectedMonthService());
   });
 
   tearDown(() => controller.dispose());
@@ -158,7 +158,7 @@ void main() {
       );
       final outro = CreditCardController(
         repository,
-        SelectedMonthController(),
+        SelectedMonthService(),
       );
       addTearDown(outro.dispose);
       await Future<void>.delayed(Duration.zero);

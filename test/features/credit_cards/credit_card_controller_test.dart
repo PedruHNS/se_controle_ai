@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_controller.dart';
 
@@ -26,10 +25,7 @@ void main() {
     repository = MockCreditCardRepository();
     stubCreditCardList(repository);
     stubCreditCardOperations(repository);
-    controller = CreditCardController(
-      repository,
-      SelectedMonthController(),
-    );
+    controller = CreditCardController(repository, SelectedMonthService());
   });
 
   tearDown(() => controller.dispose());
@@ -45,7 +41,7 @@ void main() {
   // Sem `?month` o backend devolve `dueDate` null em todo cartão, e a lista
   // ficaria sem vencimento para mostrar.
   test(
-    'a busca leva a competência corrente, para o dueDate vir resolvido',
+    'a busca leva a competência selecionada, para o dueDate vir resolvido',
     () async {
       await controller.refresh();
 
@@ -57,7 +53,7 @@ void main() {
       // na construção, então o número de chamadas depende de quem chamou `load`
       // depois. O que importa é que nenhuma delas vá sem competência.
       expect(captured, isNotEmpty);
-      expect(captured, everyElement(Month.current()));
+      expect(captured, everyElement(SelectedMonthService.initial()));
     },
   );
 

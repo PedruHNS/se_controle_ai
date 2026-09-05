@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/month/selected_month_controller.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
@@ -14,13 +14,13 @@ import '../../fixtures/mocks.dart';
 
 void main() {
   late MockExpenseRepository repository;
-  late SelectedMonthController selectedMonth;
+  late SelectedMonthService selectedMonth;
   late ExpenseListController controller;
 
   setUp(() {
     repository = MockExpenseRepository();
     stubExpenseList(repository);
-    selectedMonth = SelectedMonthController();
+    selectedMonth = SelectedMonthService();
     controller = ExpenseListController(repository, selectedMonth);
   });
 
@@ -152,7 +152,7 @@ void main() {
     // construção, então o número de chamadas depende de quem chamou `load`
     // depois. O que importa é que nenhuma delas vá sem o recorte.
     expect(captured, isNotEmpty);
-    expect(captured, everyElement(Month.current()));
+    expect(captured, everyElement(SelectedMonthService.initial()));
   });
 
   test('trocar o mês na home refaz a busca com o novo activeFrom', () async {

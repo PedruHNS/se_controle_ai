@@ -21,7 +21,7 @@ import '../../features/incomes/controller/income_form_controller.dart';
 import '../../features/incomes/controller/income_list_controller.dart';
 import '../../features/projection/controller/projection_controller.dart';
 import '../../features/tags/controller/tag_list_controller.dart';
-import '../month/selected_month_controller.dart';
+import '../month/selected_month_service.dart';
 import '../network/api_client.dart';
 import '../network/dio_factory.dart';
 import '../theme/theme_controller.dart';

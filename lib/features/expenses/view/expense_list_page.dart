@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
@@ -38,7 +38,7 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
   /// linha, no total do rodapé e — desde o `?activeFrom` (GFX-11) — em quem
   /// aparece, já que o que acabou antes dele não é mais assunto aqui. Quem
   /// refaz a busca na troca de mês é o controller, com um `effect`.
-  final _selectedMonth = getIt<SelectedMonthController>();
+  final _selectedMonth = getIt<SelectedMonthService>();
 
   /// O controller é singleton e sobrevive à saída da tela, então o filtro tem
   /// de ser reafirmado a cada montagem — senão voltar da seção "Dinheiro" para

@@ -1,6 +1,6 @@
 import 'package:signals/signals.dart';
 
-import '../../../core/month/selected_month_controller.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../data/models/expense_model.dart';
@@ -29,7 +29,7 @@ class ExpenseListController extends BaseController {
   ExpenseListController(this._repository, this._selectedMonth);
 
   final ExpenseRepository _repository;
-  final SelectedMonthController _selectedMonth;
+  final SelectedMonthService _selectedMonth;
 
   EffectCleanup? _watchingMonth;
 
