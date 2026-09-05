@@ -36,11 +36,8 @@ class _CreditCardFormPageState extends State<CreditCardFormPage> {
   }
 
   Future<void> _submit() async {
-    // O cartão da rota é quem diz o que este toque significa. O controller não
-    // guarda "estou editando": seria um segundo lugar onde isso pode divergir
-    // do que está na tela.
-    if (widget.card case final card?) {
-      await _controller.update(card.id);
+    if (_editing) {
+      await _controller.update(widget.card!.id);
     } else {
       await _controller.create();
     }
@@ -135,10 +132,6 @@ class _CreditCardForm extends StatelessWidget {
             onSubmitted: (_) => onSubmit(),
           ),
           const SizedBox(height: 24),
-          // Mesmo botão do diálogo de tag: o `ReactiveFormConsumer` repinta a
-          // cada mudança de validade do form, e `onPressed: null` já deixa o
-          // `FilledButton` cinza e sem toque — o Material faz o resto. Assim a
-          // recusa aparece antes do toque, em vez de virar mensagem depois.
           ReactiveFormConsumer(
             builder: (context, form, child) => FilledButton(
               onPressed: form.valid ? onSubmit : null,
@@ -150,7 +143,6 @@ class _CreditCardForm extends StatelessWidget {
     );
   }
 
-  /// Diz em que mês a fatura da competência vence, que é o CAR-03 em português.
   String _dueHelper(int? closingDay, int? dueDay) {
     if (closingDay == null || dueDay == null) return '';
 

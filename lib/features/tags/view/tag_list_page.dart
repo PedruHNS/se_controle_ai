@@ -114,6 +114,7 @@ class _TagList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paddingBottom = MediaQuery.paddingOf(context).bottom;
     if (tags.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.sell_outlined,
@@ -129,7 +130,7 @@ class _TagList extends StatelessWidget {
 
       child: ListView.separated(
         separatorBuilder: (_, _) => const SizedBox(height: 12),
-        padding: .all(24),
+        padding: .fromLTRB(24, 24, 24, paddingBottom + 80),
         itemCount: tags.length,
         itemBuilder: (_, i) {
           return TagTile(tag: tags[i], onEdit: onEdit, onDelete: onDelete);
