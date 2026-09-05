@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:se_controle_ai/core/shared/widgets/custom_box_shadow_widget.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/credit_card_model.dart';
@@ -52,7 +53,7 @@ class CreditCardWidget extends StatelessWidget {
           child: Ink(
             padding: .all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.appColors.card,
               borderRadius: BorderRadius.circular(10),
             ),
 

@@ -1,46 +1,22 @@
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:se_controle_ai/core/config/globals.dart';
+import 'package:se_controle_ai/core/theme/app_theme.dart';
 
+/// Os dois toasts do app — erro e sucesso.
+///
+/// A cor vem do tema e não é fixa: o toast é a mesma superfície dos cards de
+/// lista, pelo mesmo motivo. Antes disso o fundo era `Colors.white` escrito à
+/// mão, e no tema escuro sobrava um retângulo branco com o texto do tema
+/// escuro por cima — claro sobre claro, ilegível justamente na hora em que o
+/// app tem algo a dizer.
 mixin MessageMixin<T extends StatelessWidget> {
   void toastError(String erro) {
-    Flushbar flush = Flushbar();
-
-    flush = Flushbar(
-      boxShadows: const [
-        BoxShadow(
-          color: .fromRGBO(57, 51, 96, 0.1),
-          spreadRadius: 0,
-          blurRadius: 40,
-          offset: Offset(0, 1),
-        ),
-      ],
-      backgroundColor: Colors.white,
-      borderRadius: .circular(12),
-      margin: const .all(15),
-      messageText: Row(
-        children: [
-          const Icon(Icons.cancel, size: 28.0, color: Colors.red),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              erro,
-              style: const TextStyle(
-                fontSize: 14.5,
-                // color: LibCores.c2
-              ),
-              maxLines: 4,
-              overflow: .ellipsis,
-            ),
-          ),
-        ],
-      ),
+    _show(
+      icon: const Icon(Icons.cancel, size: 28.0, color: Colors.red),
+      message: erro,
       duration: const Duration(seconds: 3),
     );
-
-    if (Globals.navigatorKey.currentContext != null) {
-      flush.show(Globals.navigatorKey.currentContext!);
-    }
   }
 
   void toastSucess(
@@ -48,42 +24,63 @@ mixin MessageMixin<T extends StatelessWidget> {
     FlushbarPosition? position,
     Duration? duration,
   }) {
-    Flushbar flush = Flushbar();
+    _show(
+      icon: const Icon(Icons.check_circle, size: 28.0, color: Colors.blue),
+      message: msg,
+      position: position ?? FlushbarPosition.BOTTOM,
+      duration: duration ?? const Duration(seconds: 3),
+    );
+  }
 
-    flush = Flushbar(
-      boxShadows: const [
+  /// O corpo comum dos dois. O contexto sai do `navigatorKey` porque o toast é
+  /// disparado de controller, que não tem `BuildContext` próprio — e é dele que
+  /// vem o tema, então sem contexto não há o que pintar nem onde mostrar.
+  void _show({
+    required Icon icon,
+    required String message,
+    required Duration duration,
+    FlushbarPosition? position,
+  }) {
+    final context = Globals.navigatorKey.currentContext;
+    if (context == null) return;
+
+    final theme = Theme.of(context);
+
+    Flushbar(
+      boxShadows: [
         BoxShadow(
-          color: .fromRGBO(57, 51, 96, 0.1),
+          color: theme.appColors.cardShadow,
           spreadRadius: 0,
           blurRadius: 40,
-          offset: Offset(0, 1),
+          offset: const Offset(0, 1),
         ),
       ],
-      flushbarPosition: position ?? .BOTTOM,
-      backgroundColor: Colors.white,
-      borderRadius: .circular(12),
-      margin: const .all(15),
+      flushbarPosition: position ?? FlushbarPosition.BOTTOM,
+      backgroundColor: theme.appColors.card,
+      borderRadius: BorderRadius.circular(12),
+      margin: const EdgeInsets.all(15),
       messageText: Row(
-        crossAxisAlignment: .center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.check_circle, size: 28.0, color: Colors.blue),
+          icon,
           const SizedBox(width: 10),
           Flexible(
             child: Text(
-              msg,
-              style: const TextStyle(fontSize: 14.5, color: Colors.black),
+              message,
+              // A cor é explícita e não herdada: o `messageText` do Flushbar
+              // fica fora da árvore da tela, e o `DefaultTextStyle` que ele
+              // pega não é o do tema do app.
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: 14.5,
+                color: theme.colorScheme.onSurface,
+              ),
               maxLines: 4,
-              overflow: .ellipsis,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
       ),
-
-      duration: duration ?? const Duration(seconds: 3),
-    );
-
-    if (Globals.navigatorKey.currentContext != null) {
-      flush.show(Globals.navigatorKey.currentContext!);
-    }
+      duration: duration,
+    ).show(context);
   }
 }

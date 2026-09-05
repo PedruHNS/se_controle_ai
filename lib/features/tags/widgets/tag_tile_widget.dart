@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
 
 class TagTile extends StatelessWidget {
@@ -33,11 +34,11 @@ class TagTile extends StatelessWidget {
     return Container(
       padding: .all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.appColors.card,
         borderRadius: .circular(10),
         boxShadow: [
           BoxShadow(
-            color: .fromRGBO(57, 51, 96, 0.1),
+            color: theme.appColors.cardShadow,
             spreadRadius: 0,
             blurRadius: 40,
             offset: Offset(0, 1),

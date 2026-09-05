@@ -2,23 +2,50 @@ import 'package:flutter/material.dart';
 
 /// Cores que o `ColorScheme` do Material não tem, mas o app precisa.
 ///
-/// Hoje é só o alerta. Ele existe porque o app tem **três** estados de
-/// gravidade — normal, atenção, estourado — e o `ColorScheme` só oferece dois
-/// (`primary` e `error`). Antes disso, os dois pontos que precisavam do
-/// intermediário usavam `Colors.orange` fixo, que no tema escuro fica saturado
-/// demais contra o fundo.
+/// O **alerta** existe porque o app tem três estados de gravidade — normal,
+/// atenção, estourado — e o `ColorScheme` só oferece dois (`primary` e
+/// `error`). Antes disso, os dois pontos que precisavam do intermediário
+/// usavam `Colors.orange` fixo, que no tema escuro fica saturado demais contra
+/// o fundo.
+///
+/// O **card** existe porque o branco do tema claro é uma decisão de design que
+/// o esquema não tem como derivar. Ele estava escrito como `Colors.white`
+/// dentro dos widgets, e por isso o card continuava branco no tema escuro —
+/// com o texto do tema escuro por cima, claro sobre claro, ilegível.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
-  const AppColors({required this.warning, required this.onWarning});
+  const AppColors({
+    required this.warning,
+    required this.onWarning,
+    required this.card,
+    required this.cardShadow,
+  });
 
   /// Comprometimento acima de 80%, fatura acima de 80% do limite. Ainda não é
   /// erro — é o aviso de que está chegando perto.
   final Color warning;
   final Color onWarning;
 
+  /// O fundo dos cards de lista — cartão e tag.
+  ///
+  /// No claro é branco puro e não `surfaceContainerLow`: o do esquema claro é
+  /// `#F6F2FF`, um lilás pálido que quase encosta no fundo `#FCF8FF` e apaga o
+  /// card. No escuro a lógica se inverte — o que separa card de fundo lá é
+  /// clarear, e o degrau do esquema serve exatamente para isso.
+  final Color card;
+
+  /// A sombra do card.
+  ///
+  /// No claro é o índigo do app a 10%, que dá profundidade sem sujar de cinza.
+  /// No escuro sombra colorida não aparece contra um fundo quase preto: só
+  /// preto, e mais opaco, ainda separa alguma coisa.
+  final Color cardShadow;
+
   static const _light = AppColors(
     warning: Color(0xFFB26A00),
     onWarning: Color(0xFFFFFFFF),
+    card: Color(0xFFFFFFFF),
+    cardShadow: Color(0x1A393360),
   );
 
   /// Mais claro e menos saturado que o do tema claro: laranja forte sobre fundo
@@ -26,12 +53,24 @@ class AppColors extends ThemeExtension<AppColors> {
   static const _dark = AppColors(
     warning: Color(0xFFFFB74D),
     onWarning: Color(0xFF3E2600),
+    // `card` é sobrescrito em `_build` pelo `surfaceContainerLow` do esquema.
+    // O valor aqui é o que ele resolve hoje, para a constante não mentir para
+    // quem a ler solta.
+    card: Color(0xFF1B1A25),
+    cardShadow: Color(0x66000000),
   );
 
   @override
-  AppColors copyWith({Color? warning, Color? onWarning}) => AppColors(
+  AppColors copyWith({
+    Color? warning,
+    Color? onWarning,
+    Color? card,
+    Color? cardShadow,
+  }) => AppColors(
     warning: warning ?? this.warning,
     onWarning: onWarning ?? this.onWarning,
+    card: card ?? this.card,
+    cardShadow: cardShadow ?? this.cardShadow,
   );
 
   @override
@@ -40,6 +79,8 @@ class AppColors extends ThemeExtension<AppColors> {
     return AppColors(
       warning: Color.lerp(warning, other.warning, t)!,
       onWarning: Color.lerp(onWarning, other.onWarning, t)!,
+      card: Color.lerp(card, other.card, t)!,
+      cardShadow: Color.lerp(cardShadow, other.cardShadow, t)!,
     );
   }
 }
@@ -86,8 +127,15 @@ abstract final class AppTheme {
     final base = ThemeData(colorScheme: scheme);
     final text = _typography(base.textTheme);
 
+    // O card escuro sai do esquema em vez de uma constante escrita à mão: é o
+    // mesmo `surfaceContainerLow` do `cardTheme` logo abaixo, então card custom
+    // e `Card` do Material não divergem se o seed mudar.
+    final appColors = brightness == Brightness.dark
+        ? colors.copyWith(card: scheme.surfaceContainerLow)
+        : colors;
+
     return base.copyWith(
-      extensions: [colors],
+      extensions: [appColors],
       textTheme: text,
       scaffoldBackgroundColor: scheme.surface,
       // O respingo do Android 12 em vez do circular antigo. Não muda nada de
