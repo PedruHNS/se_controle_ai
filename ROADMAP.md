@@ -6,11 +6,14 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 04/09/2026.*
+*Atualizado em 05/09/2026.*
 
-Flutter 3.47.1 · Dart 3.13.1 · **546 testes verdes** (1 pulado) ·
+Flutter 3.47.1 · Dart 3.13.1 · **545 testes verdes, 11 pulados e 5 vermelhos** ·
 `flutter analyze` com **1 aviso** (`_createTag` não referenciado — veja "O que
 falta").
+
+> **Os 5 vermelhos estão no `master`** e não são teste desatualizado: apontam um
+> crash real no cadastro de cartão. Veja "Quebrado no `master`", logo abaixo.
 
 | Fase | Status |
 |---|---|
@@ -34,6 +37,37 @@ verdade, não um cache, e só sai barata com o contrato parado.
 
 ## O que falta
 
+### Quebrado no `master`
+
+- [ ] **Cadastrar cartão sem os quatro dígitos estoura.**
+      `credit_card_controller.dart:99` faz
+      `form.control('lastDigits').value.trim() != ''`, e `lastDigits` é opcional
+      (CAR-01): quando ninguém preenche, o valor é `null` e o `.trim()` levanta
+      `NoSuchMethodError`. Não é só teste — o cadastro real cai pelo mesmo
+      caminho. Derruba 4 testes em `credit_card_form_test.dart` e 1 em
+      `credit_card_pages_test.dart`. Chegou com a refatoração de 04/09 que juntou
+      os dois controllers de cartão em um.
+
+### Projeção — remodelagem planejada
+
+- [ ] **A tela de projeção vai ser remodelada.** Decidido em 05/09/2026; o
+      escopo ainda não está definido — esta entrada existe para registrar a
+      intenção, não o desenho.
+
+      O que existe hoje, como ponto de partida: `projection_page.dart` (243
+      linhas), horizonte de 6/12/24 meses, lista de meses e gráfico alimentados
+      por `GET /summary/projection?from=&months=N`.
+
+      **As três decisões da Fase 6 são o que a remodelagem tem de confirmar ou
+      derrubar de propósito** — estão em "Fases", e a mais cara de revisitar é a
+      de não usar biblioteca de gráfico: o `CustomPainter` de sessenta linhas foi
+      escolhido quando o desenho não pedia tooltip, zoom nem várias séries. Se a
+      remodelagem pedir qualquer um dos três, é essa decisão que cai primeiro.
+
+      Vale puxar junto o item de refatoração da feature (`_MonthRow` para
+      `widgets/`) e a lacuna de teste — o `ProjectionChart` hoje só é verificado
+      por existir na árvore.
+
 ### Fase 9 — para fechar
 
 - [ ] **SHA-1 de release.** Sem ele o login funciona no `flutter run` e falha no
@@ -52,7 +86,7 @@ verdade, não um cache, e só sai barata com o contrato parado.
       chamado pela tela**. Ou o botão volta, ou a função sai — hoje "criar tag
       sem sair do formulário" está no código e não no app.
 - [ ] **Três comentários citam "Fase 10" para offline-first** (`app.dart`,
-      `selected_month_controller.dart`, `theme_controller.dart`). Offline-first é
+      `selected_month_service.dart`, `theme_controller.dart`). Offline-first é
       a **11**; a 10 é notificações.
 - [ ] **Trocar o FAB da home pelo `flutter_expandable_fab` 3.0.0.** Hoje o menu
       é feito à mão em `home_fab.dart` (144 linhas): `AnimationController`,
@@ -103,7 +137,7 @@ de conta encosta em todas as tabelas, e é a que menos aceita ficar para o fim.
 
 ## Refatoração
 
-Situação por feature, conferida contra o código em **04/09/2026**. O detalhe de
+Situação por feature, conferida contra o código em **05/09/2026**. O detalhe de
 cada item — e a lista de repetições que estão lá **de propósito** — fica em
 [`REFATORACAO.md`](REFATORACAO.md).
 
@@ -111,15 +145,15 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 |---|---|---|
 | `tags` | ✅ **refatorado** | Nada. A tela caiu de 359 para 172 linhas, com `TagTile` e o diálogo de criação extraídos |
 | `core` (DI) | ✅ **refatorado** | `injector.dart` virou 79 linhas com um `part` por camada (rede, repositórios, controllers, services) |
-| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (8 controllers), `applyFailure` (8 cópias), `serializationFailure` (5), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (285) por feature |
+| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (7 controllers, era 8), `applyFailure` (8 cópias), `serializationFailure` (5), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (291) por feature |
 | `auth` | 🟡 parcial | A parte com regra já saiu do router: `rotaParaEstado` em `auth_gate.dart` (48 linhas, 14 testes). O que sobra é tela — `login_page` 209, `auth_repository` 225 |
 | `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
-| `home` | ⬜ pendente | `home_page.dart` **cresceu para 361** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
+| `home` | ⬜ pendente | `home_page.dart` **cresceu para 364** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
-| `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (372), como em tags. O diff do CAR-08 continua no meio dele; extraído, vira função pura testável sem `FormGroup`. E o `CreditCardExpensesController` é o único do app que dispara três buscas e monta um record — a tela dele tem 262 linhas |
-| `projection` | ⬜ pendente | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho |
+| `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. **É esse controller que está quebrado** (veja "Quebrado no `master`"). O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: 78 linhas. A tela dele tem 254 |
+| `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
 | `data` | ⬜ pendente | `ExpenseModel` (219) acumula os dois tipos de gasto num só; avaliar `sealed` com dois filhos, sabendo que mexe em toda tela de gasto. `fromJson` manual em 12 models |
-| `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **814** e `test_injector.dart` de 207 para **322**. Dividir por feature e manter um arquivo que reexporta |
+| `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **853** e `test_injector.dart` de 207 para **314**. Dividir por feature e manter um arquivo que reexporta |
 | `notifications` | — | Só o estado vazio. Vira código de verdade com a Etapa 8 do backend; nada a refatorar antes |
 
 ---
@@ -356,15 +390,23 @@ O retrato existe para que essa decisão possa ser revista com o dado já coletad
 o app não deve começar a usá-lo sem que o backend passe a devolvê-lo.
 
 ### Cartões
-| Método | Rota |
-|---|---|
-| POST · GET · GET/:id · PATCH/:id · DELETE/:id | `/credit-cards` (`?month=` resolve `dueDate`) |
+| Método | Rota | Observação |
+|---|---|---|
+| POST · GET · GET/:id · DELETE/:id | `/credit-cards` | `?month=` resolve `dueDate` e `totalCents` |
+| POST | `/credit-cards/:id` | Edição. Responde **200 com o cartão**, não 204 |
+| GET | `/credit-cards/:id/invoice?month=` | O cartão, os gastos da fatura e o total. **`month` obrigatório** |
 
-O `PATCH` distingue campo ausente de campo `null` (CAR-08) — é para isso que
-existe o `Patch<T>` com `keep`, `clear` e `to`. `Patch.diff` compara com o valor
-que o cartão tinha **quando a tela abriu**, e é por isso que o controller guarda
-`_cardOnOpen` sem atualizá-lo enquanto a pessoa digita. Salvar sem ter mexido em
-nada fecha a tela sem requisição — o `PATCH` vazio volta 400.
+**A edição é `POST` e não `PATCH` (04/09).** O corpo traz o cartão inteiro e ele
+passa a ser aquilo — não é remendo. Some com isso a distinção entre campo ausente
+e campo `null` que o CAR-08 exigia: os dois anuláveis têm `default(null)` no
+schema, então omiti-los limpa. O `Patch<T>` continua existindo para gastos, mas
+**não é mais usado em cartões**, e com ele saiu o `_cardOnOpen` do controller.
+
+**A fatura é uma rota só (05/09).** Antes a tela do cartão pedia `/credit-cards/:id`
+e `/expenses?creditCardId&month` lado a lado e somava o total no cliente. O
+`totalCents` da resposta é a soma dos `expenses` que ela mesma devolve — e não o
+`totalCents` do cartão — para o cabeçalho da tela nunca discordar das linhas
+abaixo dele.
 
 ### Erros
 Envelope único: `{code, message, issues?: [{path, message}]}`.
