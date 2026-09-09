@@ -173,9 +173,10 @@ void main() {
       );
     });
 
-    // Campo de dígitos vazio tem que virar null, e não `''`: o backend recusa
-    // string de tamanho zero.
-    test('opcional vazio vai como null, não como string vazia', () async {
+    // O app entrega o que está no campo, sem interpretar: quem lê branco como
+    // "não informei" é o backend desde 09/09, no `optionalDigitsSchema`
+    // (CAR-01). Traduzir aqui também seriam duas verdades para a mesma regra.
+    test('dígitos em branco vão como estão, sem virar null', () async {
       controller.resetForm();
       fill(lastDigits: '  ');
 
@@ -186,7 +187,7 @@ void main() {
           name: any(named: 'name'),
           closingDay: any(named: 'closingDay'),
           dueDay: any(named: 'dueDay'),
-          lastDigits: null,
+          lastDigits: '  ',
           limitCents: null,
         ),
       ).called(1);
@@ -403,12 +404,15 @@ void main() {
       expect(capturedUpdateBody(repository)['limitCents'], isNull);
     });
 
-    test('esvaziar os dígitos manda null', () async {
+    // Diferente do limite acima: `limitCents` é `int?` e o campo vazio já vale
+    // null, enquanto o de texto devolve `''` depois de tocado. Os dois vão
+    // como estão, e `''` vira null no backend.
+    test('esvaziar os dígitos manda string vazia, não null', () async {
       controller.form.control('lastDigits').value = '';
 
       await controller.update(nubankId);
 
-      expect(capturedUpdateBody(repository)['lastDigits'], isNull);
+      expect(capturedUpdateBody(repository)['lastDigits'], '');
     });
 
     // Um cartão que já era magro continua magro: os dois opcionais vão como
