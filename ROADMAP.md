@@ -20,6 +20,7 @@ veja "O que falta").
 | 9 Login | **em andamento** — falta só o SHA-1 de release |
 | 10 Notificações | bloqueada pela **Etapa 8** do backend |
 | 11 Offline-first | bloqueada pela **Etapa 9** do backend |
+| 12 Cofrinho | não iniciada — depende da **Etapa 11** do backend |
 
 O app entra pelo Google (Firebase Auth) antes de qualquer tela; a home mostra o
 resumo do mês; ganhos, gastos, cartões e tags têm CRUD completo com reajuste,
@@ -27,8 +28,11 @@ correção e encerramento; parcelado tem reparcelamento e quitação; a projeç�
 mostra para onde o saldo caminha. **O ID token é a única credencial que o app
 manda** — a `x-api-key` saiu em 31/08 (decisão 5).
 
-A **Fase 11 fecha a lista de propósito**: offline-first é uma segunda fonte da
-verdade, não um cache, e só sai barata com o contrato parado.
+A **Fase 11 é a última por motivo técnico**: offline-first é uma segunda fonte da
+verdade, não um cache, e só sai barata com o contrato parado. O **cofrinho**
+(Fase 12, decidido em 09/09/2026) é feature nova e mexe no contrato, então na
+prática entra **antes** da 11, apesar do número maior — numerar por ordem de
+chegada é mais barato que renumerar fase citada em comentário de código.
 
 ---
 
@@ -382,6 +386,12 @@ o app não deve começar a usá-lo sem que o backend passe a devolvê-lo.
 | POST | `/credit-cards/:id` | Edição. Responde **200 com o cartão**, não 204 |
 | GET | `/credit-cards/:id/invoice?month=` | O cartão, os gastos da fatura e o total. **`month` obrigatório** |
 
+**Dígito vazio é traduzido pelo backend, não pelo app (09/09).** O campo de
+texto devolve `''` depois de tocado, e é o `optionalDigitsSchema` que lê `''`,
+`'   '`, `null` e campo ausente como a mesma coisa (CAR-01). O controller manda
+o que está no campo — normalizar dos dois lados seriam duas verdades para a
+mesma regra, e a segunda envelheceria calada.
+
 **A edição é `POST` e não `PATCH` (04/09).** O corpo traz o cartão inteiro e ele
 passa a ser aquilo — não é remendo. Some com isso a distinção entre campo ausente
 e campo `null` que o CAR-08 exigia: os dois anuláveis têm `default(null)` no
@@ -497,6 +507,42 @@ Quatro problemas que só existem nesta fase:
 **Pronto quando:** com o Docker desligado, o app abre, mostra o mês avisando que
 está desatualizado, aceita cadastrar um gasto, e ao religar o backend o gasto
 aparece lá sem duplicar.
+
+### Fase 12 — Cofrinho
+
+Guardar dinheiro com destino: a pessoa define uma **meta** (nome, valor-alvo e,
+se quiser, o mês em que quer chegar lá) e vai **registrando o que guardou**. O
+progresso é a soma do que entrou, e a tela mostra quanto falta.
+
+Depende da **Etapa 11 do backend** — a meta e os depósitos são dado do servidor,
+como todo o resto.
+
+- Lista de cofrinhos com barra de progresso: é a mesma barra do limite do cartão
+  (`CreditCardWidget`), com o alvo no lugar do limite
+- Detalhe com o histórico de depósitos, e o menu `more_vert` de editar/excluir
+  que já é padrão em tag e cartão
+- Formulário de meta com `MoneyField` para o alvo e `MonthField` (opcional) para
+  o prazo — os dois já existem, e o seletor de mês já nasce válido
+- Ação **"guardar"** num diálogo: valor e competência. Ação de dentro de diálogo
+  devolve `Failure?`, como manda a convenção de controller
+- **Retirar é operação própria**, não depósito negativo: o histórico precisa
+  dizer o que houve, e "-200" não diz
+
+**A decisão que trava as outras: o que é guardado sai do mês?** Se sair, o
+`/summary` desconta e a projeção acompanha — o dinheiro guardado realmente não
+está disponível para gastar. Se não sair, o saldo do mês passa a mentir para
+quem usa cofrinho, e o app ganha dois números que não fecham. A inclinação é
+**sair, em seção própria** — nem ganho, nem gasto —, mas é decisão do backend
+junto com o `buildMonthlySummary`, e é ela que diz se esta fase mexe na home e
+na projeção ou só acrescenta tela.
+
+**O que não fazer: reaproveitar `expenses`.** Cofrinho não tem vigência nem
+parcela, e enfiá-lo no `ExpenseModel` — que já acumula dois tipos e está na fila
+de refatoração — piora os dois lados. Módulo próprio, do model à tela.
+
+**Pronto quando:** uma meta de R$ 5.000 para dezembro, com três depósitos de
+R$ 500, mostra 30% na barra, as três linhas no histórico, e o mês de cada
+depósito reflete a decisão acima.
 
 ---
 
