@@ -6,14 +6,11 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 05/09/2026.*
+*Atualizado em 09/09/2026.*
 
-Flutter 3.47.1 · Dart 3.13.1 · **545 testes verdes, 11 pulados e 5 vermelhos** ·
-`flutter analyze` com **1 aviso** (`_createTag` não referenciado — veja "O que
-falta").
-
-> **Os 5 vermelhos estão no `master`** e não são teste desatualizado: apontam um
-> crash real no cadastro de cartão. Veja "Quebrado no `master`", logo abaixo.
+Flutter 3.47.1 · Dart 3.13.1 · **550 testes verdes e 11 pulados, nenhum
+vermelho** · `flutter analyze` com **1 aviso** (`_createTag` não referenciado —
+veja "O que falta").
 
 | Fase | Status |
 |---|---|
@@ -36,17 +33,6 @@ verdade, não um cache, e só sai barata com o contrato parado.
 ---
 
 ## O que falta
-
-### Quebrado no `master`
-
-- [ ] **Cadastrar cartão sem os quatro dígitos estoura.**
-      `credit_card_controller.dart:99` faz
-      `form.control('lastDigits').value.trim() != ''`, e `lastDigits` é opcional
-      (CAR-01): quando ninguém preenche, o valor é `null` e o `.trim()` levanta
-      `NoSuchMethodError`. Não é só teste — o cadastro real cai pelo mesmo
-      caminho. Derruba 4 testes em `credit_card_form_test.dart` e 1 em
-      `credit_card_pages_test.dart`. Chegou com a refatoração de 04/09 que juntou
-      os dois controllers de cartão em um.
 
 ### Projeção — remodelagem planejada
 
@@ -150,7 +136,7 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 | `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
 | `home` | ⬜ pendente | `home_page.dart` **cresceu para 364** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
-| `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. **É esse controller que está quebrado** (veja "Quebrado no `master`"). O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: 78 linhas. A tela dele tem 254 |
+| `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: 78 linhas. A tela dele tem 254 |
 | `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
 | `data` | ⬜ pendente | `ExpenseModel` (219) acumula os dois tipos de gasto num só; avaliar `sealed` com dois filhos, sabendo que mexe em toda tela de gasto. `fromJson` manual em 12 models |
 | `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **853** e `test_injector.dart` de 207 para **314**. Dividir por feature e manter um arquivo que reexporta |

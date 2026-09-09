@@ -93,12 +93,10 @@ class CreditCardController extends BaseController with MessageMixin {
 
   Future<void> create() async {
     final result = await _repository.create(
-      name: form.control('name').value,
+      name: form.control('name').value.trim(),
       closingDay: form.control('closingDay').value!,
       dueDay: form.control('dueDay').value!,
-      lastDigits: form.control('lastDigits').value.trim() != ''
-          ? form.control('lastDigits').value
-          : null,
+      lastDigits: form.control('lastDigits').value,
       limitCents: form.control('limitCents').value,
     );
 
@@ -129,12 +127,10 @@ class CreditCardController extends BaseController with MessageMixin {
 
     final result = await _repository.update(
       id,
-      name: form.control('name').value,
+      name: form.control('name').value.trim() as String,
       closingDay: form.control('closingDay').value!,
       dueDay: form.control('dueDay').value!,
-      lastDigits: form.control('lastDigits').value.trim() != ''
-          ? form.control('lastDigits').value
-          : null,
+      lastDigits: form.control('lastDigits').value,
       limitCents: form.control('limitCents').value,
       month: _selectedMonth.month.value,
     );
