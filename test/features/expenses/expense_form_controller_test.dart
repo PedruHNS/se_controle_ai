@@ -4,12 +4,30 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
 
+import '../../fixtures/credit_card_fixture.dart';
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
+
+// Os dois cartões da fixture fecham em dias diferentes — 10 e 27 —, e é essa
+// diferença que prova que a fatura sai do cartão, e não de uma regra fixa.
+const nubankId = '39e95359-97f2-441c-bc26-f68a8821ae5a';
+const cartaoSimplesId = 'e0a0cdba-9f48-45d5-9843-90ddc4ef1cbf';
+
+/// Hoje em `YYYY-MM-DD`. A regra da fatura compara a compra com o relógio —
+/// desde que fatura fechada não recebe lançamento novo, uma data fixa no teste
+/// envelheceria e passaria a cair sempre na fatura aberta.
+String isoDeHoje() {
+  final hoje = DateTime.now();
+  return '${hoje.year.toString().padLeft(4, '0')}-'
+      '${hoje.month.toString().padLeft(2, '0')}-'
+      '${hoje.day.toString().padLeft(2, '0')}';
+}
 
 void main() {
   late MockExpenseRepository repository;
@@ -56,10 +74,20 @@ void main() {
       );
     });
 
-    // O mês do formulário é o que a pessoa escolheu na AppBar, não o do
-    // relógio: quem navegou até outubro para lançar um gasto de outubro não
-    // deveria ter que corrigir o campo depois.
-    test('a competência nasce no mês selecionado, e não no corrente', () async {
+    // O campo de dia nasce em hoje, e é dele que a competência sai. Antes da
+    // GFX-12 ela vinha do mês da AppBar; hoje o mês da AppBar não manda mais
+    // em nada — quem está vendo dezembro e lança um almoço de hoje lança em
+    // setembro, que é quando o almoço aconteceu.
+    test('o dia nasce em hoje', () async {
+      await controller.start();
+
+      expect(
+        controller.control<String>(ExpenseFormController.spentAt).value,
+        isoDeHoje(),
+      );
+    });
+
+    test('a competência nasce do dia, e não do mês que está na tela', () async {
       month.select('2026-12');
       controller = build();
 
@@ -67,20 +95,18 @@ void main() {
 
       expect(
         controller.control<String>(ExpenseFormController.startMonth).value,
-        '2026-12',
-      );
-      expect(
-        controller.control<String>(ExpenseFormController.firstMonth).value,
-        '2026-12',
+        isoDeHoje().substring(0, 7),
       );
     });
 
-    test('sem ninguém trocar o mês, vale o mês em que o app abriu', () async {
+    test('sem dia não há o que salvar', () async {
       await controller.start();
 
+      controller.control<String>(ExpenseFormController.spentAt).value = null;
+
       expect(
-        controller.control<String>(ExpenseFormController.startMonth).value,
-        SelectedMonthService.initial(),
+        controller.control<String>(ExpenseFormController.spentAt).valid,
+        isFalse,
       );
     });
 
@@ -109,6 +135,7 @@ void main() {
           notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
+          spentAt: any(named: 'spentAt'),
         ),
       );
     });
@@ -138,6 +165,7 @@ void main() {
           notes: null,
           creditCardId: null,
           recurring: false,
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
     });
@@ -164,6 +192,7 @@ void main() {
           notes: null,
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
     });
@@ -215,6 +244,7 @@ void main() {
           notes: null,
           creditCardId: 'cartao-1',
           recurring: false,
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
     });
@@ -252,6 +282,7 @@ void main() {
           notes: any(named: 'notes'),
           creditCardId: null,
           recurring: any(named: 'recurring'),
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
     });
@@ -278,6 +309,7 @@ void main() {
           notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: false,
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
     });
@@ -352,6 +384,276 @@ void main() {
 
       expect(controller.ready.value, isFalse);
       expect(controller.generalFailure.value, isA<NetworkFailure>());
+    });
+  });
+
+  group('dia da compra (GFX-12)', () {
+    test('quem não mexe no campo cadastra com o dia de hoje', () async {
+      await controller.start();
+
+      controller.form.patchValue({
+        ExpenseFormController.description: 'Aluguel',
+        ExpenseFormController.tagId: moradiaTagId,
+        ExpenseFormController.amountCents: 120000,
+        ExpenseFormController.startMonth: '2026-01',
+      });
+
+      await controller.submit();
+
+      // O app sempre manda o dia. O backend ainda aceita ausente — quem não
+      // manda recebe o instante do cadastro —, mas esse caminho deixou de ser
+      // alcançável pela tela quando o campo virou obrigatório.
+      verify(
+        () => repository.createFixed(
+          description: any(named: 'description'),
+          paymentMethod: any(named: 'paymentMethod'),
+          amountCents: any(named: 'amountCents'),
+          startMonth: any(named: 'startMonth'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
+          creditCardId: any(named: 'creditCardId'),
+          recurring: any(named: 'recurring'),
+          spentAt: isoDeHoje(),
+        ),
+      ).called(1);
+    });
+
+    test('a data escolhida vai junto no cadastro', () async {
+      await controller.start();
+
+      controller.form.patchValue({
+        ExpenseFormController.description: 'Mercado',
+        ExpenseFormController.tagId: moradiaTagId,
+        ExpenseFormController.amountCents: 25000,
+        ExpenseFormController.startMonth: '2026-01',
+        ExpenseFormController.spentAt: '2026-01-08',
+      });
+
+      await controller.submit();
+
+      verify(
+        () => repository.createFixed(
+          description: any(named: 'description'),
+          paymentMethod: any(named: 'paymentMethod'),
+          amountCents: any(named: 'amountCents'),
+          startMonth: any(named: 'startMonth'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
+          creditCardId: any(named: 'creditCardId'),
+          recurring: any(named: 'recurring'),
+          spentAt: '2026-01-08',
+        ),
+      ).called(1);
+    });
+
+    test('vale igual no parcelado', () async {
+      await controller.start();
+
+      controller.selectType(ExpenseType.installment);
+      controller.form.patchValue({
+        ExpenseFormController.description: 'Geladeira',
+        ExpenseFormController.tagId: moradiaTagId,
+        ExpenseFormController.totalCents: 300000,
+        ExpenseFormController.installmentsCount: 10,
+        ExpenseFormController.firstMonth: '2026-01',
+        ExpenseFormController.spentAt: '2026-01-08',
+      });
+
+      await controller.submit();
+
+      verify(
+        () => repository.createInstallment(
+          description: any(named: 'description'),
+          paymentMethod: any(named: 'paymentMethod'),
+          totalCents: any(named: 'totalCents'),
+          installmentsCount: any(named: 'installmentsCount'),
+          firstMonth: any(named: 'firstMonth'),
+          tagId: any(named: 'tagId'),
+          notes: any(named: 'notes'),
+          creditCardId: any(named: 'creditCardId'),
+          spentAt: '2026-01-08',
+        ),
+      ).called(1);
+    });
+
+    // A fatura em que uma compra de **hoje** cai, calculada à parte do código
+    // que está sob teste: até o fechamento é a deste mês, depois é a próxima.
+    String faturaDeHoje(int fechamento) {
+      final hoje = DateTime.now();
+      final mes = Month.of(hoje.year, hoje.month);
+
+      return hoje.day <= fechamento ? mes : Month.next(mes);
+    }
+
+    /// Um cartão só, com o fechamento que o teste precisa.
+    void comCartaoQueFecha(int dia) {
+      cards = creditCardRepositoryMock(
+        list: Success([
+          CreditCardModel.fromJson({
+            ...nubankJson,
+            'id': nubankId,
+            'closingDay': dia,
+          }),
+        ]),
+      );
+      controller.dispose();
+      controller = build();
+    }
+
+    Future<void> comprarHoje() async {
+      controller.selectPaymentMethod(PaymentMethod.creditCard);
+      controller.form.patchValue({
+        ExpenseFormController.creditCardId: nubankId,
+        ExpenseFormController.spentAt: isoDeHoje(),
+      });
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    // O bug de 10/09/2026: cartão que fecha dia 1, compra lançada no dia 10, e
+    // a primeira parcela caiu na fatura de setembro — que fechou no dia 1.
+    test('a compra vai para a fatura que ainda está aberta', () async {
+      comCartaoQueFecha(1);
+      await controller.start();
+
+      await comprarHoje();
+
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        faturaDeHoje(1),
+      );
+    });
+
+    test('cartão que fecha no fim do mês mantém a compra neste mês', () async {
+      comCartaoQueFecha(28);
+      await controller.start();
+
+      await comprarHoje();
+
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        faturaDeHoje(28),
+      );
+    });
+
+    test('no parcelado quem se move é a primeira parcela', () async {
+      comCartaoQueFecha(1);
+      await controller.start();
+
+      controller.selectType(ExpenseType.installment);
+      await comprarHoje();
+
+      expect(
+        controller.control<String>(ExpenseFormController.firstMonth).value,
+        faturaDeHoje(1),
+      );
+    });
+
+    // Lançar hoje uma compra de meses atrás não pode mexer numa fatura que já
+    // foi paga: o mínimo é a que ainda está aberta.
+    test('compra antiga não cai em fatura fechada', () async {
+      comCartaoQueFecha(10);
+      await controller.start();
+
+      controller.selectPaymentMethod(PaymentMethod.creditCard);
+      controller.form.patchValue({
+        ExpenseFormController.creditCardId: nubankId,
+        ExpenseFormController.spentAt: '2026-01-12',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      final competencia = controller
+          .control<String>(ExpenseFormController.startMonth)
+          .value!;
+
+      expect(competencia, isNot('2026-02'));
+      expect(
+        Month.isBefore(competencia, Month.current()),
+        isFalse,
+        reason: 'nenhuma competência anterior ao mês corrente é lançável',
+      );
+    });
+
+    // No débito não há fechamento, então não há o que calcular — a competência
+    // continua sendo escolha de quem preenche.
+    test('no débito o dia não mexe na competência', () async {
+      await controller.start();
+
+      controller.form.patchValue({
+        ExpenseFormController.startMonth: '2026-01',
+        ExpenseFormController.spentAt: '2026-01-28',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        '2026-01',
+      );
+    });
+
+    // Assinatura não se compra num dia; ela começa num.
+    test('recorrente troca o rótulo do campo', () async {
+      await controller.start();
+
+      expect(controller.spentAtLabel, 'Dia da compra');
+
+      controller.form.patchValue({ExpenseFormController.recurring: true});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.spentAtLabel, 'Começou em');
+    });
+
+    // Cadastrar hoje o aluguel que começou em janeiro é registro retroativo de
+    // cobrança que aconteceu — empurrar para a fatura aberta apagaria
+    // justamente o histórico que a pessoa está tentando registrar.
+    test('recorrente não é empurrado para a fatura aberta', () async {
+      comCartaoQueFecha(28);
+      await controller.start();
+
+      controller.selectPaymentMethod(PaymentMethod.creditCard);
+      controller.form.patchValue({
+        ExpenseFormController.creditCardId: nubankId,
+        ExpenseFormController.recurring: true,
+        ExpenseFormController.spentAt: '2026-01-05',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        '2026-01',
+      );
+
+      // A mesma data numa compra pontual cai na fatura aberta, que é o
+      // contraste: a trava existe, só não vale para recorrente.
+      controller.form.patchValue({ExpenseFormController.recurring: false});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        isNot('2026-01'),
+      );
+    });
+
+    test('o texto de apoio diz em qual fatura a compra caiu', () async {
+      comCartaoQueFecha(1);
+      await controller.start();
+
+      // No débito não há fatura, e o texto fala de competência.
+      expect(controller.spentAtHelper, contains('competência'));
+
+      controller.selectPaymentMethod(PaymentMethod.creditCard);
+      controller.form.patchValue({
+        ExpenseFormController.creditCardId: nubankId,
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.spentAtHelper, contains('Fecha dia 1'));
+
+      await comprarHoje();
+
+      expect(
+        controller.spentAtHelper,
+        contains(Month.label(faturaDeHoje(1)).toLowerCase()),
+      );
     });
   });
 

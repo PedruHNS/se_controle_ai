@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:signals/signals_flutter.dart';
 
 import 'core/di/injector.dart';
@@ -23,6 +24,21 @@ class MyApp extends StatelessWidget {
         // go_router. Com `home:` as rotas simplesmente não seriam usadas.
         title: 'Se Controle AI',
         routerConfig: appRouter,
+        // Um idioma só, e fixo. O app é pt-BR do primeiro rótulo ao último, e
+        // seguir o aparelho faria o calendário abrir em inglês no telefone de
+        // quem mexeu no idioma do sistema, com o resto da tela em português.
+        //
+        // Quem lê isto é o Material — o `showDatePicker` do dia da compra é o
+        // primeiro a precisar. Nada do app passou a ser traduzido por aqui: os
+        // textos continuam escritos em português no código, e moeda e data
+        // continuam formatadas por `Money` e `IsoDate`.
+        locale: const Locale('pt', 'BR'),
+        supportedLocales: const [Locale('pt', 'BR')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         // O padrão é seguir o sistema; o menu lateral troca por esta sessão. A

@@ -58,6 +58,7 @@ abstract interface class ExpenseRepository {
     required String tagId,
     String? notes,
     String? creditCardId,
+    String? spentAt,
   });
 
   /// Refaz o plano de [fromMonth] em diante; as parcelas anteriores ficam
@@ -88,6 +89,11 @@ abstract interface class ExpenseRepository {
     String? notes,
     String? creditCardId,
     bool recurring = true,
+
+    /// Dia da compra, `YYYY-MM-DD` (GFX-12). Nulo **não vai no corpo**: o
+    /// backend distingue ausente de informado, e ausente é o que faz ele usar
+    /// o instante do cadastro.
+    String? spentAt,
   });
 
   /// Dados cadastrais — descrição, tag, observação, forma de pagamento, cartão.
@@ -190,6 +196,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     String? notes,
     String? creditCardId,
     bool recurring = true,
+    String? spentAt,
   }) async {
     try {
       final response = await _api.post(
@@ -204,6 +211,9 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
           'amountCents': amountCents,
           'startMonth': startMonth,
           'recurring': recurring,
+          // Chave omitida quando nulo, e não mandada como null: ausente é o
+          // que faz o backend usar o instante do cadastro (GFX-12).
+          'spentAt': ?spentAt,
         },
       );
       return Success(Decode.object(response.data)['id'] as String);
@@ -255,6 +265,7 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     required String tagId,
     String? notes,
     String? creditCardId,
+    String? spentAt,
   }) async {
     try {
       final response = await _api.post(
@@ -269,6 +280,9 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
           'totalCents': totalCents,
           'installmentsCount': installmentsCount,
           'firstMonth': firstMonth,
+          // Chave omitida quando nulo, e não mandada como null: ausente é o
+          // que faz o backend usar o instante do cadastro (GFX-12).
+          'spentAt': ?spentAt,
         },
       );
       return Success(Decode.object(response.data)['id'] as String);

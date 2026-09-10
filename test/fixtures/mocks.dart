@@ -551,9 +551,9 @@ void stubCreditCardBill(
         ),
       );
 
-  when(
-    () => mock.getBill(any(), month: any(named: 'month')),
-  ).thenAnswer((_) async {
+  when(() => mock.getBill(any(), month: any(named: 'month'))).thenAnswer((
+    _,
+  ) async {
     if (pendenteAte != null) await pendenteAte;
     return answer;
   });
@@ -730,6 +730,7 @@ void stubExpenseOperations(
       notes: any(named: 'notes'),
       creditCardId: any(named: 'creditCardId'),
       recurring: any(named: 'recurring'),
+      spentAt: any(named: 'spentAt'),
     ),
   ).thenAnswer((_) => answer(createResult));
 
@@ -757,6 +758,7 @@ void stubExpenseOperations(
       tagId: any(named: 'tagId'),
       notes: any(named: 'notes'),
       creditCardId: any(named: 'creditCardId'),
+      spentAt: any(named: 'spentAt'),
     ),
   ).thenAnswer((_) => answer(createResult));
 

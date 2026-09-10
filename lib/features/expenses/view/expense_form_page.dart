@@ -3,9 +3,11 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
+import '../../../core/utils/month.dart';
+import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/date_field_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
-import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
@@ -60,6 +62,20 @@ class _ExpenseFormPageState extends State<ExpenseFormPage> {
     // Formulário inválido ou erro de campo: a mensagem já está embaixo do
     // campo, e a tela continua aberta para a correção.
     if (id == null) return;
+
+    // A competência sai do dia, não do mês que a home está mostrando — então
+    // o gasto pode ter caído fora da tela de onde veio. Sem este aviso, um
+    // almoço de hoje lançado enquanto se olha outubro simplesmente sumiria, e
+    // a leitura natural seria "não salvou".
+    final month = _controller.competenceMonth;
+    final selected = getIt<SelectedMonthService>();
+
+    if (month != null && month != selected.month.value) {
+      selected.select(month);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lançado em ${Month.label(month)}')),
+      );
+    }
 
     Navigator.of(context).pop(id);
   }
@@ -235,7 +251,7 @@ class _ExpenseForm extends StatelessWidget {
           // débito (GFX-01).
           ReactiveValueListenableBuilder<PaymentMethod>(
             formControlName: ExpenseFormController.paymentMethod,
-            
+
             builder: (context, control, child) {
               if (control.value != PaymentMethod.creditCard) {
                 return const SizedBox.shrink();
@@ -287,7 +303,6 @@ class _ExpenseForm extends StatelessWidget {
             Text('Tipo', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
             ReactiveValueListenableBuilder<ExpenseType>(
-              
               formControlName: ExpenseFormController.type,
               builder: (context, control, child) =>
                   SegmentedButton<ExpenseType>(
@@ -315,12 +330,14 @@ class _ExpenseForm extends StatelessWidget {
             ),
 
             ReactiveValueListenableBuilder<ExpenseType>(
-              
               formControlName: ExpenseFormController.type,
               builder: (context, control, child) =>
                   control.value == ExpenseType.installment
-                  ? _InstallmentFields(onSubmit: onSubmit)
-                  : _FixedFields(onSubmit: onSubmit),
+                  ? _InstallmentFields(
+                      controller: controller,
+                      onSubmit: onSubmit,
+                    )
+                  : _FixedFields(controller: controller, onSubmit: onSubmit),
             ),
           ],
 
@@ -362,8 +379,9 @@ class _ExpenseForm extends StatelessWidget {
 /// Os campos do gasto à vista (`FIXED` no backend): um valor, a partir de uma
 /// competência, repetindo ou não.
 class _FixedFields extends StatelessWidget {
-  const _FixedFields({required this.onSubmit});
+  const _FixedFields({required this.controller, required this.onSubmit});
 
+  final ExpenseFormController controller;
   final VoidCallback onSubmit;
 
   @override
@@ -373,17 +391,12 @@ class _FixedFields extends StatelessWidget {
       children: [
         const SizedBox(height: 16),
         MoneyFieldWidget(
-          
           formControlName: ExpenseFormController.amountCents,
           label: 'Valor por mês',
           onSubmitted: (_) => onSubmit(),
         ),
         const SizedBox(height: 16),
-        MonthFieldWidget(
- 
-          formControlName: ExpenseFormController.startMonth,
-          label: 'A partir de',
-        ),
+        _SpentAtField(controller: controller),
         const SizedBox(height: 8),
         ReactiveSwitchListTile(
           formControlName: ExpenseFormController.recurring,
@@ -407,8 +420,9 @@ class _FixedFields extends StatelessWidget {
 /// (GPR-02) — quem digita 3.000 em 10x está comprando uma geladeira de três
 /// mil, não pagando trinta mil.
 class _InstallmentFields extends StatelessWidget {
-  const _InstallmentFields({required this.onSubmit});
+  const _InstallmentFields({required this.controller, required this.onSubmit});
 
+  final ExpenseFormController controller;
   final VoidCallback onSubmit;
 
   @override
@@ -444,10 +458,7 @@ class _InstallmentFields extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        MonthFieldWidget(
-          formControlName: ExpenseFormController.firstMonth,
-          label: 'Primeira parcela',
-        ),
+        _SpentAtField(controller: controller),
         const SizedBox(height: 8),
         // O rateio é do backend, e a sobra vai nas primeiras parcelas (GPR-03).
         // Dizer isso aqui evita a pergunta "por que a primeira é um centavo
@@ -456,6 +467,35 @@ class _InstallmentFields extends StatelessWidget {
       ],
     );
   }
+}
+
+/// O dia do gasto — **o único campo de tempo do formulário** desde que o
+/// seletor de competência saiu (GFX-12).
+///
+/// O mês não é mais uma segunda pergunta: ele sai daqui, pela regra de
+/// fechamento do cartão ou pelo próprio mês do dia no débito. Por isso o texto
+/// de apoio não é enfeite — é a única coisa na tela que diz onde o gasto vai
+/// cair, e some junto com o campo se alguém o remover.
+///
+/// `ReactiveFormConsumer` porque a frase e o rótulo dependem de quatro campos
+/// ao mesmo tempo — dia, cartão, forma de pagamento e recorrência. Aninhar
+/// quatro `ReactiveValueListenable` custaria mais linhas do que reconstruir um
+/// `InputDecorator`.
+class _SpentAtField extends StatelessWidget {
+  const _SpentAtField({required this.controller});
+
+  final ExpenseFormController controller;
+
+  @override
+  Widget build(BuildContext context) => ReactiveFormConsumer(
+    builder: (context, form, child) => DateFieldWidget(
+      formControlName: ExpenseFormController.spentAt,
+      label: controller.spentAtLabel,
+      helperText: controller.spentAtHelper,
+      // Obrigatório: limpar só deixaria o formulário inválido de propósito.
+      clearable: false,
+    ),
+  );
 }
 
 /// "10x de R$ 300,00" enquanto a pessoa digita — a conta que ela faria de

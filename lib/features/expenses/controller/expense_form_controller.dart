@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
+import '../../../core/utils/month.dart';
 import '../../../core/utils/text_order.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
@@ -65,6 +68,23 @@ class ExpenseFormController extends BaseController {
   static const installmentsCount = 'installmentsCount';
   static const firstMonth = 'firstMonth';
 
+  /// Dia da compra, `YYYY-MM-DD`. **Obrigatório**, e é o único campo de tempo
+  /// do formulário: a competência sai dele (GFX-12).
+  ///
+  /// O backend continua aceitando ausente — quem não manda recebe o instante
+  /// do cadastro —, mas o app sempre manda: a pergunta "quando isto foi" é
+  /// barata para quem responde e cara para quem tenta adivinhar depois.
+  static const spentAt = 'spentAt';
+
+  /// Hoje em `YYYY-MM-DD`, que é o valor com que o campo nasce. Erra o dia em
+  /// quem compra à meia-noite e cadastra depois; acerta em todo o resto.
+  static String today() {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
   /// Mínimo do backend (GPR-01): para 1x existe o fixo não recorrente.
   static const minInstallments = 2;
   static const maxInstallments = 120;
@@ -123,6 +143,12 @@ class ExpenseFormController extends BaseController {
       value: _selectedMonth.month.value,
       validators: [Validators.required],
     ),
+    // Nasce em hoje e é obrigatório: é dele que sai a competência, e um
+    // formulário sem data não teria onde lançar o gasto.
+    spentAt: FormControl<String>(
+      value: today(),
+      validators: [Validators.required],
+    ),
   });
 
   final _tagsSignal = signal<List<TagModel>>(const []);
@@ -164,7 +190,23 @@ class ExpenseFormController extends BaseController {
   /// A lista de cartões é buscada **sempre**, inclusive em gasto no débito: a
   /// forma de pagamento pode ser trocada no meio do preenchimento, e ir buscar
   /// só quando a pessoa marca "cartão" deixaria o seletor vazio por um instante.
+  /// Assinaturas do que decide a fatura: o dia da compra, o cartão e o tipo.
+  /// Vivem aqui, e não na view: é regra, e a tela só desenha.
+  ///
+  /// A competência **não** está na lista de propósito. Ela é o resultado, não
+  /// a causa — escutá-la faria a correção manual da pessoa ser desfeita pelo
+  /// próprio cálculo, um campo brigando com quem o edita.
+  final _invoiceWatchers = <StreamSubscription<dynamic>>[];
+
   Future<void> start({String? id}) async {
+    if (_invoiceWatchers.isEmpty) {
+      for (final field in [spentAt, creditCardId, type, recurring]) {
+        _invoiceWatchers.add(
+          form.control(field).valueChanges.listen((_) => applyDerivedMonth()),
+        );
+      }
+    }
+
     _id = id;
     _failure.value = null;
     _ready.value = false;
@@ -209,6 +251,11 @@ class ExpenseFormController extends BaseController {
 
     if (id == null) {
       _syncCreditCardValidators();
+      // A primeira conta roda aqui: o dia nasce preenchido com hoje, então a
+      // competência já tem que estar certa quando a tela aparece. Sem isto o
+      // formulário abriria mostrando o mês da home, que desde a GFX-12 não
+      // manda mais em nada.
+      applyDerivedMonth();
       _ready.value = true;
       return;
     }
@@ -300,6 +347,10 @@ class ExpenseFormController extends BaseController {
   void selectPaymentMethod(PaymentMethod method) {
     control<PaymentMethod>(paymentMethod).updateValue(method);
     _syncCreditCardValidators();
+    // Trocar de forma de pagamento troca a regra da competência: no débito é
+    // o mês do dia, no cartão é a fatura. Recalcular aqui, e não esperar o
+    // stream, é o mesmo motivo do método existir.
+    applyDerivedMonth();
   }
 
   /// Cartão é obrigatório quando a forma de pagamento é cartão, e proibido
@@ -342,6 +393,111 @@ class ExpenseFormController extends BaseController {
   /// Devolve o id do gasto salvo, ou null quando o formulário é inválido ou o
   /// backend recusou. A view usa o retorno para decidir entre fechar a tela e
   /// continuar mostrando o erro.
+  /// O cartão escolhido, ou null no débito e enquanto ninguém escolheu.
+  CreditCardModel? get selectedCard {
+    if (control<PaymentMethod>(paymentMethod).value !=
+        PaymentMethod.creditCard) {
+      return null;
+    }
+
+    final id = control<String>(creditCardId).value;
+    if (id == null) return null;
+
+    for (final card in _cards) {
+      if (card.id == id) return card;
+    }
+    return null;
+  }
+
+  /// O campo de competência do tipo que está na tela — é ele que a fatura move.
+  String get _monthField =>
+      selectedType == ExpenseType.fixed ? startMonth : firstMonth;
+
+  /// É gasto fixo recorrente — assinatura, aluguel — e não compra pontual.
+  bool get _isRecurring =>
+      selectedType == ExpenseType.fixed &&
+      (control<bool>(recurring).value ?? false);
+
+  /// A competência que o dia informado produz, ou null sem dia informado.
+  ///
+  /// Três regras, e cada uma tem seu porquê:
+  ///
+  /// - **Débito**: o mês do próprio dia. Não existe fatura, então não existe
+  ///   fechamento para deslocar nada.
+  /// - **Cartão, compra pontual**: `chargeMonthFor` — a fatura da compra, ou a
+  ///   primeira aberta se aquela já fechou.
+  /// - **Cartão, recorrente**: `invoiceMonthFor`, **sem** a trava de fatura
+  ///   fechada. Cadastrar hoje o aluguel que começou em janeiro é registro
+  ///   retroativo de cobrança que aconteceu, não lançamento novo numa fatura
+  ///   encerrada — empurrar para a aberta apagaria o histórico que a pessoa
+  ///   está justamente tentando registrar.
+  String? get derivedMonth {
+    final chosen = control<String>(spentAt).value;
+    if (chosen == null || chosen.length != 10) return null;
+
+    final card = selectedCard;
+    if (card == null) return chosen.substring(0, 7);
+
+    return _isRecurring
+        ? card.invoiceMonthFor(chosen)
+        : card.chargeMonthFor(chosen);
+  }
+
+  /// O texto embaixo do calendário — que desde que o seletor de mês saiu da
+  /// tela é a **única** coisa que diz onde o gasto vai cair.
+  ///
+  /// Responde "comprei dia 8, por que foi para outubro?" antes de a pergunta
+  /// existir. Sem cartão escolhido não há fatura a nomear, e o campo fica com
+  /// o aviso padrão do widget.
+  String? get spentAtHelper {
+    final month = derivedMonth;
+    if (month == null) return null;
+
+    final card = selectedCard;
+    if (card == null) {
+      return 'Entra na competência de ${Month.label(month).toLowerCase()}';
+    }
+
+    // Quando a fatura da data da compra já fechou, o texto explica a segunda
+    // conta: sem isso, a competência pular dois meses parece defeito.
+    final purchase = card.invoiceMonthFor(control<String>(spentAt).value!);
+    if (purchase != month) {
+      return 'A fatura de ${Month.label(purchase).toLowerCase()} já fechou '
+          'dia ${card.closingDay} · entra na de '
+          '${Month.label(month).toLowerCase()}';
+    }
+
+    return 'Fecha dia ${card.closingDay} · entra na fatura de '
+        '${Month.label(month).toLowerCase()}';
+  }
+
+  /// O rótulo do campo de data. Assinatura não se "compra" num dia; ela
+  /// começa num.
+  String get spentAtLabel => _isRecurring ? 'Começou em' : 'Dia da compra';
+
+  /// A competência que o gasto acabou de receber — a view usa para levar a
+  /// home até lá depois de salvar.
+  String? get competenceMonth => control<String>(_monthField).value;
+
+  /// Move a competência para a fatura em que a compra cai.
+  ///
+  /// É a correção do bug de 10/09/2026: a compra do dia 8 num cartão que fecha
+  /// dia 5 ia para a fatura que fechou três dias antes, e aparecia num mês em
+  /// que ninguém iria pagá-la. Agora **é o dia que manda** — a competência é
+  /// consequência dele, e não uma segunda escolha que pode contradizê-lo.
+  ///
+  /// Mexer num campo que a pessoa vê é deliberado, e por isso a tela explica a
+  /// conta embaixo do calendário. O valor continua editável à mão: quem
+  /// discordar troca a competência, e nada aqui desfaz essa troca — só um novo
+  /// dia, cartão ou tipo recalcula.
+  void applyDerivedMonth() {
+    final month = derivedMonth;
+    if (month == null) return;
+
+    final field = control<String>(_monthField);
+    if (field.value != month) field.updateValue(month);
+  }
+
   Future<String?> submit() async {
     // De novo aqui, e não só no [selectPaymentMethod]: é esta chamada que faz a
     // guarda do GFX-01 valer mesmo que o campo tenha sido preenchido por outro
@@ -406,6 +562,7 @@ class ExpenseFormController extends BaseController {
       amountCents: control<int>(amountCents).value!,
       startMonth: control<String>(startMonth).value!,
       recurring: control<bool>(recurring).value ?? false,
+      spentAt: control<String>(spentAt).value,
     );
 
     return result.when((id) => id, (failure) {
@@ -424,6 +581,7 @@ class ExpenseFormController extends BaseController {
       totalCents: control<int>(totalCents).value!,
       installmentsCount: control<int>(installmentsCount).value!,
       firstMonth: control<String>(firstMonth).value!,
+      spentAt: control<String>(spentAt).value,
     );
 
     return result.when((id) => id, (failure) {
@@ -518,6 +676,9 @@ class ExpenseFormController extends BaseController {
 
   @override
   void dispose() {
+    for (final watcher in _invoiceWatchers) {
+      watcher.cancel();
+    }
     form.dispose();
     _saving.dispose();
     _ready.dispose();

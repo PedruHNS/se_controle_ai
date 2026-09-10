@@ -117,6 +117,7 @@ void main() {
           tagId: any(named: 'tagId'),
           notes: null,
           creditCardId: null,
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
     });
@@ -165,6 +166,7 @@ void main() {
           notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
           recurring: any(named: 'recurring'),
+          spentAt: any(named: 'spentAt'),
         ),
       ).called(1);
       verifyNever(
@@ -177,6 +179,7 @@ void main() {
           tagId: any(named: 'tagId'),
           notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
+          spentAt: any(named: 'spentAt'),
         ),
       );
     });
@@ -203,6 +206,7 @@ void main() {
           tagId: any(named: 'tagId'),
           notes: any(named: 'notes'),
           creditCardId: any(named: 'creditCardId'),
+          spentAt: any(named: 'spentAt'),
         ),
       );
     });

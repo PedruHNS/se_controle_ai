@@ -5,15 +5,28 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/core/shared/widgets/month_field_widget.dart';
+import 'package:se_controle_ai/core/utils/iso_date.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
 
+import '../../fixtures/credit_card_fixture.dart';
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/test_injector.dart';
+
+/// O dia 1 do mês de hoje, que é o único dia que o calendário sempre oferece:
+/// o futuro está apagado, e qualquer outro número seria futuro numa máquina
+/// que rode a suíte no começo do mês.
+String primeiroDoMes() {
+  final hoje = DateTime.now();
+  return '${hoje.year.toString().padLeft(4, '0')}-'
+      '${hoje.month.toString().padLeft(2, '0')}-01';
+}
 
 void main() {
   late MockExpenseRepository repository;
@@ -41,6 +54,27 @@ void main() {
     await tester.tap(find.byType(DropdownButtonFormField<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Moradia').last);
+    await tester.pumpAndSettle();
+  }
+
+  /// Abre o calendário do dia da compra e escolhe o dia 1.
+  ///
+  /// O `ensureVisible` não é detalhe: o formulário é uma `ListView` e o campo
+  /// nasce abaixo da dobra dos 800x600 do teste — sem rolar, o toque cai fora
+  /// da árvore e o erro fala de offset, não do campo.
+  Future<void> escolherPrimeiroDia(WidgetTester tester) async {
+    await tester.ensureVisible(find.byTooltip('Escolher o dia'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Escolher o dia'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(DatePickerDialog),
+        matching: find.text('1'),
+      ),
+    );
+    await tester.tap(find.text('Confirmar'));
     await tester.pumpAndSettle();
   }
 
@@ -149,6 +183,57 @@ void main() {
       );
     });
 
+    // GFX-12: nome, dia e valor na mesma linha, que é o que a pessoa pediu
+    // para reconhecer a compra sem abrir o detalhe.
+    testWidgets('a linha mostra o dia da compra', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          list: Success([ExpenseModel.fromJson(aluguelComDiaJson)]),
+        ),
+      );
+
+      await pumpList(tester);
+
+      expect(find.text('Aluguel'), findsOneWidget);
+      expect(find.text('Compra em 17/08/2026'), findsOneWidget);
+      expect(find.text(r'R$ 1.350,00'), findsWidgets);
+    });
+
+    // Gasto planejado tem dia no futuro, e a linha muda de verbo: dizer
+    // "compra em" sobre o que não aconteceu seria afirmação falsa.
+    testWidgets('gasto planejado aparece como previsto', (tester) async {
+      final futuro = DateTime.now().add(const Duration(days: 30));
+      final iso =
+          '${futuro.year.toString().padLeft(4, '0')}-'
+          '${futuro.month.toString().padLeft(2, '0')}-'
+          '${futuro.day.toString().padLeft(2, '0')}';
+
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          list: Success([
+            ExpenseModel.fromJson({
+              ...aluguelJson,
+              'spentAt': '${iso}T12:00:00.000Z',
+            }),
+          ]),
+        ),
+      );
+
+      await pumpList(tester);
+
+      expect(find.textContaining('Previsto para'), findsOneWidget);
+      expect(find.textContaining('Compra em'), findsNothing);
+    });
+
+    // Enquanto a GFX-12 não estiver no ar, o campo não vem — e a lista
+    // continua de pé, com uma linha a menos.
+    testWidgets('sem dia da compra a linha não quebra', (tester) async {
+      await pumpList(tester);
+
+      expect(find.text('Aluguel'), findsOneWidget);
+      expect(find.textContaining('Compra em'), findsNothing);
+    });
+
     testWidgets('lista vazia convida a cadastrar', (tester) async {
       setupExpenseTestInjector(
         mock: expenseRepositoryMock(list: const Success([])),
@@ -197,6 +282,100 @@ void main() {
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     });
 
+    // GFX-12 na tela: o dia é o único campo de tempo do formulário, nasce em
+    // hoje, e não há mais seletor de competência para contradizê-lo.
+    testWidgets('o dia nasce em hoje, e o mês sumiu da tela', (tester) async {
+      await pumpForm(tester);
+
+      expect(find.text('Dia da compra'), findsOneWidget);
+      expect(find.text(IsoDate.fullLabel(primeiroDoMes())), findsNothing);
+      expect(find.text('Não informado'), findsNothing);
+
+      expect(find.text('A partir de'), findsNothing);
+      expect(find.byType(MonthFieldWidget), findsNothing);
+    });
+
+    testWidgets('o parcelado também perdeu o seletor de competência', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.text('Parcelado'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Primeira parcela'), findsNothing);
+      expect(find.byType(MonthFieldWidget), findsNothing);
+      expect(find.text('Dia da compra'), findsOneWidget);
+    });
+
+    // Campo obrigatório não tem o que limpar: o X sairia só para deixar o
+    // formulário inválido de propósito.
+    testWidgets('não há como esvaziar o dia', (tester) async {
+      await pumpForm(tester);
+
+      expect(find.byTooltip('Limpar a data'), findsNothing);
+    });
+
+    testWidgets('escolher um dia no calendário preenche o campo', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      await escolherPrimeiroDia(tester);
+
+      // Do relógio, e não da competência: desde que o dia passou a decidir a
+      // fatura, o calendário deixou de ser preso ao mês escolhido na tela.
+      final esperado = IsoDate.fullLabel(primeiroDoMes());
+
+      expect(find.text(esperado), findsOneWidget);
+      expect(find.text('Não informado'), findsNothing);
+    });
+
+    // O bug de 10/09/2026 visto da tela: cartão que fecha dia 1, compra
+    // lançada depois disso, e a primeira parcela caindo na fatura de setembro
+    // — que já tinha fechado. A competência tem que pular para a aberta, e a
+    // tela tem que dizer por quê.
+    testWidgets('a fatura fechada não recebe a compra, e a tela explica', (
+      tester,
+    ) async {
+      setupCreditCardTestInjector(
+        mock: creditCardRepositoryMock(
+          list: Success([
+            CreditCardModel.fromJson({...nubankJson, 'closingDay': 1}),
+          ]),
+        ),
+      );
+      await pumpForm(tester);
+
+      await tester.tap(find.text('Cartão'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank ••••4321').last);
+      await tester.pumpAndSettle();
+
+      await escolherPrimeiroDia(tester);
+
+      // Dia 1 é o próprio fechamento: a fatura deste mês fechou nele. Se hoje
+      // ainda for dia 1, ela continua aberta e a compra fica aqui mesmo.
+      final hoje = DateTime.now();
+      final mes = Month.of(hoje.year, hoje.month);
+      final esperada = hoje.day <= 1 ? mes : Month.next(mes);
+
+      // O seletor de mês não existe mais: o texto embaixo do calendário é o
+      // único lugar da tela que diz onde o gasto vai cair.
+      expect(
+        find.textContaining(Month.label(esperada).toLowerCase()),
+        findsOneWidget,
+        reason: 'o texto de apoio nomeia a fatura que recebeu a compra',
+      );
+      // No dia 1 a fatura ainda está aberta e não há salto para explicar;
+      // em qualquer outro dia a tela tem que dizer por que o mês mudou.
+      if (hoje.day > 1) {
+        expect(find.textContaining('já fechou dia 1'), findsOneWidget);
+      }
+    });
+
     // O critério da Fase 3, na tela: o cartão cadastrado aparece como opção.
     testWidgets('escolher cartão revela o seletor com os cartões', (
       tester,
@@ -242,6 +421,53 @@ void main() {
           recurring: any(named: 'recurring'),
         ),
       );
+    });
+
+    // A competência sai do dia, então o gasto pode cair fora do mês que a
+    // pessoa está olhando. Sem levar a home junto, ele sumiria da tela e a
+    // leitura seria "não salvou".
+    testWidgets('salvar leva a home para o mês onde o gasto caiu', (
+      tester,
+    ) async {
+      final outroMes = Month.next(Month.next(Month.current()));
+      getIt<SelectedMonthService>().select(outroMes);
+
+      // Com pilha de verdade: o aviso é mostrado no instante em que a tela
+      // fecha, e um `MaterialApp` com uma rota só não teria `Scaffold`
+      // sobrando para hospedá-lo depois do `pop`.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<String>(
+                    builder: (_) => const ExpenseFormPage(),
+                  ),
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      await escolherTag(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Descrição').first,
+        'Mercado',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Valor por mês').first,
+        '2500',
+      );
+      await tapSalvar(tester);
+
+      expect(getIt<SelectedMonthService>().month.value, Month.current());
+      expect(find.textContaining('Lançado em'), findsOneWidget);
     });
 
     testWidgets('falha de rede vira snackbar', (tester) async {
@@ -297,6 +523,21 @@ void main() {
       expect(find.text(r'R$ 1.350,00'), findsOneWidget);
       expect(find.textContaining('Recorrente desde'), findsOneWidget);
       expect(find.textContaining('No débito'), findsOneWidget);
+    });
+
+    testWidgets('o detalhe mostra o dia da compra', (tester) async {
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(
+          detail: Success(ExpenseModel.fromJson(aluguelComDiaJson)),
+        ),
+      );
+
+      await pumpDetail(tester);
+
+      expect(find.text('Compra em 17/08/2026'), findsOneWidget);
+      // A competência de início é outra data, e continua na tela: o aluguel é
+      // cobrado desde janeiro, e a compra deste registro é de agosto.
+      expect(find.textContaining('Recorrente desde'), findsOneWidget);
     });
 
     testWidgets('gasto no cartão mostra o nome do cartão', (tester) async {
