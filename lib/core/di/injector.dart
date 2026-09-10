@@ -26,29 +26,12 @@ import '../network/api_client.dart';
 import '../network/dio_factory.dart';
 import '../theme/theme_controller.dart';
 
-/// O registro é dividido em `part`, e não em arquivos separados com import: os
-/// dois lados registram no mesmo `getIt` e usam as mesmas dependências, então
-/// continuam sendo **uma biblioteca só** — o que muda é onde cada trecho mora.
-///
-/// A consequência de usar `part` é que os imports ficam todos aqui: um `part`
-/// não tem import próprio. É o preço de as funções privadas (`_register…`)
-/// continuarem privadas e ainda assim visíveis entre os arquivos.
 part 'injector_controllers.dart';
 part 'injector_repositories.dart';
 part 'injector_services.dart';
 
 final getIt = GetIt.instance;
 
-/// Registra as dependências. Chamar em `main()` antes de `runApp`.
-///
-/// `registerLazySingleton` e não `registerSingleton`: nada é construído até o
-/// primeiro uso, então o start do app não paga por dependência que talvez não
-/// seja usada naquela sessão.
-///
-/// A ordem importa só na leitura, não na execução: o `getIt` resolve na hora de
-/// construir, então repositório registrado depois do controller que o usa
-/// funciona igual. Aqui vêm primeiro porque é assim que se lê — rede,
-/// repositório, controller.
 Future<void> setupInjector() async {
   // Os repositórios antes do Dio, invertendo a ordem de leitura: o Dio agora
   // depende do de autenticação, que é quem sabe o token. Não muda a execução —
@@ -56,8 +39,6 @@ Future<void> setupInjector() async {
   // visível para quem lê.
 
   _registerRepositories();
-  _registerServices();
-
   if (!getIt.isRegistered<Dio>()) {
     getIt.registerLazySingleton<Dio>(
       () => buildDio(auth: getIt<AuthRepository>()),
@@ -71,8 +52,7 @@ Future<void> setupInjector() async {
     );
   }
 
+  _registerServices();
+
   _registerControllers();
 }
-
-/// Limpa tudo. Necessário entre testes, senão o registro de um vaza no outro.
-// Future<void> resetInjector() => getIt.reset();

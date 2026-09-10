@@ -127,7 +127,7 @@ class CreditCardController extends BaseController with MessageMixin {
 
     final result = await _repository.update(
       id,
-      name: form.control('name').value.trim() as String,
+      name: form.control('name').value.trim(),
       closingDay: form.control('closingDay').value!,
       dueDay: form.control('dueDay').value!,
       lastDigits: form.control('lastDigits').value,
