@@ -275,16 +275,24 @@ porque a rota destrava os sete cards de uma vez.
       consequência assumida do CONC-13. A consulta foi rodada como está no
       código contra o Postgres do Docker, só leitura, para provar que o SQL
       compila e as duas pernas do `UNION` continuam alinhadas.
-- [ ] **B3 · Caso de uso `GetDashboard`.** Compõe o que já existe —
-      `findActiveBetween` do mês e dos seis meses, ganhos e cartões — e agrega
-      em memória. **Sem SQL novo:** um mês são dezenas de linhas, e o
-      `findActiveBetween` já traz tag, tipo, forma de pagamento e `spentAt`.
-  - [ ] B3a `byTag` — soma por tag, ordenada da maior para a menor
-  - [ ] B3b `byNature` — recorrente × parcelado × avulso
-  - [ ] B3c `daily` — só compras com `spentAt` dentro da competência, mais
-        `baselineCents` e a série do mês anterior (DSH-11 a DSH-15)
-  - [ ] B3d `topExpenses` — cinco maiores, com dia
-  - [ ] B3e `history` — seis meses de renda e gasto (o que a projeção fazia)
+- [x] **B3 · Caso de uso `GetDashboard`.** Módulo novo `src/modules/dashboard`,
+      com o `domain/Dashboard.ts` puro e o `application/GetDashboard.ts` que só
+      lê. **Sem SQL novo e sem consulta por card:** uma janela de seis meses
+      por repositório serve a competência, o `history` e o mês anterior da
+      curva. 17 testes novos (311 na suíte).
+  - [x] B3a `byTag` — soma por tag, da maior para a menor
+  - [x] B3b `byNature` — recorrente × parcelado × avulso
+  - [x] B3c `daily` — compras com `spentAt` na competência, `baselineCents` e
+        a série do mês anterior (DSH-11 a DSH-15)
+  - [x] B3d `topExpenses` — cinco maiores, com dia e rótulo de parcela
+  - [x] B3e `history` — seis meses de renda e gasto. A `GetBalanceProjection`
+        **foi apagada** em vez de reaproveitada: ela relia os repositórios, e
+        o dashboard já tem a janela na mão. A conta virou `buildHistory`, e os
+        testes dela viraram testes do `history`.
+
+      Duas coisas fora do módulo: a porta `Clock` ganhou `today()`
+      (competência e dia juntos, para não discordarem na virada do dia 31), e
+      o `container.ts` perdeu a linha da projeção.
 - [ ] **B4 · Presenter.** `DashboardResponse` com os sete blocos mais o
       `allowance`, centavos inteiros e `YYYY-MM` nas competências.
 - [ ] **B5 · Rota.** `GET /dashboard?month=YYYY-MM`, competência corrente por
