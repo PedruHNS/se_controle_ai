@@ -8,7 +8,7 @@ import 'auth_interceptor.dart';
 /// Constrói a única instância de Dio do app.
 ///
 /// **O endereço deve vir do [AppConfig], nunca escrito aqui** — e no momento
-/// não vem: o `baseUrl` está chumbado logo abaixo, com a linha do [AppConfig]
+/// não vem: o `baseUrl` está chumbado logo abaixos, com a linha do [AppConfig]
 /// comentada, para um teste em aparelho.
 ///
 /// Enquanto estiver assim, os `env/*.json` de 30/08 estão anulados em silêncio:
@@ -23,7 +23,7 @@ import 'auth_interceptor.dart';
 Dio buildDio({AuthRepository? auth}) {
   final dio = Dio(
     BaseOptions(
-      // baseUrl: AppConfig.apiBaseUrl,
+      // baseUrl: 'http://localhost:3333',
       baseUrl: 'https://secontroleai.com.br',
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
