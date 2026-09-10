@@ -21,6 +21,7 @@ veja "O que falta").
 | 10 Notificações | bloqueada pela **Etapa 8** do backend |
 | 11 Offline-first | bloqueada pela **Etapa 9** do backend |
 | 12 Cofrinho | não iniciada — depende da **Etapa 11** do backend |
+| 13 Perfil da conta | não iniciada — só a exclusão depende do backend |
 
 O app entra pelo Google (Firebase Auth) antes de qualquer tela; a home mostra o
 resumo do mês; ganhos, gastos, cartões e tags têm CRUD completo com reajuste,
@@ -35,6 +36,80 @@ prática entra **antes** da 11, apesar do número maior — numerar por ordem de
 chegada é mais barato que renumerar fase citada em comentário de código.
 
 ---
+
+## Um campo só no formulário de gasto (GFX-12) — feito em 10/09/2026
+
+Fica registrado inteiro, e não só como linha de histórico, porque as **perdas
+aceitas** no fim são restrições vivas: quem for mexer no formulário depois
+precisa saber o que foi trocado por quê.
+
+Decidido em 10/09/2026: o seletor de competência (`A partir de` / `Primeira
+parcela`) sai do formulário, e o **dia da compra passa a ser o único campo de
+tempo**. A competência vira consequência dele — no cartão pela regra de
+fechamento, no débito pelo mês do dia.
+
+O motivo é que as duas perguntas se sobrepõem: quem informa o dia já informou o
+mês, e a segunda pergunta só existia porque a primeira era opcional.
+
+**Já resolvido, e é o que tornou a remoção possível:**
+
+- [x] **A regra do fechamento** — `CreditCardModel.invoiceMonthFor`: até o dia
+      do fechamento entra nesta fatura, depois dele na próxima.
+- [x] **A trava de fatura fechada** — `chargeMonthFor`: nunca lança numa fatura
+      que já fechou; cai na primeira aberta.
+- [x] **A competência se move sozinha** no cartão (`applyInvoiceMonth`), e a
+      correção manual não é desfeita.
+- [x] **A tela explica a conta** embaixo do calendário (`spentAtHelper`), com o
+      texto mudando quando a fatura da compra já fechou.
+- [x] **O calendário soltou da competência** — era preso ao mês escolhido, o
+      que bloqueava justamente a compra que precisa mudá-lo.
+- [x] **O calendário aceita futuro**, um ano para cada lado, com teto. Sem isso
+      não haveria como lançar o IPVA de janeiro depois que o campo de mês sair.
+- [x] **O dia aparece em todas as telas** — resumo, fatura, lista e detalhe.
+      Sem isso, tirar o mês da tela deixaria a pessoa sem nenhuma pista de
+      quando o gasto aconteceu.
+
+**Também resolvido, na virada de 10/09/2026 que tirou o campo:**
+
+- [x] **Dia obrigatório, nascendo em hoje.** `ExpenseFormController.today()`, e
+      o `X` que limpava sumiu — num campo obrigatório ele só serviria para
+      deixar o formulário inválido de propósito.
+- [x] **O débito também deriva.** `derivedMonth` tem três regras: débito é o
+      mês do dia, cartão pontual é `chargeMonthFor`, cartão recorrente é
+      `invoiceMonthFor`.
+- [x] **A conta roda na abertura.** `applyDerivedMonth()` no fim do `start` e
+      na troca de forma de pagamento — sem isso o formulário abriria mostrando
+      o mês da home, que não manda mais em nada.
+- [x] **Recorrente é outra coisa.** Rótulo `Começou em` e trava de fatura
+      fechada desligada: cadastrar hoje o aluguel de janeiro é registro
+      retroativo, não lançamento novo numa fatura encerrada.
+- [x] **O rótulo segue a data.** `IsoDate.isFuture` decide entre `Compra em` e
+      `Previsto para` na lista e no detalhe. A linha do resumo mostra a data
+      pelada, sem verbo, e por isso não mente em nenhum dos dois casos.
+- [x] **O `MonthFieldWidget` saiu dos dois blocos.** O que sobrou no lugar é o
+      texto embaixo do calendário, que desde então é a única coisa na tela que
+      diz onde o gasto vai cair — `Fecha dia 10 · entra na fatura de outubro
+      2026`, ou `Entra na competência de setembro 2026` no débito.
+- [x] **Salvar leva a home para o mês onde o gasto caiu**, com um
+      `Lançado em outubro 2026`. Sem isso, um almoço de hoje lançado enquanto
+      se olha outubro sumiria da tela, e a leitura seria "não salvou".
+- [x] **Testes.** 608 verdes.
+
+**Perdas aceitas** (decididas em 10/09/2026, com o levantamento na mão):
+
+- **Carência no parcelado** — comprar em setembro com a primeira parcela em
+  dezembro deixa de ser possível, e hoje é. A perda é consciente: no Brasil
+  isso é crediário de loja, não cartão. Foi ela que quase justificou manter um
+  "ajustar" revelando o seletor escondido; sem ela, não sobrou caso que
+  justificasse a segunda pergunta na tela. O reparcelamento não substitui — ele
+  mantém as parcelas anteriores ao mês informado e recusa mês posterior ao fim
+  do plano.
+
+- **Competência errada não tem conserto.** O `PATCH /expenses/:id` aceita
+  descrição, tag, observação, forma de pagamento e cartão — competência não
+  está lá, e agora não há campo na tela para corrigir antes de salvar. Dia
+  errado, apagar e refazer.
+- **Início a mais de doze meses para trás** não é alcançável pelo calendário.
 
 ## O que falta
 
@@ -75,6 +150,13 @@ chegada é mais barato que renumerar fase citada em comentário de código.
       `_createTag` existe, tem teste de controller passando e **não tem como ser
       chamado pela tela**. Ou o botão volta, ou a função sai — hoje "criar tag
       sem sair do formulário" está no código e não no app.
+- [ ] **A home recarrega a cada volta, mesmo sem mudança.** O `routeObserver`
+      chama `refresh()` no `didPopNext`, e isso são cinco requisições toda vez
+      que você volta do menu — mesmo tendo só olhado. A alternativa desenhada
+      em 10/09/2026 e adiada: um contador de escritas alimentado por um
+      interceptor do Dio (todo método que não seja `GET` incrementa), a home
+      guardando o valor de quando carregou e comparando no retorno. Deixado
+      para quando o custo incomodar.
 - [ ] **Três comentários citam "Fase 10" para offline-first** (`app.dart`,
       `selected_month_service.dart`, `theme_controller.dart`). Offline-first é
       a **11**; a 10 é notificações.
@@ -98,6 +180,8 @@ chegada é mais barato que renumerar fase citada em comentário de código.
 
 A publicação está a uns 6 meses, então nada disso é para agora — mas a exclusão
 de conta encosta em todas as tabelas, e é a que menos aceita ficar para o fim.
+
+A tela que hospeda as duas primeiras é a **Fase 13**, o perfil da conta.
 
 - [ ] **Exclusão de conta.** Obrigatória para todo app que cria conta, dentro do
       app **e** por link web acessível sem instalar. Não existe rota, e as FKs
@@ -342,7 +426,7 @@ explícito — não são dois caminhos para "editar valor".
 ### Gastos
 | Método | Rota | Semântica |
 |---|---|---|
-| POST | `/expenses` | Discriminado por `type`: `FIXED` ou `INSTALLMENT`. `tagId` **obrigatório**, `notes` opcional |
+| POST | `/expenses` | Discriminado por `type`: `FIXED` ou `INSTALLMENT`. `tagId` **obrigatório**, `notes` e `spentAt` opcionais |
 | GET | `/expenses?month=&type=&paymentMethod=&creditCardId=` | Filtros combináveis |
 | GET | `/expenses/:id?month=` | |
 | PATCH | `/expenses/:id` | Só descrição/tag/observação/forma de pagamento |
@@ -354,6 +438,46 @@ explícito — não são dois caminhos para "editar valor".
 (`history`), `INSTALLMENT` tem parcelas (`installments`), e o campo do outro tipo
 vem `null`. O tipo é escolhido no cadastro e nunca muda — o backend nem oferece a
 operação.
+
+**GFX-12 — o dia da compra (`spentAt`).** Opcional no cadastro; quem não informa
+recebe o instante em que cadastrou. Volta em toda leitura de gasto **e em toda
+linha do resumo** (`items[].spentAt`, nulo em ganho), sempre em ISO 8601 com
+fuso — é a única data do contrato que não é `DATE`, porque é instante. Do lado
+do app ela é convertida uma vez, em `IsoDate.fromInstant`, e daí em diante
+circula como `YYYY-MM-DD`: cortar a string em dez caracteres daria o dia em UTC,
+e às 21h de Brasília isso já é amanhã.
+
+**No cartão, é o dia que decide a fatura** — e nunca uma fatura já fechada.
+São duas contas, nesta ordem (`CreditCardModel`):
+
+1. `invoiceMonthFor` — onde a compra **caberia**: até o dia do fechamento, na
+   fatura que fecha naquele mês; do dia seguinte em diante, na próxima.
+2. `chargeMonthFor` — onde ela **cabe**: a da conta acima, ou a primeira ainda
+   aberta hoje, se aquela já fechou.
+
+O formulário aplica as duas sozinho e move a competência, explicando a conta
+embaixo do calendário. Sem a segunda, um cartão que fecha dia 1 mandava a
+compra lançada no dia 10 para a fatura de setembro, fechada nove dias antes: a
+primeira parcela caía num mês encerrado e a segunda no mês corrente (visto em
+10/09/2026, cartão "Teste", `closing_day = 1`).
+
+Cinco consequências aceitas, e nenhuma delas é bug:
+
+- **O calendário só olha para trás**: de doze meses atrás até hoje, porque não
+  há como ter comprado numa data que ainda não chegou. Substituiu a primeira
+  versão, presa ao mês da competência — prender o calendário à competência
+  bloquearia justamente a compra que precisa mudá-la.
+- **A competência continua editável à mão.** O cálculo só roda quando muda o
+  dia, o cartão ou o tipo: um campo que se corrige sozinho depois de a pessoa
+  corrigi-lo é campo brigando com quem o edita.
+- **A compra atrasada entra na fatura aberta**, e não naquela em que ela foi
+  cobrada de verdade. Entre mexer numa fatura fechada e adiar para a aberta, a
+  segunda é a que ainda dá para pagar.
+- **A regra mora no app, não no backend.** Um gasto criado por fora — outro
+  cliente, uma versão antiga — ainda pode cair na fatura errada, porque o
+  backend continua tratando a competência como escolha explícita de quem chama.
+- **Backend sem a GFX-12 no ar não quebra o app.** `spentAt` chega nulo, e a
+  linha da data some da tela em vez de estourar no `build`.
 
 ### Tags
 | Método | Rota | Semântica |
@@ -543,6 +667,39 @@ de refatoração — piora os dois lados. Módulo próprio, do model à tela.
 **Pronto quando:** uma meta de R$ 5.000 para dezembro, com três depósitos de
 R$ 500, mostra 30% na barra, as três linhas no histórico, e o mês de cada
 depósito reflete a decisão acima.
+
+### Fase 13 — Perfil da conta
+
+Decidida em **09/09/2026**. Uma tela para a conta, com quatro coisas: **foto e
+nome** vindos do Google, **política de privacidade**, **excluir conta** e
+**encerrar sessão**.
+
+**Três dos quatro itens são só tela.** O `AuthUserModel` já carrega
+`displayName`, `photoUrl`, `email` e o getter `label` — e o `photoUrl` **nunca
+foi exibido em lugar nenhum**: o cabeçalho do menu mostra "Se Controle" e nada
+mais. Não há chamada de backend a fazer; o `GET /me` não acrescenta nada que o
+Firebase já não entregue.
+
+- **A foto pode não existir.** Conta Google sem foto devolve `photoUrl` nulo, e
+  é imagem de rede: precisa de estado de carregando, de erro, e de um fallback
+  com as iniciais do `label`
+- **Sair muda de lugar, não ganha um segundo.** A ação já existe no menu
+  lateral (`_Sair`, chave `drawer-sair`). Pela convenção de que **uma ação mora
+  em um lugar só**, ao ganhar a tela de perfil ela sai do menu — do mesmo jeito
+  que editar cartão saiu da AppBar da fatura quando entrou no menu do card
+- **Os outros dois são obrigação da Play**, e esta é a tela que os torna
+  alcançáveis: a política é página estática que o Caddy serve, e a exclusão de
+  conta é o único item aqui que **não** é só tela — depende de rota nova, com
+  ordem de remoção definida, porque as FKs são `ON DELETE RESTRICT` em 8
+  tabelas
+
+**Vale fazer antes da rota de exclusão existir.** Foto, nome, política e sair
+entregam a tela inteira; o botão de excluir entra depois, no lugar já reservado.
+Esperar o backend para começar é adiar três itens por causa de um.
+
+**Pronto quando:** a tela abre com a foto e o nome reais da conta, sair funciona
+a partir dela e some do menu, a política abre, e excluir conta apaga os dados e
+volta para o login sem deixar sessão de pé.
 
 ---
 
