@@ -36,16 +36,25 @@ import 'auth_refresh.dart';
 /// só ser notificado: é ele que sabe se o primeiro evento do Firebase já chegou.
 final AuthRefresh _authRefresh = AuthRefresh(GetIt.I<AuthRepository>().changes);
 
+/// Quem avisa uma tela de que a de cima saiu e ela voltou a aparecer.
+///
+/// Existe porque `push` não destrói a tela de baixo: ela fica montada, com o
+/// `State` vivo e o controller intacto, então nada nela roda quando o topo é
+/// removido. Sem este observador, cadastrar um gasto pela tela de gastos
+/// deixava a home mostrando o resumo de antes — e a única saída era o
+/// pull-to-refresh.
+///
+/// `PageRoute` e não `ModalRoute`: diálogo aberto e fechado em cima da home
+/// não é "voltar para a home", e assinar `ModalRoute` faria cada confirmação
+/// de exclusão disparar uma recarga.
+final routeObserver = RouteObserver<PageRoute<dynamic>>();
+
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.homePath,
-
-  /// A chave do Navigator raiz, para quem precisa de um `context` sem estar
-  /// dentro da árvore — hoje o [MessageMixin], que mostra Flushbar de fora de
-  /// widget nenhum. `MaterialApp.router` não aceita `navigatorKey`: quem cria o
-  /// Navigator raiz é o router, então é aqui que a chave entra. Sem isto
-  /// `Globals.navigatorKey.currentContext` é sempre nulo e todo toast do app é
-  /// construído e descartado em silêncio.
   navigatorKey: Globals.navigatorKey,
+
+  /// O observador que avisa a home quando uma tela empilhada sobre ela sai.
+  observers: [routeObserver],
 
   /// Loga cada navegação no console em debug. Vale muito quando um redirect
   /// leva para lugar inesperado.
@@ -227,7 +236,6 @@ final GoRouter appRouter = GoRouter(
   /// `goNamed`. Sem isto o go_router mostra uma tela de erro crua.
   errorBuilder: (context, state) =>
       _RouteErrorPage(location: state.uri.toString(), error: state.error),
-
 );
 
 class _RouteErrorPage extends StatelessWidget {

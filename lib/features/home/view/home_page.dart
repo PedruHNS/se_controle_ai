@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/app_drawer.dart';
@@ -26,10 +28,12 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  // O controller é um lazySingleton do get_it, e é o get_it que o libera pelo
-  // `dispose:` do registro — por isso não há `dispose` aqui. Consequência
-  // desejada: o mês selecionado continua o mesmo ao sair da home e voltar.
+class _HomePageState extends State<HomePage> with RouteAware {
+  // O controller é um lazySingleton do get_it, e quem o libera é o `dispose:`
+  // do registro, disparado pelo `resetLazySingleton` lá embaixo. Na prática
+  // isso quase nunca roda: a home é a base da pilha, e `push` não destrói o
+  // que fica embaixo — só sair da conta a remove. É também por isso que o
+  // refresh ao voltar precisa do [routeObserver].
   final _controller = getIt<HomeController>();
 
   /// O menu do botão de criar está aberto? Mora aqui, e não no [HomeFab],
@@ -46,10 +50,39 @@ class _HomePageState extends State<HomePage> {
   Future<void> _openForm(String route) async {
     _setFab(false);
 
-    final created = await context.pushNamed(route);
-    if (!mounted || created == null) return;
+    // Sem `refresh` no retorno: quem recarrega agora é o [didPopNext], que
+    // vale para toda tela empilhada — inclusive as do menu, que não passam
+    // por aqui. Chamar nos dois lugares buscaria o resumo duas vezes.
+    await context.pushNamed(route);
+  }
 
-    await _controller.refresh();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) routeObserver.subscribe(this, route);
+  }
+
+  /// A tela de cima saiu e a home reapareceu.
+  ///
+  /// Recarrega sempre, sem perguntar se algo mudou: um gasto cadastrado na
+  /// tela de gastos, um cartão editado no menu ou uma tag renomeada mexem no
+  /// resumo, e a home não tem como saber disso sozinha. O preço é uma busca a
+  /// cada volta, mesmo quando nada mudou — decidido em 10/09/2026, com a
+  /// alternativa (um contador de escritas) anotada para quando o custo
+  /// incomodar.
+  ///
+  /// `silent`, via [HomeController.refresh]: o conteúdo antigo fica na tela
+  /// enquanto o novo vem, senão voltar do menu piscaria a home inteira.
+  @override
+  void didPopNext() => _controller.refresh();
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    getIt.resetLazySingleton<HomeController>();
+    super.dispose();
   }
 
   @override
@@ -202,9 +235,10 @@ class _BackToCurrentMonth extends StatelessWidget {
 /// seção que ainda está vindo mostra o seu lugar reservado, e uma que falhou
 /// mostra o próprio erro sem apagar as vizinhas que já chegaram.
 class _SummaryContent extends StatelessWidget {
-  const _SummaryContent({required this.controller});
+  _SummaryContent({required this.controller});
 
   final HomeController controller;
+  final _nav = getIt<NavigationService>();
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +266,7 @@ class _SummaryContent extends StatelessWidget {
                 totalCents: section.totalCents,
                 emptyMessage:
                     'Nenhum ganho cadastrado. Toque para adicionar um.',
-                onTap: () => context.pushNamed(AppRoutes.incomes),
+                onTap: () => _nav.pushNamed(AppRoutes.incomes),
               ),
             ),
           ),

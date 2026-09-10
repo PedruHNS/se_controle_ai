@@ -9,6 +9,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
+import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
 import 'package:se_controle_ai/features/home/widgets/credit_card_invoice_card.dart';
 
@@ -351,7 +352,10 @@ void main() {
     testWidgets('título mostra a competência em português', (tester) async {
       await pumpHome(tester);
 
-      expect(find.text(Month.shortLabel(SelectedMonthService.initial())), findsOneWidget);
+      expect(
+        find.text(Month.shortLabel(SelectedMonthService.initial())),
+        findsOneWidget,
+      );
     });
 
     testWidgets('seta avança o mês e refaz a busca', (tester) async {
@@ -416,7 +420,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final label = find.text(Month.shortLabel(Month.next(SelectedMonthService.initial())));
+      final label = find.text(
+        Month.shortLabel(Month.next(SelectedMonthService.initial())),
+      );
       expect(label, findsOneWidget);
 
       final appBar = tester.getRect(find.byType(AppBar));
@@ -463,6 +469,62 @@ void main() {
       final painted = tester.getRect(label);
       expect(painted.left, greaterThanOrEqualTo(bar.left));
       expect(painted.right, lessThanOrEqualTo(bar.right));
+    });
+  });
+
+  // `push` não destrói a home: ela fica montada embaixo, com o controller
+  // intacto, e nada nela roda quando a tela de cima sai. Quem avisa é o
+  // `routeObserver` — sem ele, cadastrar um gasto pela tela de gastos deixava
+  // o resumo velho até alguém puxar para atualizar.
+  group('voltar de outra tela', () {
+    Future<void> pumpComPilha(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(400, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: const HomePage(),
+          navigatorObservers: [routeObserver],
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> empilharEVoltar(WidgetTester tester) async {
+      Navigator.of(tester.element(find.byType(HomePage))).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('outra tela')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      Navigator.of(tester.element(find.text('outra tela'))).pop();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('recarrega o resumo', (tester) async {
+      await pumpComPilha(tester);
+      clearInteractions(repository);
+
+      await empilharEVoltar(tester);
+
+      verify(() => repository.getBalance(month: any(named: 'month'))).called(1);
+      verify(
+        () => repository.getExpenses(month: any(named: 'month')),
+      ).called(1);
+    });
+
+    // `refresh` é `load(silent: true)`: o conteúdo antigo fica na tela
+    // enquanto o novo vem. Piscar a home inteira a cada volta do menu seria
+    // pior do que o dado velho por meio segundo.
+    testWidgets('sem piscar o conteúdo que já estava na tela', (tester) async {
+      await pumpComPilha(tester);
+
+      await empilharEVoltar(tester);
+
+      expect(find.text('Comprometido'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 }

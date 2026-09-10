@@ -36,6 +36,8 @@ import 'mocks.dart';
 /// Os controllers são `registerFactory` aqui, e não o `lazySingleton` da
 /// produção: cada teste precisa de um controller novo, senão o estado de um vaza
 /// para o próximo. Devolve o mock para o teste ajustar o `when`.
+///
+/// A exceção é o [HomeController] — ver o comentário no registro dele.
 /// O mês selecionado, compartilhado por todas as telas do teste.
 ///
 /// **Singleton, e não `registerFactory` como os controllers de tela.** Aqui a
@@ -80,13 +82,26 @@ MockSummaryRepository setupTestInjector() {
     getIt.unregister<ThemeController>();
   }
 
+  // A home passou a navegar pelo `NavigationService` — mesmo duplo que tags e
+  // cartões usam, e pelo mesmo motivo: o service de verdade embrulha o
+  // `appRouter`, que é único por processo.
+  if (!getIt.isRegistered<NavigationService>()) {
+    getIt.registerSingleton<NavigationService>(navigationServiceMock());
+  }
+
   getIt
     ..registerSingleton<SummaryRepository>(repository)
-    ..registerFactory<HomeController>(
+    // `lazySingleton` como em produção, e não `factory` como os outros: a
+    // `HomePage` libera o controller no `dispose` com `resetLazySingleton`, e
+    // esse método recusa qualquer registro que não seja lazySingleton. Cada
+    // teste continua com um controller novo — o `unregister` acima roda no
+    // `setUp`.
+    ..registerLazySingleton<HomeController>(
       () => HomeController(
         getIt<SummaryRepository>(),
         getIt<SelectedMonthService>(),
       ),
+      dispose: (controller) => controller.dispose(),
     )
     // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
     ..registerFactory<ProjectionController>(
