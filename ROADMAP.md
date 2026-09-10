@@ -305,8 +305,23 @@ porque a rota destrava os sete cards de uma vez.
       `monthQuerySchema` das outras rotas. Conferida subindo o app com
       repositórios em memória: 200 com os oito blocos, sem `?month` cai na
       competência do relógio e `2026-13` responde 400 `VALIDATION_ERROR`.
-- [ ] **B6 · Testes.** Agregação (mês sem renda, mês vazio, parcela comprada
-      em outro mês ficando fora do `daily`, cartão sem limite) e a rota.
+- [x] **B6 · Testes.** 318 na suíte, 20 arquivos. Das bordas listadas, três já
+      estavam cobertas pelo B3 — mês vazio (DSH-25), parcela comprada em outro
+      mês fora do `daily` e cartão sem limite. Entraram **mês sem renda**
+      (`committedPercent` nulo, e a dívida do tamanho do gasto) e **o último
+      dia do mês**, onde o divisor do card 1 é 1 e não zero.
+
+      A rota ganhou arquivo próprio, `dashboardRoutes.spec.ts`: sobe o
+      `createApp` de verdade num `listen(0)` e bate nele com `fetch`, sem
+      `supertest`. Prova o que chamar o caso de uso na mão não prova — a
+      montagem em `/dashboard`, o `?month` validado, a ausência dele caindo no
+      relógio, o 400 de formato e o 401 sem token.
+
+      Um tropeço no caminho: `config/env.ts` valida o ambiente no import e
+      chama `process.exit(1)` sem `DATABASE_URL`, e o CI roda sem `.env` —
+      importar o `createApp` num teste derrubaria a suíte lá, passando aqui.
+      O `vitest.config.ts` passou a declarar a variável; nenhum teste abre
+      conexão.
 - [x] **B7 · Docs.** Feita antes das outras, em 10/09/2026: a rota
       `GET /summary/projection` **foi removida**, e não só marcada — o APK
       instalado vai ser desinstalado, então não havia janela de compatibilidade
