@@ -14,6 +14,7 @@ List<SummaryLineItemModel> _items(int count) => List.generate(
     description: 'Gasto $i',
     amountCents: 1000 * (i + 1),
     installmentLabel: null,
+    spentAt: null,
     tag: null,
   ),
 );
@@ -98,6 +99,46 @@ void main() {
       await _pump(tester, items: _items(6), maxItems: 4);
 
       expect(find.text(r'R$ 9.999,00'), findsOneWidget);
+    });
+  });
+
+  group('dia da compra na linha (GFX-12)', () {
+    SummaryLineItemModel linha({String? spentAt, String? parcela}) =>
+        SummaryLineItemModel(
+          id: 'id-1',
+          description: 'Notebook',
+          amountCents: 60000,
+          installmentLabel: parcela,
+          spentAt: spentAt,
+          tag: null,
+        );
+
+    testWidgets('o resumo mostra o dia embaixo do nome', (tester) async {
+      await _pump(tester, items: [linha(spentAt: '2026-08-17')]);
+
+      expect(find.text('Notebook'), findsOneWidget);
+      expect(find.text('17/08/2026'), findsOneWidget);
+      expect(find.text(r'R$ 600,00'), findsOneWidget);
+    });
+
+    // O ano entra porque a parcela de agosto pode ser de uma compra de julho
+    // do ano passado — sem ele, "04/07" mentiria por doze meses.
+    testWidgets('dia e parcela dividem a mesma linha', (tester) async {
+      await _pump(
+        tester,
+        items: [linha(spentAt: '2026-07-04', parcela: '3/10')],
+      );
+
+      expect(find.text('04/07/2026 · Parcela 3/10'), findsOneWidget);
+    });
+
+    testWidgets('ganho não tem dia, e a linha volta a ter uma linha só', (
+      tester,
+    ) async {
+      await _pump(tester, items: [linha()]);
+
+      expect(find.text('Notebook'), findsOneWidget);
+      expect(tester.widget<ListTile>(find.byType(ListTile)).subtitle, isNull);
     });
   });
 }

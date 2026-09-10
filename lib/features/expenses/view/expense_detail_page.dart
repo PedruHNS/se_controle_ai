@@ -9,6 +9,7 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
+import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/utils/month.dart';
 import '../../../data/models/expense_model.dart';
@@ -275,6 +276,20 @@ class _ExpenseDetail extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  // O dia da compra (GFX-12), abaixo do período e não junto:
+                  // no parcelado ele fica meses atrás da competência exibida,
+                  // e é essa distância que explica por que a parcela 3/10 cai
+                  // aqui.
+                  if (expense.spentAt case final spentAt?) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${IsoDate.isFuture(spentAt) ? 'Previsto para' : 'Compra em'} '
+                      '${IsoDate.fullLabel(spentAt)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   // Único lugar onde a observação aparece: ela é texto livre e
                   // nada a consulta — não filtra, não agrupa, não entra no
                   // resumo. Mostrá-la na lista roubaria espaço do que agrupa.

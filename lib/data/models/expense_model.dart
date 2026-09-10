@@ -1,3 +1,4 @@
+import '../../core/utils/iso_date.dart';
 import '../../core/utils/month.dart';
 import 'amount_version_model.dart';
 import 'installment_model.dart';
@@ -59,6 +60,7 @@ class ExpenseModel {
     required this.paymentMethod,
     required this.creditCardId,
     required this.recurring,
+    required this.spentAt,
     required this.startMonth,
     required this.endMonth,
     required this.amountCents,
@@ -89,6 +91,17 @@ class ExpenseModel {
   /// Segue até ser encerrado. Falso no gasto avulso — que não é um tipo à
   /// parte, é um fixo não recorrente (GFX-03).
   final bool recurring;
+
+  /// O dia em que a compra foi feita (GFX-12), em `YYYY-MM-DD` e já no fuso do
+  /// aparelho. Quem não informou o dia no cadastro recebe do backend o dia em
+  /// que cadastrou.
+  ///
+  /// Não confundir com [startMonth], que é a competência de onde o valor sai:
+  /// a compra do dia 30 pode ser cobrada na competência seguinte.
+  ///
+  /// Nulo só quando o backend é anterior à GFX-12 — a tela omite a linha em
+  /// vez de estourar.
+  final String? spentAt;
 
   final String startMonth;
 
@@ -198,6 +211,7 @@ class ExpenseModel {
     paymentMethod: PaymentMethod.fromWire(json['paymentMethod'] as String),
     creditCardId: json['creditCardId'] as String?,
     recurring: json['recurring'] as bool,
+    spentAt: IsoDate.fromInstant(json['spentAt'] as String?),
     startMonth: json['startMonth'] as String,
     endMonth: json['endMonth'] as String?,
     amountCents: json['amountCents'] as int?,

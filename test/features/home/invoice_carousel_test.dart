@@ -28,6 +28,7 @@ void main() {
           description: '$descricao $i',
           amountCents: 5590,
           installmentLabel: parcela,
+          spentAt: null,
           tag: null,
         ),
     ],

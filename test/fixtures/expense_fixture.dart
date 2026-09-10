@@ -230,3 +230,14 @@ const expenseListJson = <Map<String, dynamic>>[
   presenteJson,
   youtubeJson,
 ];
+
+/// O mesmo aluguel como o backend passou a devolver depois da GFX-12: com
+/// `spentAt`, o instante em que a compra foi feita.
+///
+/// Meio-dia em UTC não é escolha estética — é o que o backend grava quando a
+/// pessoa informa só o dia, justamente a hora que sobrevive à conversão para
+/// qualquer fuso do país sem cair no dia anterior.
+final aluguelComDiaJson = <String, dynamic>{
+  ...aluguelJson,
+  'spentAt': '2026-08-17T12:00:00.000Z',
+};

@@ -130,4 +130,25 @@ void main() {
       expect(ExpenseType.installment.wire, 'INSTALLMENT');
     });
   });
+
+  group('dia da compra (GFX-12)', () {
+    test('o instante do backend vira o dia no fuso do aparelho', () {
+      expect(ExpenseModel.fromJson(aluguelComDiaJson).spentAt, '2026-08-17');
+    });
+
+    // O app roda contra o backend que estiver no ar. Enquanto a GFX-12 não
+    // subir, a chave não vem — e a tela some com a linha, não quebra.
+    test('resposta anterior à GFX-12 chega sem o dia', () {
+      expect(ExpenseModel.fromJson(aluguelJson).spentAt, isNull);
+    });
+
+    // Duas datas diferentes que é fácil confundir: a compra é do dia 17 de
+    // agosto, e o valor sai da competência de janeiro em diante.
+    test('o dia da compra não é a competência de início', () {
+      final aluguel = ExpenseModel.fromJson(aluguelComDiaJson);
+
+      expect(aluguel.spentAt, '2026-08-17');
+      expect(aluguel.startMonth, '2026-01');
+    });
+  });
 }

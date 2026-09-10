@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
 import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
+import 'package:se_controle_ai/data/models/summary_line_item_model.dart';
 
 import '../../fixtures/summary_fixture.dart';
 
@@ -138,6 +139,38 @@ void main() {
       expect(projection.month, '2026-09');
       expect(projection.balanceCents, 254410);
       expect(projection.cumulativeBalanceCents, 508820);
+    });
+  });
+
+  group('dia da compra na linha do resumo (GFX-12)', () {
+    Map<String, dynamic> linha(Object? spentAt) => <String, dynamic>{
+      'id': 'a0843022-eea2-48ef-8c43-2ab4e4f9bc1f',
+      'description': 'Notebook',
+      'amountCents': 60000,
+      'installmentLabel': '3/10',
+      'spentAt': spentAt,
+      'tag': null,
+    };
+
+    // A parcela 3/10 aparece no resumo de agosto, mas a compra é de julho —
+    // é essa distância que o dia na linha revela.
+    test('gasto traz o dia da compra, já no fuso do aparelho', () {
+      final item = SummaryLineItemModel.fromJson(
+        linha('2026-07-04T12:00:00.000Z'),
+      );
+
+      expect(item.spentAt, '2026-07-04');
+    });
+
+    test('ganho não é compra, e chega sem dia', () {
+      expect(SummaryLineItemModel.fromJson(linha(null)).spentAt, isNull);
+    });
+
+    test('resposta anterior à GFX-12 não tem a chave', () {
+      final summary = MonthlySummaryModel.fromJson(summaryJson);
+
+      expect(summary.debit.items.first.spentAt, isNull);
+      expect(summary.incomes.first.spentAt, isNull);
     });
   });
 }

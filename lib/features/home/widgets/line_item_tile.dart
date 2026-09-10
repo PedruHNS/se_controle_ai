@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/summary_line_item_model.dart';
 
@@ -21,10 +22,29 @@ class LineItemTile extends StatelessWidget {
   /// fatura, de altura fixa, precisa que a linha tenha tamanho previsível.
   final int? maxLines;
 
+  /// A linha de baixo: o dia da compra e a parcela, o que houver.
+  ///
+  /// O dia vem primeiro porque é o que responde "quando foi isso?", que é a
+  /// pergunta de quem lê o resumo. Com ano, mesmo a seção estando sob um mês:
+  /// a parcela 3/10 que aparece em setembro foi comprada em julho, e pode ter
+  /// sido no ano passado. Em ganho não há dia, e aí sobra só a parcela — ou
+  /// nada, e a linha volta a ter uma linha só.
+  String? get _subtitle {
+    final spentAt = item.spentAt;
+    final label = item.installmentLabel;
+
+    final parts = [
+      if (spentAt != null) IsoDate.fullLabel(spentAt),
+      if (label != null) 'Parcela $label',
+    ];
+
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = item.installmentLabel;
+    final subtitle = _subtitle;
 
     return ListTile(
       dense: true,
@@ -36,11 +56,10 @@ class LineItemTile extends StatelessWidget {
         maxLines: maxLines,
         overflow: maxLines == null ? null : TextOverflow.ellipsis,
       ),
-      // `3/10` só existe em parcelado; em gasto fixo vem nulo.
-      subtitle: label == null
+      subtitle: subtitle == null
           ? null
           : Text(
-              'Parcela $label',
+              subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
