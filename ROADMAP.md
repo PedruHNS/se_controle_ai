@@ -293,10 +293,18 @@ porque a rota destrava os sete cards de uma vez.
       Duas coisas fora do módulo: a porta `Clock` ganhou `today()`
       (competência e dia juntos, para não discordarem na virada do dia 31), e
       o `container.ts` perdeu a linha da projeção.
-- [ ] **B4 · Presenter.** `DashboardResponse` com os sete blocos mais o
-      `allowance`, centavos inteiros e `YYYY-MM` nas competências.
-- [ ] **B5 · Rota.** `GET /dashboard?month=YYYY-MM`, competência corrente por
-      padrão, no mesmo schema de mês das outras rotas.
+- [x] **B4 · Presenter — não existe, e é de propósito.** O tipo `Dashboard` do
+      domínio **é** o contrato: já nasce em centavos inteiros, `YYYY-MM` e ISO
+      8601, campo por campo igual ao exemplo da spec. Um `DashboardResponse`
+      seria a cópia do mesmo tipo com uma função identidade no meio. Presenter
+      existe onde há entidade a traduzir (`Expense`, `CreditCard`); o resumo
+      mensal, que também é número agregado, nunca teve um. Ficou registrado
+      como decisão em `09-dashboard.md`, para não voltar como esquecimento.
+- [x] **B5 · Rota.** `GET /dashboard?month=YYYY-MM` no ar: `dashboardRoutes`,
+      `getDashboard` no container e o `app.use` no `app.ts`, com o
+      `monthQuerySchema` das outras rotas. Conferida subindo o app com
+      repositórios em memória: 200 com os oito blocos, sem `?month` cai na
+      competência do relógio e `2026-13` responde 400 `VALIDATION_ERROR`.
 - [ ] **B6 · Testes.** Agregação (mês sem renda, mês vazio, parcela comprada
       em outro mês ficando fora do `daily`, cartão sem limite) e a rota.
 - [x] **B7 · Docs.** Feita antes das outras, em 10/09/2026: a rota
@@ -305,8 +313,8 @@ porque a rota destrava os sete cards de uma vez.
       a respeitar. Saíram o handler, o `projectionQuerySchema`, a linha da
       tabela de rotas do README (trocada pela do `/dashboard`) e o `months`
       dos limites de entrada; as regras RES-10 a RES-14 viraram "série mensal"
-      e apontam para o dashboard. A classe `GetBalanceProjection` **fica**: é a
-      conta do B3e, e continua montada no container e coberta pelo teste.
+      e apontam para o dashboard. A classe `GetBalanceProjection` ia ficar como
+      conta do B3e, mas o B3e a apagou — ver ali o porquê.
 - [ ] **B8 · Merge e deploy**, com autorização.
 
 **App — `se_controle_ai`**
