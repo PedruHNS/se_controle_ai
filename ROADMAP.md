@@ -113,25 +113,202 @@ mês, e a segunda pergunta só existia porque a primeira era opcional.
 
 ## O que falta
 
-### Projeção — remodelagem planejada
+### Dashboard — substitui a projeção
 
-- [ ] **A tela de projeção vai ser remodelada.** Decidido em 05/09/2026; o
-      escopo ainda não está definido — esta entrada existe para registrar a
-      intenção, não o desenho.
+Decidido em 10/09/2026: **a tela de projeção deixa de existir** e o lugar dela
+passa a ser um dashboard **mensal**, feito de cards com gráficos. Não é
+remodelagem da projeção — é outra tela, com outra pergunta.
 
-      O que existe hoje, como ponto de partida: `projection_page.dart` (243
-      linhas), horizonte de 6/12/24 meses, lista de meses e gráfico alimentados
-      por `GET /summary/projection?from=&months=N`.
+A projeção respondia "quanto vou ter juntado". O dashboard responde **"como
+está este mês, e quanto ainda posso gastar"**. O que era o assunto inteiro da
+tela antiga vira, no máximo, uma linha de contexto.
 
-      **As três decisões da Fase 6 são o que a remodelagem tem de confirmar ou
-      derrubar de propósito** — estão em "Fases", e a mais cara de revisitar é a
-      de não usar biblioteca de gráfico: o `CustomPainter` de sessenta linhas foi
-      escolhido quando o desenho não pedia tooltip, zoom nem várias séries. Se a
-      remodelagem pedir qualquer um dos três, é essa decisão que cai primeiro.
+#### Os sete cards, na ordem da tela
 
-      Vale puxar junto o item de refatoração da feature (`_MonthRow` para
-      `widgets/`) e a lacuna de teste — o `ProjectionChart` hoje só é verificado
-      por existir na árvore.
+1. **Pode gastar por dia** — o card que justifica a tela. Número grande, com a
+   barra da renda consumida embaixo.
+
+   ```
+   sobra   = renda da competência − tudo já lançado nela  (= balanceCents)
+   por dia = sobra ÷ dias que faltam, contando hoje
+   ```
+
+   A sobra já reserva aluguel, assinaturas e parcelas do mês, porque tudo isso
+   está lançado na competência — o que resta é dinheiro livre de verdade. E se
+   ajusta sozinho: cada avulso cadastrado derruba os dois números.
+
+   Quatro regras que o card não pode errar:
+
+   - **Contar hoje.** Dia 10 de um mês de 30 são 21 dias, não 20. Sem isso o
+     valor vive apertado e no dia 30 é divisão por zero.
+   - **Saldo negativo troca a frase**, não o sinal: "você já passou R$ 380 do
+     que tinha este mês". Número negativo dividido por dias é aritmética certa
+     e conselho inútil.
+   - **Mês passado mostra a média diária realizada**; mês futuro divide pelo
+     mês inteiro, como orçamento; só o corrente fala em "ainda cabe".
+   - **É competência, não extrato.** A fatura de setembro é lançada em setembro
+     e paga em outubro. O número é "o que sobra da renda deste mês", coerente
+     com o resto do app — o número de caixa é outra conta.
+
+2. **Gasto por categoria** — barras horizontais ordenadas da maior para a
+   menor, na cor da própria tag, com rótulo direto ao lado (e não legenda).
+   É o dado mais valioso que hoje já chega e ninguém soma. **Nada de pizza**:
+   com oito categorias vira um disco ilegível.
+
+3. **Ritmo do mês** — linha do gasto acumulado por dia, com a **reta do "ritmo
+   que cabe"** por baixo e a curva do mês anterior apagada atrás. Responde, no
+   mesmo desenho, "quanto cabe hoje" e "estou acima da linha desde quando".
+
+   A armadilha: a parcela 3/10 é cobrada neste mês mas foi comprada em julho, e
+   gasto fixo não tem dia. A curva é só das **compras feitas neste mês**, com
+   fixos e parcelas como linha de base — senão metade do mês some do desenho.
+
+4. **Faturas e limite** — uma barra por cartão dentro do trilho do limite.
+   Comparar os cartões de relance é leitura que o carrossel da home não dá.
+
+5. **Composição do gasto** — fixo recorrente × parcelado × avulso. Responde
+   "quanto do mês já estava vendido antes de ele começar"; dois meses de total
+   idêntico podem ser vidas diferentes.
+
+6. **Contexto dos últimos 6 meses** — barrinhas baixas com o mês corrente
+   destacado. "R$ 4.200" não significa nada sozinho; significa se for o maior
+   dos últimos seis.
+
+7. **Maiores gastos do mês** — top 5 com nome, dia e valor. É o detalhe do
+   card 2, e ficou melhor depois da GFX-12, que deu o dia a cada linha.
+
+#### O que fica de fora, e por quê
+
+- **Pizza de qualquer coisa** — comparar ângulos é pior que comparar
+  comprimentos.
+- **Dois eixos no mesmo gráfico** — é a forma mais fácil de mentir sem querer.
+- **Saldo acumulado projetado** — era a tela antiga. Se "quando fico no
+  vermelho" ainda importar, cabe como uma linha de texto, não como gráfico.
+- **Qualquer coisa que a home já mostra igual** — lista de ganhos, itens de
+  fatura. Repetir faz as duas telas parecerem rascunho uma da outra.
+- **Reserva ("quero terminar o mês com R$ 500")** — muda o card 1 e precisa de
+  onde guardar o valor. É praticamente o cofrinho da Fase 12; fica para lá.
+
+#### O que muda no backend
+
+Uma rota só, `GET /dashboard?month=YYYY-MM`, com tudo agregado:
+
+```
+totals       { incomeCents, expenseCents, balanceCents, committedPercent }
+byTag        [ { tag, amountCents } ]              → card 2
+daily        [ { day, amountCents } ]              → card 3
+cards        [ { label, totalCents, limitCents } ] → card 4
+byNature     { recurringCents, installmentCents, oneOffCents } → card 5
+history      [ { month, incomeCents, expenseCents } ] (6 meses)  → card 6
+topExpenses  [ { description, spentAt, amountCents } ]           → card 7
+```
+
+Motivo de agregar lá: `byTag` é um `GROUP BY` de uma linha em SQL e vira
+dezenas de linhas de agrupamento no app; `history` sem endpoint são seis
+requisições. E `byNature` **não é computável hoje** — os itens do resumo não
+carregam o tipo do gasto.
+
+`GET /summary/projection` sai junto com a tela. **Atenção ao APK que está no
+telefone**: ele ainda chama essa rota, então ou ela fica de pé até o app novo
+subir, ou a tela de projeção do aparelho quebra até a atualização.
+
+#### O que sai do app
+
+`lib/features/projection/` inteira — controller, página e o `ProjectionChart`
+—, mais `AppRoutes.projection`, o item do menu, `month_projection_model.dart`
+(vira o `history`) e `test/features/projection/projection_test.dart`.
+
+#### O gráfico vem do `fl_chart`
+
+Decidido em 10/09/2026: **`fl_chart`**, e nada de `CustomPainter` novo. O
+único gráfico do app até aqui é o da projeção — sessenta linhas à mão, e a
+dartdoc dele já dizia que a conta mudava quando aparecesse várias séries ou
+interação. Três séries no mesmo desenho e tooltip por toque é exatamente isso,
+e a tela antiga sai junto com o painter.
+
+A resolução de hoje dá **`fl_chart 1.2.0`**, que traz `equatable 2.1.0` e
+**rebaixa `vector_math` de 2.4.2 para 2.2.0** — conferir a suíte inteira logo
+depois de adicionar, porque `vector_math` é dependência do próprio SDK.
+
+Onde ele entra, e onde não:
+
+| Card | Widget |
+|---|---|
+| 3 · ritmo do mês | `LineChart` — três `LineChartBarData` (real, ritmo que cabe, mês anterior) e tooltip por dia |
+| 6 · últimos seis meses | `BarChart` — seis barras, a do mês corrente destacada |
+| 1, 2, 4, 5 | widget comum: barra colorida dentro de um trilho |
+
+Os quatro últimos **não são gráfico** — são preenchimento dentro de um trilho,
+que em Flutter é um `Container` com `borderRadius`. Passá-los pelo `fl_chart`
+custaria mais código para desenhar menos.
+
+#### As tarefas, na ordem de fazer
+
+Cada uma fecha sozinha e deixa a suíte verde. As do backend vêm primeiro
+porque a rota destrava os sete cards de uma vez.
+
+**Backend — `expense-tracker-api`, em branch própria**
+
+- [ ] **B1 · Spec.** `docs/specs/09-dashboard.md` com regras numeradas
+      (`DSH-01`…), incluindo o que é "compra do mês" no card 3 e as quatro
+      regras do card 1. *Pronto quando:* cada bloco do payload tem regra que
+      dá para citar em code review.
+- [ ] **B2 · `recurring` no `MonthlyExpense`.** `valid_to IS NULL` no ramo
+      fixo do `UNION` do `findActiveBetween`, `false` no parcelado. É o único
+      dado que hoje não existe achatado. *Pronto quando:* Pg e InMemory
+      concordam, e um teste prova que avulso não conta como recorrente.
+- [ ] **B3 · Caso de uso `GetDashboard`.** Compõe o que já existe —
+      `findActiveBetween` do mês e dos seis meses, ganhos e cartões — e agrega
+      em memória. **Sem SQL novo:** um mês são dezenas de linhas, e o
+      `findActiveBetween` já traz tag, tipo, forma de pagamento e `spentAt`.
+  - [ ] B3a `byTag` — soma por tag, ordenada da maior para a menor
+  - [ ] B3b `byNature` — recorrente × parcelado × avulso
+  - [ ] B3c `daily` — só compras com `spentAt` dentro da competência
+  - [ ] B3d `topExpenses` — cinco maiores, com dia
+  - [ ] B3e `history` — seis meses de renda e gasto (o que a projeção fazia)
+- [ ] **B4 · Presenter.** `DashboardResponse` com os sete blocos, centavos
+      inteiros e `YYYY-MM` nas competências.
+- [ ] **B5 · Rota.** `GET /dashboard?month=YYYY-MM`, competência corrente por
+      padrão, no mesmo schema de mês das outras rotas.
+- [ ] **B6 · Testes.** Agregação (mês sem renda, mês vazio, parcela comprada
+      em outro mês ficando fora do `daily`, cartão sem limite) e a rota.
+- [x] **B7 · Docs.** Feita antes das outras, em 10/09/2026: a rota
+      `GET /summary/projection` **foi removida**, e não só marcada — o APK
+      instalado vai ser desinstalado, então não havia janela de compatibilidade
+      a respeitar. Saíram o handler, o `projectionQuerySchema`, a linha da
+      tabela de rotas do README (trocada pela do `/dashboard`) e o `months`
+      dos limites de entrada; as regras RES-10 a RES-14 viraram "série mensal"
+      e apontam para o dashboard. A classe `GetBalanceProjection` **fica**: é a
+      conta do B3e, e continua montada no container e coberta pelo teste.
+- [ ] **B8 · Merge e deploy**, com autorização.
+
+**App — `se_controle_ai`**
+
+- [ ] **A1 · `fl_chart 1.2.0` no `pubspec`** e os 610 testes rodando logo em
+      seguida, por causa do rebaixamento do `vector_math`.
+- [ ] **A2 · Models.** `DashboardModel` e os sete sub-modelos, com `fromJson`
+      e teste de contrato contra um payload real capturado do Docker.
+- [ ] **A3 · Repositório.** Interface, implementação e o duplo nos fixtures.
+- [ ] **A4 · Controller.** Um `ViewState<DashboardModel>`, seguindo o
+      `SelectedMonthService` — trocar o mês na AppBar recarrega.
+- [ ] **A5 · Casca da tela.** `AppRoutes.dashboard`, item do menu, e a página
+      com carregando, erro com "tentar de novo" e pull-to-refresh.
+- [ ] **A6 · Card 1 — pode gastar por dia.** Com as quatro regras: contar
+      hoje, frase própria no negativo, mês passado e futuro mudando a
+      pergunta, competência e não extrato.
+- [ ] **A7 · Card 2 — gasto por categoria.**
+- [ ] **A8 · Card 3 — ritmo do mês.** `LineChart`, três séries, tooltip.
+- [ ] **A9 · Card 4 — faturas e limite.**
+- [ ] **A10 · Card 5 — composição do gasto.**
+- [ ] **A11 · Card 6 — últimos seis meses.** `BarChart`.
+- [ ] **A12 · Card 7 — maiores gastos.**
+- [ ] **A13 · Enterro da projeção.** `lib/features/projection/` inteira,
+      `AppRoutes.projection`, `month_projection_model.dart`, o item do menu e
+      `projection_test.dart`. **Por último**, quando o dashboard já estiver de
+      pé.
+- [ ] **A14 · Testes de widget** dos sete cards e do controller; `analyze`
+      limpo.
+- [ ] **A15 · Roadmap e commits.**
 
 ### Fase 9 — para fechar
 
