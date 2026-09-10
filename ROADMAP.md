@@ -195,13 +195,17 @@ Uma rota só, `GET /dashboard?month=YYYY-MM`, com tudo agregado:
 
 ```
 totals       { incomeCents, expenseCents, balanceCents, committedPercent }
-byTag        [ { tag, amountCents } ]              → card 2
-daily        [ { day, amountCents } ]              → card 3
-cards        [ { label, totalCents, limitCents } ] → card 4
+allowance    { scope, daysRemaining, perDayCents, overspentCents } → card 1
+byTag        [ { id, name, color, amountCents } ]  → card 2
+daily        { baselineCents, days[], previousDays[] } → card 3
+cards        [ { cardId, label, totalCents, limitCents } ] → card 4
 byNature     { recurringCents, installmentCents, oneOffCents } → card 5
 history      [ { month, incomeCents, expenseCents } ] (6 meses)  → card 6
-topExpenses  [ { description, spentAt, amountCents } ]           → card 7
+topExpenses  [ { description, spentAt, amountCents, installmentLabel } ] → card 7
 ```
+
+O formato final está em `docs/specs/09-dashboard.md` (B1), com as regras
+`DSH-01` a `DSH-25`.
 
 Motivo de agregar lá: `byTag` é um `GROUP BY` de uma linha em SQL e vira
 dezenas de linhas de agrupamento no app; `history` sem endpoint são seis
@@ -249,25 +253,37 @@ porque a rota destrava os sete cards de uma vez.
 
 **Backend — `expense-tracker-api`, em branch própria**
 
-- [ ] **B1 · Spec.** `docs/specs/09-dashboard.md` com regras numeradas
-      (`DSH-01`…), incluindo o que é "compra do mês" no card 3 e as quatro
-      regras do card 1. *Pronto quando:* cada bloco do payload tem regra que
-      dá para citar em code review.
-- [ ] **B2 · `recurring` no `MonthlyExpense`.** `valid_to IS NULL` no ramo
-      fixo do `UNION` do `findActiveBetween`, `false` no parcelado. É o único
-      dado que hoje não existe achatado. *Pronto quando:* Pg e InMemory
-      concordam, e um teste prova que avulso não conta como recorrente.
+- [x] **B1 · Spec.** `docs/specs/09-dashboard.md`, `DSH-01` a `DSH-25`, uma
+      regra por bloco do payload. Três coisas que ela fechou e que valem para
+      as tarefas seguintes:
+      **(a)** "compra do mês" é `spentAt` dentro da competência e nada mais —
+      então um recorrente entra na curva no mês em que foi cadastrado, e só
+      nele; o que sobra vira `baselineCents`, com invariante contra o
+      `expenseCents`. **(b)** o card 1 virou o bloco `allowance`, com `scope`
+      (`current`/`past`/`future`) dizendo o que o número significa,
+      `perDayCents` nulo quando não há o que distribuir e `overspentCents` no
+      lugar do negativo. **(c)** entrou `previousDays` no `daily`, que não
+      estava no desenho — sem ele o card 3 não desenha a curva do mês anterior.
+- [ ] **B2 · `recurring` no `MonthlyExpense`.** É o único dado que hoje não
+      existe achatado. **Correção que a B1 trouxe:** não é `v.valid_to IS NULL`
+      da vigência que o `generate_series` casou — recorrência é do gasto, e um
+      aluguel reajustado tem as vigências antigas fechadas. É um `EXISTS` sobre
+      `expense_versions` do gasto (DSH-18), e `false` no ramo parcelado.
+      *Pronto quando:* Pg e InMemory concordam, um teste prova que avulso não
+      conta como recorrente, e outro que o mês anterior a um reajuste continua
+      contando.
 - [ ] **B3 · Caso de uso `GetDashboard`.** Compõe o que já existe —
       `findActiveBetween` do mês e dos seis meses, ganhos e cartões — e agrega
       em memória. **Sem SQL novo:** um mês são dezenas de linhas, e o
       `findActiveBetween` já traz tag, tipo, forma de pagamento e `spentAt`.
   - [ ] B3a `byTag` — soma por tag, ordenada da maior para a menor
   - [ ] B3b `byNature` — recorrente × parcelado × avulso
-  - [ ] B3c `daily` — só compras com `spentAt` dentro da competência
+  - [ ] B3c `daily` — só compras com `spentAt` dentro da competência, mais
+        `baselineCents` e a série do mês anterior (DSH-11 a DSH-15)
   - [ ] B3d `topExpenses` — cinco maiores, com dia
   - [ ] B3e `history` — seis meses de renda e gasto (o que a projeção fazia)
-- [ ] **B4 · Presenter.** `DashboardResponse` com os sete blocos, centavos
-      inteiros e `YYYY-MM` nas competências.
+- [ ] **B4 · Presenter.** `DashboardResponse` com os sete blocos mais o
+      `allowance`, centavos inteiros e `YYYY-MM` nas competências.
 - [ ] **B5 · Rota.** `GET /dashboard?month=YYYY-MM`, competência corrente por
       padrão, no mesmo schema de mês das outras rotas.
 - [ ] **B6 · Testes.** Agregação (mês sem renda, mês vazio, parcela comprada
