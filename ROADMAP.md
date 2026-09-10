@@ -264,14 +264,17 @@ porque a rota destrava os sete cards de uma vez.
       `perDayCents` nulo quando não há o que distribuir e `overspentCents` no
       lugar do negativo. **(c)** entrou `previousDays` no `daily`, que não
       estava no desenho — sem ele o card 3 não desenha a curva do mês anterior.
-- [ ] **B2 · `recurring` no `MonthlyExpense`.** É o único dado que hoje não
-      existe achatado. **Correção que a B1 trouxe:** não é `v.valid_to IS NULL`
-      da vigência que o `generate_series` casou — recorrência é do gasto, e um
-      aluguel reajustado tem as vigências antigas fechadas. É um `EXISTS` sobre
-      `expense_versions` do gasto (DSH-18), e `false` no ramo parcelado.
-      *Pronto quando:* Pg e InMemory concordam, um teste prova que avulso não
-      conta como recorrente, e outro que o mês anterior a um reajuste continua
-      contando.
+- [x] **B2 · `recurring` no `MonthlyExpense`.** Campo derivado nos dois
+      repositórios: no Pg, um `EXISTS` sobre `expense_versions` — e não o
+      `v.valid_to` da vigência que o `generate_series` casou, que diria que o
+      aluguel de março não é recorrente só porque o reajuste de abril fechou
+      aquela vigência; no InMemory, o próprio `Expense.recurring`, que é a
+      mesma conta. `false` direto no ramo parcelado do `UNION`. Três testes
+      novos (300 na suíte): recorrente × avulso × parcelado, o mês anterior a
+      um reajuste continuando recorrente, e o encerrado deixando de ser —
+      consequência assumida do CONC-13. A consulta foi rodada como está no
+      código contra o Postgres do Docker, só leitura, para provar que o SQL
+      compila e as duas pernas do `UNION` continuam alinhadas.
 - [ ] **B3 · Caso de uso `GetDashboard`.** Compõe o que já existe —
       `findActiveBetween` do mês e dos seis meses, ganhos e cartões — e agrega
       em memória. **Sem SQL novo:** um mês são dezenas de linhas, e o
