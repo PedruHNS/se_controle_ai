@@ -1,3 +1,5 @@
+import '../../core/utils/month.dart';
+
 /// Um cartão de crédito cadastrado.
 ///
 /// **Não confundir com `CreditCardInvoiceModel`.** Aquele é a *fatura* de um mês,
@@ -60,6 +62,59 @@ class CreditCardModel {
   /// escolhe os dias, antes de haver qualquer `dueDate` para mostrar. A data que
   /// vale continua sendo a que o backend calcula.
   bool get dueInNextMonth => dueDay <= closingDay;
+
+  /// Em qual fatura cai uma compra feita em [isoDate] (`YYYY-MM-DD`).
+  ///
+  /// Até o dia do fechamento a compra entra na fatura que fecha neste mês; do
+  /// dia seguinte em diante ela já é da próxima. É a mesma regra do CAR-03
+  /// vista do outro lado: em vez de "quando vence", "o que ainda entra".
+  ///
+  /// Sem isto o app deixava a compra do dia 8, num cartão que fecha dia 5, na
+  /// fatura que fechou três dias antes — o gasto aparecia num mês em que
+  /// ninguém iria pagá-lo.
+  String invoiceMonthFor(String isoDate) {
+    if (isoDate.length != 10) return isoDate;
+
+    final month = isoDate.substring(0, 7);
+    final day = int.tryParse(isoDate.substring(8, 10));
+    if (day == null) return month;
+
+    return day <= closingDay ? month : Month.next(month);
+  }
+
+  /// A fatura que ainda aceita lançamento — a que vai fechar hoje ou depois.
+  ///
+  /// [now] existe para o teste não depender do relógio; em produção ninguém
+  /// passa nada.
+  String openInvoiceMonth([DateTime? now]) {
+    final today = now ?? DateTime.now();
+
+    return invoiceMonthFor(
+      '${today.year.toString().padLeft(4, '0')}-'
+      '${today.month.toString().padLeft(2, '0')}-'
+      '${today.day.toString().padLeft(2, '0')}',
+    );
+  }
+
+  /// Em qual fatura o gasto vai ser **cobrado**: a da data da compra, ou a
+  /// primeira ainda aberta quando aquela já fechou.
+  ///
+  /// [invoiceMonthFor] responde onde a compra caberia; esta responde onde ela
+  /// cabe. Faturas fechadas não recebem lançamento novo — foi o que aconteceu
+  /// em 10/09/2026 com um cartão que fecha dia 1: a compra do dia 1 foi parar
+  /// na fatura de setembro, que tinha fechado naquele mesmo dia, e a primeira
+  /// parcela apareceu num mês que já estava encerrado.
+  ///
+  /// O preço disso é assumido: uma compra antiga lançada com atraso entra na
+  /// fatura aberta, e não naquela em que ela foi cobrada de verdade. Entre
+  /// mexer numa fatura fechada e adiar a cobrança para a aberta, a segunda é
+  /// a que ainda dá para pagar.
+  String chargeMonthFor(String isoDate, {DateTime? now}) {
+    final purchase = invoiceMonthFor(isoDate);
+    final open = openInvoiceMonth(now);
+
+    return Month.isBefore(purchase, open) ? open : purchase;
+  }
 
   factory CreditCardModel.fromJson(Map<String, dynamic> json) =>
       CreditCardModel(
