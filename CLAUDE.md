@@ -10,6 +10,8 @@ consome.
 
 @.claude/rules/repositories.md
 
+@.claude/rules/controllers.md
+
 ## Padrão de código
 
 A referência viva é a **feature de tags** (`lib/features/tags/`): controller com
