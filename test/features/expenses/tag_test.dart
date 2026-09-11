@@ -12,6 +12,7 @@ import 'package:se_controle_ai/data/models/expense_model.dart';
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
+import 'package:se_controle_ai/core/utils/tag_color.dart';
 
 void main() {
   group('TagModel', () {
@@ -29,11 +30,11 @@ void main() {
       final outros = TagModel.fromJson(tagListJson[1]);
 
       expect(outros.color, '#78909C');
-      expect(outros.parsedColor, const Color(0xFF78909C));
+      expect(TagColor.parse(outros.color), const Color(0xFF78909C));
     });
 
     test('converte #RRGGBB em Color', () {
-      final cor = TagModel.fromJson(tagListJson.first).parsedColor;
+      final cor = TagColor.parse(TagModel.fromJson(tagListJson.first).color);
 
       expect(cor, const Color(0xFF4CAF50));
     });
@@ -43,7 +44,7 @@ void main() {
     test('cor fora do formato não estoura, cai no cinza de reserva', () {
       const tag = TagModel(id: 'x', name: 'X', color: 'vermelho');
 
-      expect(tag.parsedColor, const Color(0xFF78909C));
+      expect(TagColor.parse(tag.color), const Color(0xFF78909C));
     });
   });
 

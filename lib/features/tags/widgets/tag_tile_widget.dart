@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
+import 'package:se_controle_ai/core/utils/tag_color.dart';
 
 class TagTile extends StatelessWidget {
   final TagModel tag;
@@ -140,6 +141,6 @@ class _DotColor extends StatelessWidget {
   Widget build(BuildContext context) {
     // A inicial em cinza, que aparecia quando a tag não tinha cor, saiu com a
     // TAG-02: não existe mais tag sem cor para cair nela.
-    return CircleAvatar(backgroundColor: tag.parsedColor, radius: 10);
+    return CircleAvatar(backgroundColor: TagColor.parse(tag.color), radius: 10);
   }
 }
