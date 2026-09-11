@@ -11,7 +11,7 @@ void main() {
     });
 
     test('shortLabel e monthName', () {
-      expect(Month.shortLabel('2026-08'), 'ago/2026');
+      expect(Month.shortLabel('2026-08'), 'AGO/2026');
       expect(Month.monthName('2026-08'), 'Agosto');
     });
 

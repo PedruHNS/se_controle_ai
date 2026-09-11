@@ -7,12 +7,6 @@
 /// trata disso desligando a conversão de `DATE` no driver do Postgres; do lado do
 /// app, não converter para `DateTime` resolve na origem.
 abstract final class Month {
-  /// Faixa que o backend aceita. Fora dela ele responde 400, então a navegação
-  /// para nos limites em vez de gerar requisição inválida.
-  ///
-  /// Os dois números são os `MIN_YEAR`/`MAX_YEAR` do `shared/http/schemas.ts`.
-  /// Apertar só deste lado não protege nada e não é o que a constante promete:
-  /// mudar aqui pede mudar lá junto.
   static const minYear = 2000;
   static const maxYear = 2100;
 
@@ -32,18 +26,18 @@ abstract final class Month {
   ];
 
   static const _shortNames = [
-    'jan',
-    'fev',
-    'mar',
-    'abr',
-    'mai',
-    'jun',
-    'jul',
-    'ago',
-    'set',
-    'out',
-    'nov',
-    'dez',
+    'JAN',
+    'FEV',
+    'MAR',
+    'ABR',
+    'MAI',
+    'JUN',
+    'JUL',
+    'AGO',
+    'SET',
+    'OUT',
+    'NOV',
+    'DEZ',
   ];
 
   /// Competência corrente, do relógio do dispositivo.
