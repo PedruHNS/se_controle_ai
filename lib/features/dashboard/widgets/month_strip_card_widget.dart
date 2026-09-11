@@ -78,11 +78,15 @@ class _MonthStripCardWidgetState extends State<MonthStripCardWidget> {
     return Container(
       padding: const .only(top: 12),
       decoration: BoxDecoration(
-        color: theme.appColors.card,
+        // A cor do fundo da tela, e não a de card: a régua gruda no topo
+        // (`PinnedHeaderSliver`) e precisa ser opaca para o conteúdo não
+        // aparecer através dela ao rolar. Com esta cor ela some no fundo, e
+        // quem ganha contorno são as barras, que usam a cor de card.
+        color: theme.scaffoldBackgroundColor,
         borderRadius: .circular(10),
         boxShadow: [
           BoxShadow(
-            color: theme.appColors.cardShadow,
+            color: theme.scaffoldBackgroundColor,
             blurRadius: 40,
             offset: const Offset(0, 1),
           ),
@@ -112,9 +116,6 @@ class _MonthStripCardWidgetState extends State<MonthStripCardWidget> {
                 },
               ),
             ),
-          // As setas moram no rodapé do card, e não numa barra própria acima
-          // dele: são o mesmo assunto da régua, e separá-las criava duas
-          // formas de fazer a mesma coisa em lugares diferentes.
           const MonthSelectorWidget(),
         ],
       ),
@@ -171,9 +172,14 @@ class _Mes extends StatelessWidget {
                 widthFactor: 0.36,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
+                    // A barra apagada usa a cor de **card**, e não o
+                    // `surfaceContainerHighest`: sem o fundo branco atrás, ela
+                    // encostava no lilás do tema e sumia. É branco no claro e o
+                    // degrau acima do fundo no escuro, então continua visível
+                    // nos dois.
                     color: selecionado
                         ? theme.colorScheme.primary
-                        : theme.colorScheme.surfaceContainerHighest,
+                        : theme.appColors.card,
                     borderRadius: .vertical(top: .circular(4)),
                   ),
                 ),
