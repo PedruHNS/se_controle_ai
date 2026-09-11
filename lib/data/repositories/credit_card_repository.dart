@@ -8,18 +8,11 @@ import '../models/credit_card_model.dart';
 
 abstract interface class CreditCardRepository {
   Future<Result<List<CreditCardModel>, Failure>> list({String? month});
-
   Future<Result<CreditCardModel, Failure>> getById(String id, {String? month});
-
-  /// A tela do cartão numa requisição: cadastro, gastos da fatura e total.
-  ///
-  /// O mês é obrigatório, ao contrário de [getById]: fatura é de um mês, e sem
-  /// competência o backend não teria vencimento nem total para responder.
   Future<Result<CreditCardBillModel, Failure>> getBill(
     String id, {
     required String month,
   });
-
   Future<Result<CreditCardModel, Failure>> create({
     required String name,
     required int closingDay,
@@ -27,7 +20,6 @@ abstract interface class CreditCardRepository {
     String? lastDigits,
     int? limitCents,
   });
-
   Future<Result<CreditCardModel, Failure>> update(
     String id, {
     required String name,
@@ -37,7 +29,6 @@ abstract interface class CreditCardRepository {
     int? limitCents,
     String? month,
   });
-
   Future<Result<bool, Failure>> delete(String id);
 }
 
@@ -89,7 +80,9 @@ class CreditCardRepositoryImpl implements CreditCardRepository {
         '/credit-cards/$id/invoice',
         queryParameters: {'month': month},
       );
-      return Success(CreditCardBillModel.fromJson(Decode.object(response.data)));
+      return Success(
+        CreditCardBillModel.fromJson(Decode.object(response.data)),
+      );
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
