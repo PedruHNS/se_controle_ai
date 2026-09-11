@@ -23,7 +23,7 @@ void main() {
       expect(dashboard.daily.days, hasLength(30));
       expect(dashboard.cards, hasLength(2));
       expect(dashboard.byNature.recurringCents, 180000);
-      expect(dashboard.history, hasLength(6));
+      expect(dashboard.history, hasLength(37));
       expect(dashboard.topExpenses, hasLength(5));
     });
 
@@ -73,9 +73,12 @@ void main() {
       );
     });
 
-    // DSH-22: é a barra que o card 6 destaca.
-    test('a última entrada do histórico bate com o topo', () {
-      final atual = dashboard.history.last;
+    // DSH-22: é a barra que o card 6 destaca. A entrada **da competência**, e
+    // não a última — a régua é ancorada em hoje e não termina no mês pedido.
+    test('a entrada da competência bate com o topo', () {
+      final atual = dashboard.history.firstWhere(
+        (entrada) => entrada.month == dashboard.month,
+      );
 
       expect(atual.month, dashboard.month);
       expect(atual.incomeCents, dashboard.totals.incomeCents);
@@ -107,8 +110,9 @@ void main() {
 
     // DSH-07: o mês no vermelho troca a frase do card, não o sinal do número.
     test('mês estourado não tem valor por dia, e sim o quanto passou', () {
-      final allowance =
-          DashboardModel.fromJson(dashboardEstouradoJson).allowance;
+      final allowance = DashboardModel.fromJson(
+        dashboardEstouradoJson,
+      ).allowance;
 
       expect(allowance.perDayCents, isNull);
       expect(allowance.overspentCents, 38000);
@@ -164,7 +168,9 @@ void main() {
 
     // DSH-15: a curva apagada do fundo, do mês anterior inteiro.
     test('previousDays traz o mês anterior, com os 31 dias de agosto', () {
-      final anterior = DashboardModel.fromJson(dashboardJson).daily.previousDays;
+      final anterior = DashboardModel.fromJson(
+        dashboardJson,
+      ).daily.previousDays;
 
       expect(anterior, hasLength(31));
       expect(anterior.first.amountCents, 4500);
@@ -192,7 +198,9 @@ void main() {
 
   group('topExpenses', () {
     test('a parcela traz o rótulo que explica o valor', () {
-      final geladeira = DashboardModel.fromJson(dashboardJson).topExpenses.first;
+      final geladeira = DashboardModel.fromJson(
+        dashboardJson,
+      ).topExpenses.first;
 
       expect(geladeira.description, 'Geladeira');
       expect(geladeira.amountCents, 30000);

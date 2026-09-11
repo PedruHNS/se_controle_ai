@@ -13,7 +13,11 @@ class MonthSelectorWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final selectedMonth = getIt<SelectedMonthService>();
 
+    // Sem cor própria: quem define o fundo é quem o coloca na tela — dentro de
+    // um card ele é transparente, e num cabeçalho fixo quem precisa ser opaco é
+    // o cabeçalho, não o seletor.
     return Material(
+      type: MaterialType.transparency,
       child: Padding(
         padding: .symmetric(horizontal: 12, vertical: 4),
         child: Row(

@@ -126,7 +126,11 @@ class _CreditCardList extends StatelessWidget {
       onRefresh: controller.refresh,
       child: CustomScrollView(
         slivers: [
-          const PinnedHeaderSliver(child: MonthSelectorWidget()),
+          // O `Material` é daqui: cabeçalho fixo tem de ser opaco, senão a
+          // lista rola por baixo e aparece através dele.
+          const PinnedHeaderSliver(
+            child: Material(child: MonthSelectorWidget()),
+          ),
           SignalBuilder(
             builder: (context) => SliverPadding(
               padding: .fromLTRB(24, 24, 24, bottomPadding + 80),

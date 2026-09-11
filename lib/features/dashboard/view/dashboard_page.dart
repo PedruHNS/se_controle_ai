@@ -5,7 +5,6 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
-import '../../../core/shared/widgets/month_selector_widget.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/dashboard_model.dart';
@@ -13,7 +12,7 @@ import '../controller/dashboard_controller.dart';
 import '../widgets/allowance_card_widget.dart';
 import '../widgets/cards_limit_card_widget.dart';
 import '../widgets/daily_pace_card_widget.dart';
-import '../widgets/history_card_widget.dart';
+import '../widgets/month_strip_card_widget.dart';
 import '../widgets/nature_card_widget.dart';
 import '../widgets/tag_amounts_card_widget.dart';
 import '../widgets/top_expenses_card_widget.dart';
@@ -33,8 +32,28 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final _controller = getIt<DashboardController>();
 
+  /// O último dashboard que chegou, guardado só para a régua de meses.
+  ///
+  /// Ela vive **fora** do `switch`: trocar a competência põe a tela em
+  /// `Loading`, e uma régua que some no toque que a pessoa acabou de dar levaria
+  /// embora o próprio seletor. Guardando o anterior, ela fica parada enquanto o
+  /// resto recarrega — que é exatamente o que se espera de uma régua.
+  final _ultimo = signal<DashboardModel?>(null);
+  EffectCleanup? _observando;
+
+  @override
+  void initState() {
+    super.initState();
+    _observando = effect(() {
+      final state = _controller.state.value;
+      if (state is Loaded<DashboardModel>) _ultimo.value = state.data;
+    });
+  }
+
   @override
   void dispose() {
+    _observando?.call();
+    _ultimo.dispose();
     getIt.resetLazySingleton<DashboardController>();
     super.dispose();
   }
@@ -44,12 +63,24 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard'), centerTitle: true),
 
-      // O seletor fica **fora** do `switch`, e não dentro do ramo carregado:
-      // trocar o mês põe a tela em `Loading`, e um seletor que some no toque
-      // que a pessoa acabou de dar parece tela travada.
       body: Column(
         children: [
-          const MonthSelectorWidget(),
+          // A régua **e** as setas, num card só, acima do conteúdo: ela é o
+          // seletor da tela e precisa continuar de pé enquanto o resto
+          // recarrega.
+          SignalBuilder(
+            builder: (context) {
+              final dashboard = _ultimo.value;
+
+              return Padding(
+                padding: const .fromLTRB(24, 4, 24, 8),
+                child: MonthStripCardWidget(
+                  history: dashboard?.history ?? const [],
+                  month: dashboard?.month,
+                ),
+              );
+            },
+          ),
           Expanded(
             child: SignalBuilder(
               builder: (context) {
@@ -95,14 +126,10 @@ class _DashboardContent extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: .fromLTRB(24, 8, 24, bottomPadding + 24),
         children: [
-          // O card dos seis meses abre a tela porque virou o seletor de
-          // competência: tocar numa barra troca o mês, e arrastar anda um.
-          HistoryCardWidget(history: dashboard.history, month: dashboard.month),
-          const SizedBox(height: 12),
           _TotaisCard(dashboard: dashboard),
           const SizedBox(height: 12),
-          // Daqui em diante a ordem é a da spec, e ela é o argumento da tela:
-          // primeiro o que se pode gastar, depois para onde o dinheiro foi.
+          // A ordem é a da spec, e ela é o argumento da tela: primeiro o que
+          // se pode gastar, depois para onde o dinheiro foi.
           AllowanceCardWidget(
             allowance: dashboard.allowance,
             totals: dashboard.totals,

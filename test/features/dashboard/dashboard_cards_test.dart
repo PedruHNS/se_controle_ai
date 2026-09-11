@@ -7,14 +7,13 @@ import 'package:se_controle_ai/data/models/dashboard_model.dart';
 import 'package:se_controle_ai/features/dashboard/widgets/allowance_card_widget.dart';
 import 'package:se_controle_ai/features/dashboard/widgets/cards_limit_card_widget.dart';
 import 'package:se_controle_ai/features/dashboard/widgets/daily_pace_card_widget.dart';
-import 'package:se_controle_ai/features/dashboard/widgets/history_card_widget.dart';
+import 'package:se_controle_ai/features/dashboard/widgets/month_strip_card_widget.dart';
 import 'package:se_controle_ai/features/dashboard/widgets/nature_card_widget.dart';
 import 'package:se_controle_ai/features/dashboard/widgets/tag_amounts_card_widget.dart';
 import 'package:se_controle_ai/features/dashboard/widgets/top_expenses_card_widget.dart';
 
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/month/selected_month_service.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
 
 import '../../fixtures/dashboard_fixture.dart';
 import '../../fixtures/test_injector.dart';
@@ -200,30 +199,32 @@ void main() {
     });
   });
 
-  group('A11 · últimos seis meses', () {
-    // O card virou o seletor de competência da tela: a janela termina no mês
-    // escolhido (DSH-20), então tocar em JUN faz o card passar a mostrar
-    // JAN a JUN.
-    testWidgets('tocar no rótulo de um mês seleciona aquela competência', (
-      tester,
-    ) async {
+  group('A11 · a régua de meses', () {
+    // A régua é ancorada em hoje (DSH-20) e o toque só move o destaque: é o
+    // que impede as barras de se reorganizarem debaixo do dedo.
+    testWidgets('tocar num mês seleciona aquela competência', (tester) async {
       setupDashboardTestInjector();
       final mes = getIt<SelectedMonthService>();
       addTearDown(() => mes.select(SelectedMonthService.initial()));
 
       await pump(
         tester,
-        HistoryCardWidget(history: dashboard.history, month: dashboard.month),
+        MonthStripCardWidget(
+          history: dashboard.history,
+          month: dashboard.month,
+        ),
       );
 
-      // 'JUL' é o rótulo de 2026-07 na janela do fixture.
-      await tester.tap(find.text('JUL'));
+      // A régua cobre três anos, então 'JUL' aparece mais de uma vez; a
+      // primeira desenhada é a de 2026, porque a lista abre no mês
+      // selecionado.
+      await tester.tap(find.text('JUL').first);
       await tester.pumpAndSettle();
 
       expect(mes.month.value, '2026-07');
     });
 
-    testWidgets('arrastar para a esquerda avança um mês', (tester) async {
+    testWidgets('rola na horizontal sem trocar de competência', (tester) async {
       setupDashboardTestInjector();
       final mes = getIt<SelectedMonthService>();
       addTearDown(() => mes.select(SelectedMonthService.initial()));
@@ -231,33 +232,35 @@ void main() {
 
       await pump(
         tester,
-        HistoryCardWidget(history: dashboard.history, month: dashboard.month),
+        MonthStripCardWidget(
+          history: dashboard.history,
+          month: dashboard.month,
+        ),
       );
 
-      await tester.fling(find.byType(BarChart), const Offset(-200, 0), 800);
+      await tester.drag(
+        find.byType(MonthStripCardWidget),
+        const Offset(-120, 0),
+      );
       await tester.pumpAndSettle();
 
-      // O mês seguinte nunca está desenhado — a janela termina no selecionado —,
-      // e é por isso que o arrasto existe.
-      expect(mes.month.value, Month.next(partida));
+      expect(mes.month.value, partida);
     });
 
-    testWidgets('seis barras, com a da competência destacada', (tester) async {
+    // O ano aparece só em janeiro: repetido em toda barra viraria ruído, e sem
+    // ele uma régua de três anos não diz de que "SET" se trata.
+    testWidgets('o ano aparece em janeiro', (tester) async {
+      setupDashboardTestInjector();
+
       await pump(
         tester,
-        HistoryCardWidget(history: dashboard.history, month: dashboard.month),
+        MonthStripCardWidget(
+          history: dashboard.history,
+          month: dashboard.month,
+        ),
       );
 
-      final chart = tester.widget<BarChart>(find.byType(BarChart));
-      expect(chart.data.barGroups, hasLength(6));
-
-      final cores = chart.data.barGroups
-          .map((g) => g.barRods.first.color)
-          .toList();
-      // A **primeira** é a competência pedida: a janela é desenhada do mês
-      // selecionado para trás, para a barra que interessa abrir o card em vez
-      // de ficar encostada na borda direita.
-      expect(cores.where((c) => c == cores.first), hasLength(1));
+      expect(find.text('JAN'), findsWidgets);
     });
   });
 

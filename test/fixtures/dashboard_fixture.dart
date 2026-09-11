@@ -1,3 +1,5 @@
+import 'package:se_controle_ai/core/utils/month.dart';
+
 // Payload de `GET /dashboard?month=2026-09` montado campo a campo a partir do
 // exemplo da spec (`expense-tracker-api/docs/specs/09-dashboard.md`), e **não**
 // capturado do backend — a rota ainda não foi exercitada com token real.
@@ -33,9 +35,24 @@ final dashboardJson = <String, dynamic>{
     'overspentCents': null,
   },
   'byTag': [
-    {'id': 'tag-mercado', 'name': 'Mercado', 'color': '#E53935', 'amountCents': 120000},
-    {'id': 'tag-casa', 'name': 'Casa', 'color': '#43A047', 'amountCents': 98000},
-    {'id': 'tag-transporte', 'name': 'Transporte', 'color': '#1E88E5', 'amountCents': 54400},
+    {
+      'id': 'tag-mercado',
+      'name': 'Mercado',
+      'color': '#E53935',
+      'amountCents': 120000,
+    },
+    {
+      'id': 'tag-casa',
+      'name': 'Casa',
+      'color': '#43A047',
+      'amountCents': 98000,
+    },
+    {
+      'id': 'tag-transporte',
+      'name': 'Transporte',
+      'color': '#1E88E5',
+      'amountCents': 54400,
+    },
     {'id': 'tag-lazer', 'name': 'Lazer', 'color': null, 'amountCents': 40000},
   ],
   'daily': {
@@ -117,7 +134,12 @@ final dashboardJson = <String, dynamic>{
       'totalCents': 82400,
       'limitCents': 500000,
     },
-    {'cardId': 'id-inter', 'label': 'Inter', 'totalCents': 0, 'limitCents': null},
+    {
+      'cardId': 'id-inter',
+      'label': 'Inter',
+      'totalCents': 0,
+      'limitCents': null,
+    },
   ],
   // 180000 + 30000 + 102400 = 312400 (DSH-19).
   'byNature': {
@@ -125,17 +147,10 @@ final dashboardJson = <String, dynamic>{
     'installmentCents': 30000,
     'oneOffCents': 102400,
   },
-  // Seis meses terminando na competência pedida, e a última entrada bate com
-  // o `totals` (DSH-22).
-  'history': [
-    {'month': '2026-04', 'incomeCents': 500000, 'expenseCents': 288000},
-    {'month': '2026-05', 'incomeCents': 500000, 'expenseCents': 301500},
-    // Mês sem movimento vem zerado, não omitido (DSH-21).
-    {'month': '2026-06', 'incomeCents': 0, 'expenseCents': 0},
-    {'month': '2026-07', 'incomeCents': 520000, 'expenseCents': 344900},
-    {'month': '2026-08', 'incomeCents': 500000, 'expenseCents': 286600},
-    {'month': '2026-09', 'incomeCents': 500000, 'expenseCents': 312400},
-  ],
+  // A régua de 37 meses da DSH-20: de `hoje−12` a `hoje+24`, com hoje sendo
+  // 2026-09. Ancorada em hoje e não na competência pedida — é o que mantém as
+  // barras paradas quando se toca numa delas para trocar de mês.
+  'history': _regua,
   'topExpenses': [
     {
       'id': 'exp-geladeira',
@@ -198,11 +213,7 @@ final dashboardVazioJson = <String, dynamic>{
     'previousDays': <Map<String, dynamic>>[],
   },
   'cards': <Map<String, dynamic>>[],
-  'byNature': {
-    'recurringCents': 0,
-    'installmentCents': 0,
-    'oneOffCents': 0,
-  },
+  'byNature': {'recurringCents': 0, 'installmentCents': 0, 'oneOffCents': 0},
   'history': <Map<String, dynamic>>[],
   'topExpenses': <Map<String, dynamic>>[],
 };
@@ -225,3 +236,29 @@ final dashboardEstouradoJson = <String, dynamic>{
     'overspentCents': 38000,
   },
 };
+
+/// Os meses com movimento na régua. O resto vem zerado (DSH-21), que é o caso
+/// da maior parte dela: mês futuro só mostra o que já está lançado.
+const _movimento = <String, (int, int)>{
+  '2026-04': (500000, 288000),
+  '2026-05': (500000, 301500),
+  // 2026-06 fica de fora de propósito: mês sem movimento vem zerado, não
+  // omitido.
+  '2026-07': (520000, 344900),
+  '2026-08': (500000, 286600),
+  // A competência pedida — tem de bater com o `totals` (DSH-22).
+  '2026-09': (500000, 312400),
+  // Já lançado lá na frente: o aluguel e as parcelas que ainda vão cair.
+  '2026-10': (500000, 180000),
+  '2026-11': (500000, 150000),
+};
+
+final _regua = [
+  for (var deslocamento = -12; deslocamento <= 24; deslocamento++)
+    _mesDaRegua(Month.offset('2026-09', deslocamento)),
+];
+
+Map<String, dynamic> _mesDaRegua(String month) {
+  final (income, expense) = _movimento[month] ?? (0, 0);
+  return {'month': month, 'incomeCents': income, 'expenseCents': expense};
+}
