@@ -13,6 +13,8 @@ import '../../fixtures/credit_card_fixture.dart';
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/enums/expense_type.dart';
 
 // Os dois cartões da fixture fecham em dias diferentes — 10 e 27 —, e é essa
 // diferença que prova que a fatura sai do cartão, e não de uma regra fixa.

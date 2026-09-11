@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 
 import '../../fixtures/expense_fixture.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/enums/expense_type.dart';
 
 void main() {
   group('parse do JSON real', () {

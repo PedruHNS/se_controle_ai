@@ -15,6 +15,8 @@ import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/credit_card_repository.dart';
 import '../../../data/repositories/expense_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/enums/expense_type.dart';
 
 /// Cadastro e edição de gasto, no mesmo formulário.
 ///

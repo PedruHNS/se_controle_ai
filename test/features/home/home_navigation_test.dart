@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/core/shared/widgets/app_drawer.dart';
-import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_list_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
@@ -15,6 +14,7 @@ import 'package:se_controle_ai/features/projection/view/projection_page.dart';
 import 'package:se_controle_ai/features/tags/view/tag_list_page.dart';
 
 import '../../fixtures/test_injector.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
 
 void main() {
   // O drawer navega de verdade, então o teste roda sobre o router do app e não

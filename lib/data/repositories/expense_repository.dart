@@ -5,6 +5,8 @@ import '../../core/errors/failure.dart';
 import '../../core/network/api_client.dart';
 import '../../core/shared/patch.dart';
 import '../models/expense_model.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/enums/expense_type.dart';
 
 /// As operações de `/expenses` que a Fase 4 usa.
 ///

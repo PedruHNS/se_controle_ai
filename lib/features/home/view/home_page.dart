@@ -12,7 +12,6 @@ import '../../../core/shared/widgets/app_drawer.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/summary_section_placeholder.dart';
 import '../../../data/models/credit_card_invoice_model.dart';
-import '../../../data/models/expense_model.dart';
 import '../../../data/models/monthly_balance_model.dart';
 import '../../../data/models/summary_section_model.dart';
 import '../controller/home_controller.dart';
@@ -20,6 +19,7 @@ import '../widgets/balance_card.dart';
 import '../widgets/home_fab.dart';
 import '../widgets/invoice_carousel.dart';
 import '../widgets/summary_section.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
 
 /// Resumo do mês — tela inicial.
 class HomePage extends StatefulWidget {

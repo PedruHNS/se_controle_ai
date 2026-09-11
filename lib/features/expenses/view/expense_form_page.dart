@@ -9,9 +9,11 @@ import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/date_field_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/utils/money.dart';
-import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/expense_form_controller.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/enums/expense_type.dart';
+import 'package:se_controle_ai/core/utils/tag_color.dart';
 
 /// Cadastro e edição de gasto.
 ///
@@ -576,7 +578,7 @@ class _TagChipLabel extends StatelessWidget {
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: tag.parsedColor,
+            color: TagColor.parse(tag.color),
             shape: BoxShape.circle,
           ),
         ),

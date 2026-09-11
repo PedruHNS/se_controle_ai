@@ -4,7 +4,6 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/models/credit_card_model.dart';
-import '../../data/models/expense_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../config/globals.dart';
 
@@ -26,6 +25,7 @@ import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
 import 'auth_gate.dart';
 import 'auth_refresh.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
 
 /// Configuração de navegação do app.
 ///

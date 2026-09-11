@@ -14,6 +14,7 @@ import '../../../core/utils/month.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_list_controller.dart';
 import '../widgets/expense_tile.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
 
 /// Lista de gastos — a porta de entrada do CRUD.
 ///

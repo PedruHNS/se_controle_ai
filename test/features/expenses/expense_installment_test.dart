@@ -14,6 +14,8 @@ import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
 import '../../fixtures/test_injector.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/enums/expense_type.dart';
 
 void main() {
   late MockExpenseRepository repository;

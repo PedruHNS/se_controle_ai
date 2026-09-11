@@ -5,6 +5,7 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/expense_repository.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
 
 /// Lista de gastos. Mesmo molde do `IncomeListController`: signal privado,
 /// getter `ReadonlySignal`, nenhum import de Flutter.

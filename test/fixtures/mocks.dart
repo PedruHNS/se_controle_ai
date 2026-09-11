@@ -28,6 +28,10 @@ import 'income_fixture.dart';
 import 'projection_fixture.dart';
 import 'summary_fixture.dart';
 import 'tag_fixture.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/data/repositories/dashboard_repository.dart';
+import 'package:se_controle_ai/data/models/dashboard_model.dart';
+import 'dashboard_fixture.dart';
 
 /// Os mocks de repositório do app.
 ///
@@ -40,6 +44,8 @@ class MockSummaryRepository extends Mock implements SummaryRepository {}
 class MockIncomeRepository extends Mock implements IncomeRepository {}
 
 class MockCreditCardRepository extends Mock implements CreditCardRepository {}
+
+class MockDashboardRepository extends Mock implements DashboardRepository {}
 
 class MockExpenseRepository extends Mock implements ExpenseRepository {}
 
@@ -852,4 +858,31 @@ List<Map<String, dynamic>> expenseUpdateBodies(MockExpenseRepository mock) =>
 Map<String, dynamic>? lastExpenseUpdateBody(MockExpenseRepository mock) {
   final bodies = expenseUpdateBodies(mock);
   return bodies.isEmpty ? null : bodies.last;
+}
+
+// ---------------------------------------------------------------- dashboard
+
+/// Stub de `GET /dashboard`. Sem [result], devolve o payload da spec.
+void stubDashboard(
+  MockDashboardRepository mock, {
+  Result<DashboardModel, Failure>? result,
+  Future<void>? pendenteAte,
+}) {
+  final answer = result ?? Success(DashboardModel.fromJson(dashboardJson));
+
+  when(() => mock.getDashboard(month: any(named: 'month'))).thenAnswer((
+    _,
+  ) async {
+    if (pendenteAte != null) await pendenteAte;
+    return answer;
+  });
+}
+
+MockDashboardRepository dashboardRepositoryMock({
+  Result<DashboardModel, Failure>? dashboard,
+  Future<void>? pendenteAte,
+}) {
+  final mock = MockDashboardRepository();
+  stubDashboard(mock, result: dashboard, pendenteAte: pendenteAte);
+  return mock;
 }

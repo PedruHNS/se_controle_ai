@@ -11,6 +11,7 @@ import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
 
 import '../../fixtures/mocks.dart';
+import 'package:se_controle_ai/data/enums/payment_method.dart';
 
 void main() {
   late MockExpenseRepository repository;
