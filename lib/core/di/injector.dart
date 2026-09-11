@@ -13,6 +13,7 @@ import '../../data/repositories/tag_repository.dart';
 import '../../features/auth/controller/login_controller.dart';
 import '../../features/credit_cards/controller/credit_card_expenses_controller.dart';
 import '../../features/credit_cards/controller/credit_card_controller.dart';
+import '../../features/dashboard/controller/dashboard_controller.dart';
 import '../../features/expenses/controller/expense_detail_controller.dart';
 import '../../features/expenses/controller/expense_form_controller.dart';
 import '../../features/expenses/controller/expense_list_controller.dart';

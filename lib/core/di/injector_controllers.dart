@@ -52,6 +52,17 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
+  // O dashboard segue a regra das listas: uma tela só, estado que vale preservar
+  // entre idas e vindas, e o get_it libera — o `dispose` cancela a inscrição no
+  // mês, então a tela fechada não busca em segundo plano.
+  getIt.registerLazySingleton<DashboardController>(
+    () => DashboardController(
+      repository: getIt<DashboardRepository>(),
+      selectedMonth: getIt<SelectedMonthService>(),
+    ),
+    dispose: (e) => e.dispose(),
+  );
+
   // Lista com dispose pelo get_it, como as outras.
   getIt.registerLazySingleton<TagListController>(
     () => TagListController(
