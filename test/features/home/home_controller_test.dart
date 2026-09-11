@@ -16,6 +16,12 @@ import '../../fixtures/mocks.dart';
 import '../../fixtures/summary_fixture.dart';
 
 void main() {
+  // O serviço do mês avisa pelo toast quando esbarra no limite da faixa, e o
+  // `MessageMixin` lê o `navigatorKey` — sem binding, `currentContext` lança
+  // antes de chegar à guarda de contexto nulo. Mesmo motivo dos testes de
+  // controller de tag e de cartão.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockSummaryRepository repository;
   late HomeController controller;
 
@@ -78,9 +84,6 @@ void main() {
       expect(slowController.balance.value, isA<Loaded<MonthlyBalanceModel>>());
     });
 
-    test('monthLabel é derivado do mês', () {
-      expect(controller.monthLabel.value, Month.shortLabel(SelectedMonthService.initial()));
-    });
   });
 
   // As duas seções de gasto leem a mesma competência com filtros diferentes, e
@@ -225,14 +228,6 @@ void main() {
       expect(capturedMonths(repository), [Month.next(start), start]);
     });
 
-    test('monthLabel acompanha a troca sem ninguém atualizar à mão', () async {
-      final start = controller.month.value;
-
-      await controller.goToNextMonth();
-
-      expect(controller.monthLabel.value, Month.shortLabel(Month.next(start)));
-    });
-
     test('goToCurrentMonth volta de qualquer lugar', () async {
       await controller.goToMonth('2026-01');
       expect(controller.isCurrentMonth.value, isFalse);
@@ -334,7 +329,6 @@ void main() {
       await controller.goToMonth('2100-12');
       clearInteractions(repository);
 
-      expect(controller.canGoNext.value, isFalse);
       await controller.goToNextMonth();
 
       expect(controller.month.value, '2100-12');
@@ -343,7 +337,6 @@ void main() {
       await controller.goToMonth('2000-01');
       clearInteractions(repository);
 
-      expect(controller.canGoPrevious.value, isFalse);
       await controller.goToPreviousMonth();
 
       expect(controller.month.value, '2000-01');

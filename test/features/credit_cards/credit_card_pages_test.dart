@@ -4,6 +4,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/core/utils/month.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/core/shared/widgets/day_field_widget.dart';
@@ -70,6 +72,39 @@ void main() {
       expect(find.text('Cartão de teste'), findsOneWidget);
       expect(find.text('Fecha dia 27'), findsOneWidget);
       expect(find.text('Vence dia 5'), findsOneWidget);
+    });
+
+    // O seletor do topo é o único caminho de mês desta tela: aqui não há a
+    // AppBar da home, e o atalho de voltar ao corrente ficou de fora de
+    // propósito.
+    testWidgets('o topo mostra a competência que a lista está mostrando', (
+      tester,
+    ) async {
+      await pumpList(tester);
+
+      expect(
+        find.text(Month.label(SelectedMonthService.initial())),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a seta troca a competência e rebusca a lista', (tester) async {
+      // O serviço é singleton do `getIt` e sobrevive entre os testes deste
+      // arquivo — sem devolver o mês, o próximo teste começaria em outro.
+      addTearDown(
+        () => getIt<SelectedMonthService>().select(
+          SelectedMonthService.initial(),
+        ),
+      );
+
+      await pumpList(tester);
+
+      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tester.pumpAndSettle();
+
+      final proximo = Month.next(SelectedMonthService.initial());
+      expect(find.text(Month.label(proximo)), findsOneWidget);
+      verify(() => repository.list(month: proximo)).called(1);
     });
 
     // CAR-09: o `totalCents` da competência é o que faz a barra significar

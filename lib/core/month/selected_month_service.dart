@@ -1,5 +1,6 @@
 import 'package:signals/signals.dart';
 
+import '../shared/mixin/message_mixin.dart';
 import '../utils/month.dart';
 
 /// A competência que o app inteiro está olhando.
@@ -27,71 +28,51 @@ import '../utils/month.dart';
 /// entra — e não conferindo o mês que já correu. O corrente continua a um
 /// toque: é a seta de voltar, e é para onde [goToCurrent] leva, que segue
 /// sendo o mês do relógio e não este de partida.
-class SelectedMonthService {
-  /// O mês em que o app abre — ver a explicação na classe.
-  ///
-  /// É `static` e público porque teste e código precisam do mesmo valor. Sem
-  /// ele, "o mês em que o app abre" e "o mês do relógio" seriam a mesma
-  /// expressão escrita nos dois casos, e a próxima mudança de padrão teria de
-  /// separar um do outro a olho, teste por teste.
+class SelectedMonthService with MessageMixin {
   static String initial() => Month.next(Month.current());
 
   final _month = signal<String>(initial());
 
-  /// Para ler dentro de `build`/`SignalBuilder`, onde a leitura precisa ser
-  /// rastreada — trocar o mês repinta quem depende dele.
   ReadonlySignal<String> get month => _month;
 
-  /// `'Setembro 2026'`. Derivado: trocar o mês reformata sozinho.
   late final ReadonlySignal<String> label = computed(
     () => Month.label(_month.value),
   );
 
-  /// `'set/2026'`. É o que cabe na AppBar, que divide espaço com o botão do
-  /// menu, as duas setas e o sino.
   late final ReadonlySignal<String> shortLabel = computed(
     () => Month.shortLabel(_month.value),
   );
 
-  /// A competência exibida é a de hoje? A UI usa para destacar o "hoje" e
-  /// habilitar o atalho de voltar ao mês corrente.
   late final ReadonlySignal<bool> isCurrent = computed(
     () => Month.isCurrent(_month.value),
   );
 
-  /// Falsos nos limites que o backend aceita (2000–2100), para a seta ficar
-  /// desabilitada em vez de disparar uma requisição que voltaria 400.
-  late final ReadonlySignal<bool> canGoPrevious = computed(
-    () => Month.hasPrevious(_month.value),
-  );
-
-  late final ReadonlySignal<bool> canGoNext = computed(
-    () => Month.hasNext(_month.value),
-  );
-
-  /// Troca a competência. Devolve se ela de fato mudou, para quem chamou saber
-  /// se precisa buscar de novo — pedir o mês que já está selecionado não é
-  /// erro, é toque repetido.
-  ///
-  /// Mês inválido é ignorado em silêncio: a única origem possível é dado de
-  /// rota ou de fora, e derrubar a tela por causa disso seria pior que
-  /// continuar no mês que já estava.
   bool select(String month) {
     if (!Month.isValid(month) || month == _month.value) return false;
     _month.value = month;
     return true;
   }
 
-  bool goToPrevious() =>
-      canGoPrevious.value && select(Month.previous(_month.value));
+  static final _first = Month.of(Month.minYear, 1);
+  static final _last = Month.of(Month.maxYear, 12);
 
-  bool goToNext() => canGoNext.value && select(Month.next(_month.value));
+  bool goToPrevious() {
+    if (!Month.hasPrevious(_month.value)) {
+      toastError('${Month.label(_first)} é o mês mais antigo do app.');
+      return false;
+    }
+    return select(Month.previous(_month.value));
+  }
+
+  bool goToNext() {
+    if (!Month.hasNext(_month.value)) {
+      toastError('${Month.label(_last)} é o mês mais distante do app.');
+      return false;
+    }
+    return select(Month.next(_month.value));
+  }
 
   bool goToCurrent() => select(Month.current());
 
-  /// Na prática não roda: nada em produção chama `getIt.reset()` — o
-  /// `resetInjector` está comentado — e o registro de teste é feito sem
-  /// `dispose:` de propósito. Existe para o dia em que o reset voltar, e para
-  /// o registro não prometer uma limpeza que não sabe fazer.
   void dispose() => _month.dispose();
 }

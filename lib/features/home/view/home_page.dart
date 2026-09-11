@@ -7,6 +7,7 @@ import '../../../core/di/injector.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
+import '../../../core/shared/widgets/month_selector_widget.dart';
 import '../../../core/shared/widgets/app_drawer.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/summary_section_placeholder.dart';
@@ -91,18 +92,10 @@ class _HomePageState extends State<HomePage> with RouteAware {
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: SignalBuilder(
-          builder: (context) {
-            // `scaleDown` em vez de deixar a AppBar cortar: mesmo abreviado, o
-            // rótulo não cabe em tela estreita (176px de texto para 128px de
-            // espaço num aparelho de 360dp). Encolher a fonte mantém "ago/2026"
-            // inteiro e legível; o corte comia o ano.
-            return FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(_controller.monthLabel.value),
-            );
-          },
-        ),
+        // O mesmo seletor da lista de cartões, que fala direto com o
+        // `SelectedMonthService`. Quem recarrega a home é o `effect` do
+        // controller, e não mais o toque na seta.
+        title: const MonthSelectorWidget(short: false),
         centerTitle: true,
         // O padrão reserva 16px de cada lado do título, e aqui eles são a
         // diferença entre caber e não caber.
@@ -116,18 +109,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
         // apontam, e o sino fecha a fila — o que é do mês perto do rótulo do
         // mês, o que é do app na ponta.
         actions: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: _controller.canGoPrevious.value
-                ? _controller.goToPreviousMonth
-                : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: _controller.canGoNext.value
-                ? _controller.goToNextMonth
-                : null,
-          ),
           IconButton(
             icon: const Icon(Icons.notifications_none),
             tooltip: 'Notificações',

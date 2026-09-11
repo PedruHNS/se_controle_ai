@@ -8,6 +8,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
+import '../../../core/shared/widgets/month_selector_widget.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../controller/credit_card_controller.dart';
 import '../widgets/credit_card_tile.dart';
@@ -76,22 +77,13 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
             ),
             Loaded(data: final cards) => _CreditCardList(
               cards: cards,
-              onRefresh: _controller.refresh,
-              // Só o id: a tela do cartão busca a fatura inteira numa
-              // requisição, então mandar o objeto junto pouparia zero idas à
-              // rede e daria dois caminhos para o mesmo dado.
+              controller: _controller,
               onOpen: (card) => _nav.pushNamed(
                 AppRoutes.creditCardExpenses,
                 pathParameters: {RouteParams.id: card.id},
               ),
-
-              // Vai o cartão, e só ele: a lista acabou de desenhar esse
-              // cartão, e mandar o id para a tela buscá-lo de novo daria uma
-              // tela em branco até a resposta chegar, e um erro de rede a
-              // mais.
               onEdit: (card) =>
                   _nav.pushNamed(AppRoutes.creditCardEdit, extra: card),
-
               onDelete: _confirmDelete,
             ),
           };
@@ -103,17 +95,19 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
 
 class _CreditCardList extends StatelessWidget {
   final List<CreditCardModel> cards;
-  final Future<void> Function() onRefresh;
+  final CreditCardController controller;
+
   final void Function(CreditCardModel card) onOpen;
   final void Function(CreditCardModel card) onEdit;
   final void Function(CreditCardModel card) onDelete;
 
   const _CreditCardList({
     required this.cards,
-    required this.onRefresh,
+
     required this.onOpen,
     required this.onEdit,
     required this.onDelete,
+    required this.controller,
   });
 
   @override
@@ -124,24 +118,34 @@ class _CreditCardList extends StatelessWidget {
         icon: Icons.credit_card,
         title: 'Nenhum cartão cadastrado',
         message: 'Cadastre um para poder lançar gasto no cartão.',
-        onRefresh: onRefresh,
+        onRefresh: controller.refresh,
       );
     }
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.separated(
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        padding: .fromLTRB(24, 24, 24, bottomPadding + 80),
-        itemCount: cards.length,
-        itemBuilder: (_, i) {
-          return CreditCardWidget(
-            card: cards[i],
-            onTap: () => onOpen(cards[i]),
-            onEdit: () => onEdit(cards[i]),
-            onDelete: () => onDelete(cards[i]),
-          );
-        },
+      onRefresh: controller.refresh,
+      child: CustomScrollView(
+        slivers: [
+          const PinnedHeaderSliver(child: MonthSelectorWidget()),
+          SignalBuilder(
+            builder: (context) => SliverPadding(
+              padding: .fromLTRB(24, 24, 24, bottomPadding + 80),
+              sliver: SliverList.separated(
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+
+                itemCount: cards.length,
+                itemBuilder: (_, i) {
+                  return CreditCardWidget(
+                    card: cards[i],
+                    onTap: () => onOpen(cards[i]),
+                    onEdit: () => onEdit(cards[i]),
+                    onDelete: () => onDelete(cards[i]),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

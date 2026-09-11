@@ -32,6 +32,8 @@ class HomeController extends BaseController {
   final SummaryRepository _repository;
   final SelectedMonthService _selectedMonth;
 
+  EffectCleanup? _watchingMonth;
+
   // Um estado por seção e não um só: cada seção tem rota própria e pinta
   // quando chega. Um estado só obrigaria a tela a esperar a resposta mais lenta
   // para mostrar qualquer coisa — e uma falha em faturas apagaria os ganhos que
@@ -83,27 +85,24 @@ class HomeController extends BaseController {
 
   ReadonlySignal<String> get month => _selectedMonth.month;
 
-  /// `'ago/2026'`. Derivado de [month]: trocar o mês reformata sozinho.
-  ///
-  /// Abreviado e não `Month.label`: o título divide a AppBar com o botão do menu,
-  /// as duas setas de mês e o sino, e por extenso ("Agosto 2026") não cabe —
-  /// aparecia cortado em "Agost…", sem o ano.
-  ReadonlySignal<String> get monthLabel => _selectedMonth.shortLabel;
-
   /// A competência exibida é a de hoje? A UI usa para destacar o "hoje" e
   /// habilitar um atalho de voltar ao mês corrente.
   ReadonlySignal<bool> get isCurrentMonth => _selectedMonth.isCurrent;
 
-  /// Falsos nos limites que o backend aceita (2000–2100), para a seta ficar
-  /// desabilitada em vez de disparar uma requisição que voltaria 400.
-  ReadonlySignal<bool> get canGoPrevious => _selectedMonth.canGoPrevious;
-
-  ReadonlySignal<bool> get canGoNext => _selectedMonth.canGoNext;
-
   @override
-  void onInit() async {
+  void onInit() {
     super.onInit();
-    await load();
+
+    // A inscrição no mês **é** a carga inicial, como nas outras telas: o
+    // `effect` roda uma vez ao ser criado e de novo a cada troca de
+    // competência. É o que permite o seletor da AppBar falar direto com o
+    // serviço, sem precisar avisar este controller.
+    _watchingMonth = effect(() {
+      _selectedMonth.month.value;
+      // `untracked` para o efeito depender só do mês: sem ele, qualquer signal
+      // que o `load` venha a ler vira dependência sem querer.
+      untracked(load);
+    });
   }
 
   /// Busca as seções da competência selecionada.
@@ -162,15 +161,10 @@ class HomeController extends BaseController {
     );
   }
 
-  Future<void> goToPreviousMonth() async {
-    if (!_selectedMonth.goToPrevious()) return;
-    await load();
-  }
+  /// Só trocam a competência: quem rebusca é o `effect` de [onInit].
+  Future<void> goToPreviousMonth() async => _selectedMonth.goToPrevious();
 
-  Future<void> goToNextMonth() async {
-    if (!_selectedMonth.goToNext()) return;
-    await load();
-  }
+  Future<void> goToNextMonth() async => _selectedMonth.goToNext();
 
   Future<void> goToCurrentMonth() => goToMonth(Month.current());
 
@@ -191,7 +185,11 @@ class HomeController extends BaseController {
       _debit.value,
       _creditCards.value,
     ].every((state) => state is Loaded);
-    if (!_selectedMonth.select(month) && alreadyLoaded) return;
+    // Mês novo: o `effect` já recarrega, e um `load` aqui seria a segunda
+    // requisição do mesmo toque. Mês repetido sem dado na tela ainda precisa
+    // buscar — é o caminho de quem volta ao mês atual a partir de um erro.
+    if (_selectedMonth.select(month)) return;
+    if (alreadyLoaded) return;
 
     await load();
   }
@@ -206,6 +204,7 @@ class HomeController extends BaseController {
   /// vive mais que esta tela. Liberá-lo derrubaria o resto do app junto.
   @override
   void dispose() {
+    _watchingMonth?.call();
     _balance.dispose();
     _incomes.dispose();
     _expenses.dispose();

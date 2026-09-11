@@ -353,7 +353,7 @@ void main() {
       await pumpHome(tester);
 
       expect(
-        find.text(Month.shortLabel(SelectedMonthService.initial())),
+        find.text(Month.label(SelectedMonthService.initial())),
         findsOneWidget,
       );
     });
@@ -372,7 +372,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(Month.shortLabel(Month.next(start))), findsOneWidget);
+      expect(find.text(Month.label(Month.next(start))), findsOneWidget);
       expect(capturedMonths(repository), [start, Month.next(start)]);
     });
 
@@ -388,7 +388,7 @@ void main() {
       await tester.tap(find.text('Voltar para o mês atual'));
       await tester.pumpAndSettle();
       expect(find.text('Voltar para o mês atual'), findsNothing);
-      expect(find.text(Month.shortLabel(Month.current())), findsOneWidget);
+      expect(find.text(Month.label(Month.current())), findsOneWidget);
 
       // E volta a aparecer assim que a pessoa sai do mês corrente de novo.
       await tester.tap(
@@ -421,7 +421,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final label = find.text(
-        Month.shortLabel(Month.next(SelectedMonthService.initial())),
+        Month.label(Month.next(SelectedMonthService.initial())),
       );
       expect(label, findsOneWidget);
 
@@ -456,7 +456,7 @@ void main() {
 
       await pumpHome(tester, inteira: false);
 
-      final label = find.text(Month.shortLabel(SelectedMonthService.initial()));
+      final label = find.text(Month.label(SelectedMonthService.initial()));
       final paragraph = tester.renderObject<RenderParagraph>(label);
 
       expect(
