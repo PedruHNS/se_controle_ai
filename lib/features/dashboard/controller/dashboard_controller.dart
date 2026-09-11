@@ -14,7 +14,6 @@ import '../../../data/repositories/dashboard_repository.dart';
 class DashboardController extends BaseController {
   final DashboardRepository _repository;
   final SelectedMonthService _selectedMonth;
-
   DashboardController({
     required this._repository,
     required this._selectedMonth,
@@ -22,11 +21,7 @@ class DashboardController extends BaseController {
 
   EffectCleanup? _watchingMonth;
 
-  /// Cresce a cada busca, para descartar resposta atrasada.
-  int _requestId = 0;
-
   final _state = signal<ViewState<DashboardModel>>(const Loading());
-
   ReadonlySignal<ViewState<DashboardModel>> get state => _state;
 
   @override
@@ -35,44 +30,35 @@ class DashboardController extends BaseController {
 
     // A inscrição no mês **é** a carga inicial: o `effect` roda uma vez ao ser
     // criado e de novo a cada troca de competência, venha ela do seletor desta
-    // tela ou de outra. Um `load()` aqui além dele duplicaria a primeira
+    // tela ou de outra. Um `_load()` aqui além dele duplicaria a primeira
     // requisição.
     _watchingMonth = effect(() {
       _selectedMonth.month.value;
       // `untracked` para o efeito depender só do mês: sem ele, qualquer signal
-      // que o `load` venha a ler vira dependência sem querer.
-      untracked(load);
+      // que o `_load` venha a ler vira dependência sem querer.
+      untracked(_load);
     });
   }
 
   @override
   void dispose() {
     _watchingMonth?.call();
-    _state.dispose();
     super.dispose();
+    _state.dispose();
   }
 
-  /// [silent] mantém o conteúdo na tela durante a busca — é o que o
-  /// pull-to-refresh quer, já que o `RefreshIndicator` já mostra progresso e
-  /// piscar o esqueleto no lugar dos cards seria pior.
-  Future<void> load({bool silent = false}) async {
-    final requestId = ++_requestId;
-    final month = _selectedMonth.month.value;
+  Future<void> _load() async {
+    _state.value = const Loading();
 
-    if (!silent) _state.value = const Loading();
-
-    final result = await _repository.getDashboard(month: month);
-
-    // Toque rápido em duas setas dispara duas buscas, e as respostas podem
-    // voltar fora de ordem — sem esta guarda, o mês antigo sobrescreveria o que
-    // está na tela.
-    if (requestId != _requestId) return;
+    final result = await _repository.getDashboard(
+      month: _selectedMonth.month.value,
+    );
 
     result.when(
       (success) => _state.value = Loaded(success),
-      (failure) => _state.value = Failed(failure),
+      (err) => _state.value = Failed(err),
     );
   }
 
-  Future<void> refresh() => load(silent: true);
+  Future<void> refresh() => _load();
 }
