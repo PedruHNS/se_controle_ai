@@ -55,6 +55,11 @@ dependencies:
   firebase_auth: ^6.6.0
   google_sign_in: ^7.2.0
 
+  # Os gráficos do dashboard (A1). Versão travada: a 1.2.0 é a última que
+  # convive com o `vector_math` que o `flutter_test` traz, e o `^` deixaria uma
+  # 1.3 futura rebaixar o pacote para o resto da suíte.
+  fl_chart: 1.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
