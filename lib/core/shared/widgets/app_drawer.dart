@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:se_controle_ai/core/month/selected_month_service.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:signals/signals_flutter.dart';
 
@@ -195,6 +196,7 @@ class _Sair extends StatelessWidget {
       onTap: () {
         GetIt.I<AuthRepository>().signOut();
         getIt.resetLazySingleton<HomeController>();
+        getIt.resetLazySingleton<SelectedMonthService>();
       },
     );
   }
