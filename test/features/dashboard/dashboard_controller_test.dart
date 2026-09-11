@@ -26,11 +26,9 @@ void main() {
 
   tearDown(() => controller.dispose());
 
-  List<String> mesesBuscados() =>
-      verify(
-            () => repository.getDashboard(month: captureAny(named: 'month')),
-          ).captured
-          .cast<String>();
+  List<String> mesesBuscados() => verify(
+    () => repository.getDashboard(month: captureAny(named: 'month')),
+  ).captured.cast<String>();
 
   test('a inscrição no mês já é a carga inicial', () async {
     await pumpEventQueue();

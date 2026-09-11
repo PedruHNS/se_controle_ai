@@ -73,9 +73,8 @@ void main() {
 
   testWidgets('a seta troca a competência e rebusca', (tester) async {
     addTearDown(
-      () => getIt<SelectedMonthService>().select(
-        SelectedMonthService.initial(),
-      ),
+      () =>
+          getIt<SelectedMonthService>().select(SelectedMonthService.initial()),
     );
     await pump(tester);
 

@@ -10,6 +10,13 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/dashboard_model.dart';
 import '../controller/dashboard_controller.dart';
+import '../widgets/allowance_card_widget.dart';
+import '../widgets/cards_limit_card_widget.dart';
+import '../widgets/daily_pace_card_widget.dart';
+import '../widgets/history_card_widget.dart';
+import '../widgets/nature_card_widget.dart';
+import '../widgets/tag_amounts_card_widget.dart';
+import '../widgets/top_expenses_card_widget.dart';
 
 /// Como está este mês, e quanto ainda posso gastar.
 ///
@@ -88,8 +95,31 @@ class _DashboardContent extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: .fromLTRB(24, 8, 24, bottomPadding + 24),
         children: [
+          // O card dos seis meses abre a tela porque virou o seletor de
+          // competência: tocar numa barra troca o mês, e arrastar anda um.
+          HistoryCardWidget(history: dashboard.history, month: dashboard.month),
+          const SizedBox(height: 12),
           _TotaisCard(dashboard: dashboard),
-          // Os sete cards entram aqui, um por tarefa (A6 a A12).
+          const SizedBox(height: 12),
+          // Daqui em diante a ordem é a da spec, e ela é o argumento da tela:
+          // primeiro o que se pode gastar, depois para onde o dinheiro foi.
+          AllowanceCardWidget(
+            allowance: dashboard.allowance,
+            totals: dashboard.totals,
+          ),
+          const SizedBox(height: 12),
+          TagAmountsCardWidget(byTag: dashboard.byTag),
+          const SizedBox(height: 12),
+          DailyPaceCardWidget(
+            daily: dashboard.daily,
+            allowance: dashboard.allowance,
+          ),
+          const SizedBox(height: 12),
+          CardsLimitCardWidget(cards: dashboard.cards),
+          const SizedBox(height: 12),
+          NatureCardWidget(byNature: dashboard.byNature),
+          const SizedBox(height: 12),
+          TopExpensesCardWidget(topExpenses: dashboard.topExpenses),
         ],
       ),
     );
@@ -230,11 +260,7 @@ final _dashboardDeEsqueleto = DashboardModel.fromJson({
     'previousDays': <Map<String, dynamic>>[],
   },
   'cards': <Map<String, dynamic>>[],
-  'byNature': {
-    'recurringCents': 0,
-    'installmentCents': 0,
-    'oneOffCents': 0,
-  },
+  'byNature': {'recurringCents': 0, 'installmentCents': 0, 'oneOffCents': 0},
   'history': <Map<String, dynamic>>[],
   'topExpenses': <Map<String, dynamic>>[],
 });
