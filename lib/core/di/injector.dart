@@ -5,6 +5,7 @@ import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/credit_card_repository.dart';
+import '../../data/repositories/dashboard_repository.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../../data/repositories/income_repository.dart';
 import '../../data/repositories/summary_repository.dart';

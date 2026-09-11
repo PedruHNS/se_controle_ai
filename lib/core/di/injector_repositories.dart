@@ -33,6 +33,10 @@ void _registerRepositories() {
     () => ExpenseRepositoryImpl(getIt<ApiClient>()),
   );
 
+  getIt.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepositoryImpl(getIt<ApiClient>()),
+  );
+
   getIt.registerLazySingleton<TagRepository>(
     () => HttpTagRepository(getIt<ApiClient>()),
   );
