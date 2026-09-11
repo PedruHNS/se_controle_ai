@@ -446,14 +446,14 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 |---|---|---|
 | `tags` | ✅ **refatorado** | Nada. A tela caiu de 359 para 172 linhas, com `TagTile` e o diálogo de criação extraídos |
 | `core` (DI) | ✅ **refatorado** | `injector.dart` virou 79 linhas com um `part` por camada (rede, repositórios, controllers, services) |
-| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (7 controllers, era 8), `applyFailure` (8 cópias), `serializationFailure` (5), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (291) por feature |
+| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (7 controllers, era 8), `applyFailure` (8 cópias), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (291) por feature |
 | `auth` | 🟡 parcial | A parte com regra já saiu do router: `rotaParaEstado` em `auth_gate.dart` (48 linhas, 14 testes). O que sobra é tela — `login_page` 209, `auth_repository` 225 |
 | `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
 | `home` | ⬜ pendente | `home_page.dart` **cresceu para 364** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
 | `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: 78 linhas. A tela dele tem 254 |
 | `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
-| `data` | ⬜ pendente | `ExpenseModel` (219) acumula os dois tipos de gasto num só; avaliar `sealed` com dois filhos, sabendo que mexe em toda tela de gasto. `fromJson` manual em 12 models |
+| `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09): `ExpenseModel` tem 13 membros derivados e `IncomeModel` 7, com ~90 pontos de chamada — **adiado por decisão dele**, alinhar só ao mexer. Outros oito models têm um ou dois getters cada, e falta `toString` em todos. Já seguem a regra: os nove do dashboard e o `TagModel`. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
 | `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **853** e `test_injector.dart` de 207 para **314**. Dividir por feature e manter um arquivo que reexporta |
 | `notifications` | — | Só o estado vazio. Vira código de verdade com a Etapa 8 do backend; nada a refatorar antes |
 
@@ -501,7 +501,8 @@ Dio --DioException--> exception_mapper --AppException--> ApiClient (lança)
   contrato quebrado no backend viraria crash em vez de `Failure`.
 - **O `try/catch` fica escrito em cada método**, não num helper com closure — o
   `_guard` foi removido em 20/08 de propósito. O único trecho compartilhado é o
-  `_serializationFailure`, função pura de duas linhas.
+  `serializationFailure`, em `core/errors/serialization_failure.dart` desde
+  11/09/2026.
 - O mapper **classifica** (qual falha técnica), o `Failure` **traduz** (o que a
   pessoa lê). É como um 500 com `TypeError` vira "O servidor falhou ao
   processar" na tela e guarda o stack do Node em `failure.exception`.

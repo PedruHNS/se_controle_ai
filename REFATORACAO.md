@@ -28,8 +28,10 @@ A visão por feature, com status, está na seção **Refatoração** do
       formulário e 5 em diálogos. Todas fazem o mesmo — `issues[].path` que casa
       com campo vira erro do campo, o resto sobe como falha geral. Vira uma
       função que recebe `FormGroup` e `Failure` e devolve a mensagem que sobrou.
-- [ ] **`_serializationFailure` em um lugar só.** Idêntico nos **5
-      repositórios**. É função pura de duas linhas; sobe para `core/errors`.
+- [x] **`_serializationFailure` em um lugar só.** Feito em 11/09/2026: virou
+      `serializationFailure` em `core/errors/serialization_failure.dart`. Eram
+      **seis** cópias, e não cinco — o repositório do dashboard nasceu com a
+      sétima e já usa a função.
 - [ ] **`_ActionCard` compartilhado.** Duplicado entre o detalhe de ganho e o de
       gasto. Vira `core/shared/widgets/action_card.dart`.
 - [ ] **`_openAndReload` compartilhado.** As **4 telas de lista** repetem
@@ -59,6 +61,26 @@ A visão por feature, com status, está na seção **Refatoração** do
       garante que só metade vem preenchida, mas a classe já não cabe na cabeça.
       Avaliar um `sealed` com dois filhos — sabendo que isso mexe em toda tela de
       gasto.
+- [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models.** Desde
+      11/09/2026 a regra está escrita em [`.claude/rules/models.md`](.claude/rules/models.md):
+      model tem atributos, serialização, `copyWith`/`==`/`hashCode` quando
+      necessário e `toString` sempre — nada derivado. O `ExpenseModel` tem
+      **treze** membros derivados e o `IncomeModel` **sete**, e os dois
+      compartilham o mesmo `amountCentsIn(month)`, que percorre vigências e cai
+      nas parcelas quando não acha (GFX-09).
+
+      São ~90 pontos de chamada: `amountCentsIn` em 21, `currentVersion` em 11,
+      `isClosed` em 10. **Ele decidiu em 11/09 não refatorar agora.** Quando for:
+      o que é enfeite (`isFixed`, `isInstallment`, `onCreditCard`) sai para quem
+      usa; o que é regra de domínio vai para extension, que tira a conta do model
+      sem reescrever as dezenas de chamadas.
+
+      Menores, na mesma dívida: `isOpen` (`AmountVersionModel`), `label`
+      (`AuthUserModel`, `InstallmentModel`), `limitUsage`
+      (`CreditCardInvoiceModel`), `hasLimit` e `dueInNextMonth`
+      (`CreditCardModel`), `isNegative` (`MonthlyBalanceModel` e
+      `MonthlySummaryModel`), `isEmpty` (`SummarySectionModel`). E **falta
+      `toString` em todos eles** — os nove do dashboard e o `TagModel` já têm.
 - [ ] **`fromJson` manual em 12 models.** Sem codegen é uma escolha do projeto; o
       que dá para melhorar é o `Decode`, que hoje resolve só objeto e lista.
 - [ ] **Conferir que nenhum repositório novo trouxe o `_guard` de volta.** O
