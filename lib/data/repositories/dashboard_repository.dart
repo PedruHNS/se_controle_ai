@@ -2,6 +2,7 @@ import 'package:multiple_result/multiple_result.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/errors/failure.dart';
+import '../../core/errors/serialization_failure.dart';
 import '../../core/network/api_client.dart';
 import '../models/dashboard_model.dart';
 
@@ -38,16 +39,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
-
-  Failure _serializationFailure(Object error, StackTrace stackTrace) =>
-      Failure.fromException(
-        SerializationException(
-          message: '$error',
-          cause: error,
-          stackTrace: stackTrace,
-        ),
-      );
 }

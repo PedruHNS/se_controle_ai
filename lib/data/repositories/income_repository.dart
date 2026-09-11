@@ -2,6 +2,7 @@ import 'package:multiple_result/multiple_result.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/errors/failure.dart';
+import '../../core/errors/serialization_failure.dart';
 import '../../core/network/api_client.dart';
 import '../models/income_model.dart';
 
@@ -65,7 +66,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -83,7 +84,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -110,7 +111,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -129,7 +130,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -147,7 +148,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -162,7 +163,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -174,19 +175,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
-
-  /// O decode fica dentro do `try` de propósito: `on AppException` não pega o
-  /// `TypeError` de um cast, então um campo que mudou de tipo no backend viraria
-  /// crash em vez de erro tratado. Este `catch` é a rede para isso.
-  Failure _serializationFailure(Object error, StackTrace stackTrace) =>
-      Failure.fromException(
-        SerializationException(
-          message: '$error',
-          cause: error,
-          stackTrace: stackTrace,
-        ),
-      );
 }

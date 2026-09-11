@@ -2,6 +2,7 @@ import 'package:multiple_result/multiple_result.dart';
 
 import '../../core/errors/app_exception.dart';
 import '../../core/errors/failure.dart';
+import '../../core/errors/serialization_failure.dart';
 import '../../core/network/api_client.dart';
 import '../models/month_projection_model.dart';
 import '../models/credit_card_invoice_model.dart';
@@ -90,7 +91,7 @@ class SummaryRepositoryImpl implements SummaryRepository {
 
   /// As rotas de seção da home só diferem no caminho e no decode. Repetir o
   /// `try/catch` em cada uma seria um lugar por seção para esquecer o
-  /// [_serializationFailure] — o que transforma campo com tipo trocado em
+  /// [serializationFailure] — o que transforma campo com tipo trocado em
   /// crash, em vez de erro tratado.
   Future<Result<T, Failure>> _read<T>(
     String path,
@@ -103,7 +104,7 @@ class SummaryRepositoryImpl implements SummaryRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -122,7 +123,7 @@ class SummaryRepositoryImpl implements SummaryRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
 
@@ -142,19 +143,7 @@ class SummaryRepositoryImpl implements SummaryRepository {
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
-      return Error(_serializationFailure(error, stackTrace));
+      return Error(serializationFailure(error, stackTrace));
     }
   }
-
-  /// O decode fica dentro do `try` de propósito: `on AppException` não pega o
-  /// `TypeError` de um cast, então um campo que mudou de tipo no backend viraria
-  /// crash em vez de erro tratado. Este `catch` é a rede para isso.
-  Failure _serializationFailure(Object error, StackTrace stackTrace) =>
-      Failure.fromException(
-        SerializationException(
-          message: '$error',
-          cause: error,
-          stackTrace: stackTrace,
-        ),
-      );
 }
