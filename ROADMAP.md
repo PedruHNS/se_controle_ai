@@ -330,35 +330,97 @@ porque a rota destrava os sete cards de uma vez.
       dos limites de entrada; as regras RES-10 a RES-14 viraram "série mensal"
       e apontam para o dashboard. A classe `GetBalanceProjection` ia ficar como
       conta do B3e, mas o B3e a apagou — ver ali o porquê.
-- [ ] **B8 · Merge e deploy**, com autorização.
+- [x] **B8 · Merge e deploy.** Autorizado por ele em 11/09/2026: `dev` e
+      `master` receberam os oito commits da branch, e o push na `master`
+      disparou o workflow. Sem migration nova — a `011` já estava na `master`,
+      então o banco de produção não mudou.
+
+      Entraram duas coisas fora da numeração, feitas no mesmo dia: a **régua de
+      37 meses** (ver A11) e o **teto de requisições** de 300 para 1500 por
+      usuário, porque o uso normal estava batendo no limite e devolvendo 429.
+      O teto é remendo assumido — a causa é a home recarregar as cinco rotas a
+      cada volta de outra tela.
 
 **App — `se_controle_ai`**
 
-- [ ] **A1 · `fl_chart 1.2.0` no `pubspec`** e os 610 testes rodando logo em
-      seguida, por causa do rebaixamento do `vector_math`.
-- [ ] **A2 · Models.** `DashboardModel` e os sete sub-modelos, com `fromJson`
-      e teste de contrato contra um payload real capturado do Docker.
-- [ ] **A3 · Repositório.** Interface, implementação e o duplo nos fixtures.
-- [ ] **A4 · Controller.** Um `ViewState<DashboardModel>`, seguindo o
-      `SelectedMonthService` — trocar o mês na AppBar recarrega.
-- [ ] **A5 · Casca da tela.** `AppRoutes.dashboard`, item do menu, e a página
-      com carregando, erro com "tentar de novo" e pull-to-refresh.
-- [ ] **A6 · Card 1 — pode gastar por dia.** Com as quatro regras: contar
-      hoje, frase própria no negativo, mês passado e futuro mudando a
-      pergunta, competência e não extrato.
-- [ ] **A7 · Card 2 — gasto por categoria.**
-- [ ] **A8 · Card 3 — ritmo do mês.** `LineChart`, três séries, tooltip.
-- [ ] **A9 · Card 4 — faturas e limite.**
-- [ ] **A10 · Card 5 — composição do gasto.**
-- [ ] **A11 · Card 6 — últimos seis meses.** `BarChart`.
-- [ ] **A12 · Card 7 — maiores gastos.**
-- [ ] **A13 · Enterro da projeção.** `lib/features/projection/` inteira,
-      `AppRoutes.projection`, `month_projection_model.dart`, o item do menu e
-      `projection_test.dart`. **Por último**, quando o dashboard já estiver de
-      pé.
-- [ ] **A14 · Testes de widget** dos sete cards e do controller; `analyze`
-      limpo.
-- [ ] **A15 · Roadmap e commits.**
+- [x] **A1 · `fl_chart 1.2.0` no `pubspec`.** Travado sem `^`: o rebaixamento
+      do `vector_math` não aconteceu nesta resolução, mas uma 1.3 futura
+      reabriria o risco sozinha.
+- [x] **A2 · Models.** Nove, um por bloco do payload, só com atributos e
+      desserialização — ver `.claude/rules/models.md`. O `DashboardScope`
+      estreou a pasta `lib/data/enums/`. **O teste de contrato roda contra o
+      exemplo da spec, e não contra payload real capturado**: os números foram
+      escolhidos para os cinco invariantes fecharem, e é isso que os 20 testes
+      conferem. Trocar o fixture pelo payload real continua pendente.
+- [x] **A3 · Repositório.** No molde do `CreditCardRepository`, com uma
+      diferença: `month` é obrigatório. Sem ele o backend responde a
+      competência do relógio **dele**, e a tela mostraria um mês diferente do
+      selecionado — erro que só aparece na virada do mês.
+- [x] **A4 · Controller.** `ViewState<DashboardModel>` num estado só, `effect`
+      no mês como carga inicial, e **sem `requestId` e sem `silent`**, que
+      deixaram de existir no app por decisão dele (`.claude/rules/controllers.md`).
+- [x] **A5 · Casca da tela.** Rota, item do menu **acima de Ganhos**, e a
+      página no padrão da feature de tags.
+- [x] **A6 · Card 1 — pode gastar por dia.** Com as quatro regras.
+- [x] **A7 · Card 2 — gasto por categoria.** Tag sem cor cai numa paleta pelo
+      índice, e não num cinza que sumiria entre as barras.
+- [x] **A8 · Card 3 — ritmo do mês.** `LineChart` com três linhas; o eixo marca
+      o dia 1, o 15 e o último — com uma marca a cada sete dias o rótulo final
+      caía em cima do penúltimo. **A curva não para em "hoje"**: truncar exige
+      o dia vindo do controller, e o teste passaria a depender do relógio.
+- [x] **A9 · Card 4 — faturas e limite.**
+- [x] **A10 · Card 5 — composição do gasto.** Três pastéis de matizes
+      diferentes: o `secondary` e o `tertiary` do esquema caem quase na mesma
+      cor, e parcelado e avulso viravam a mesma faixa.
+- [x] **A11 · Card 6 — virou a régua de meses, e virou o seletor da tela.**
+      Mudou dos dois lados: o `history` do backend passou de "seis meses
+      terminando no `?month`" para **37 competências ancoradas em hoje** —
+      doze para trás, vinte e quatro para frente. Sem isso o mês seguinte nunca
+      estava desenhado, e cada toque devolvia outra janela, reorganizando as
+      barras debaixo do dedo. No app o `BarChart` saiu: são retângulos num
+      `ListView` horizontal, porque rolagem, alvo de toque e posição inicial
+      são encanamento de lista, não de gráfico. **Rolar não troca nada; tocar
+      troca.**
+- [x] **A12 · Card 7 — maiores gastos.**
+- [x] **A13 · Enterro da projeção.** Antecipado a pedido dele, junto com a A5:
+      a feature inteira, o model, o `getProjection` do repositório, a rota, o
+      item do menu e os testes.
+- [x] **A14 · Testes de widget.** 13, um grupo por card, escritos junto com
+      eles. **O `analyze` limpo ficou de fora por decisão dele**: sobra o
+      `_createTag` órfão em `expense_form_page.dart`, que é anterior a tudo
+      isto.
+- [x] **A15 · Roadmap e commits.**
+
+#### O que sobrou, para ele ajustar depois
+
+Nada aqui bloqueia o dashboard — são pontas que apareceram no caminho e ficaram
+registradas em vez de sumirem:
+
+- [ ] **O payload real nunca foi capturado.** O fixture do app e o teste de
+      contrato saem do exemplo da spec. Os cinco invariantes (DSH-03, 10, 12,
+      19 e 22) seguem sem conferência contra o banco de verdade.
+- [ ] **O logout deixa os outros controllers com a instância antiga do
+      `SelectedMonthService`.** Só a `HomeController` e o serviço são
+      resetados; os demais `lazySingleton` continuam segurando o signal já
+      descartado.
+- [ ] **`signal read after disposed` na saída da home**, em
+      `home_page.dart:267`, `:291` e `:315`. Hoje é aviso no console, não
+      quebra a tela.
+- [ ] **O seletor de mês some durante o loading da lista de cartões**, porque
+      vive dentro do ramo `Loaded`. No dashboard isso já foi resolvido — lá ele
+      fica fora do `switch`.
+- [ ] **`ExpenseListController` nunca é liberado**, então o `effect` do mês
+      segue vivo e buscando com a tela fechada.
+- [ ] **`requestId` e `silent` em seis controllers antigos** — `home`,
+      `expense_list`, `expense_detail`, `income_list`, `income_detail` e
+      `credit_card_expenses`. A regra nova proíbe os dois; alinhar ao mexer.
+- [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models** — 13 e 7
+      membros derivados, ~90 pontos de chamada. Detalhe em `REFATORACAO.md`.
+- [ ] **Rever o `creditCardExpenses`** — pedido dele em 10/09, adiado pelo
+      dashboard.
+- [ ] **A home recarrega as cinco rotas a cada volta de outra tela.** É a causa
+      do 429 que levou ao teto de 1500; resolver isso permite reavaliar o
+      número em vez de deixá-lo alto por inércia.
 
 ### Fase 9 — para fechar
 
