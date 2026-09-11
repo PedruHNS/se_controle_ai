@@ -426,6 +426,15 @@ registradas em vez de sumirem:
       membros derivados, ~90 pontos de chamada. Detalhe em `REFATORACAO.md`.
 - [ ] **Rever o `creditCardExpenses`** — pedido dele em 10/09, adiado pelo
       dashboard.
+- [ ] **Rever o `MoneyFieldWidget` e o `MoneyValueAccessor`.** Pedido dele em
+      11/09/2026, sem diagnóstico dado — perguntar o que incomoda antes de
+      mexer. Contexto para a conversa: são
+      `lib/core/shared/widgets/money_field_widget.dart` (51 linhas) e
+      `lib/core/shared/forms/money_value_accessor.dart` (26), usados juntos em
+      **sete telas** — formulário de gasto (dois campos), de ganho, de cartão,
+      e os diálogos de valor e de reagendamento. É o par que traduz centavos
+      inteiros em texto formatado dentro do `reactive_forms`, então mexer neles
+      alcança todo lugar onde se digita dinheiro.
 - [ ] **A home recarrega as cinco rotas a cada volta de outra tela.** É a causa
       do 429 que levou ao teto de 1500; resolver isso permite reavaliar o
       número em vez de deixá-lo alto por inércia.
