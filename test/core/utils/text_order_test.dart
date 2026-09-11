@@ -11,19 +11,17 @@ void main() {
     // O que importa aqui é que eles fiquem **juntos**, antes de "Zebra"; qual
     // dos dois vem primeiro é o desempate pelo texto original, e a maiúscula
     // ganha porque 'A' é 65 e 'a' é 97.
-    expect(
-      ordenado(['Zebra', 'aluguel', 'Aluguel']),
-      ['Aluguel', 'aluguel', 'Zebra'],
-    );
+    expect(ordenado(['Zebra', 'aluguel', 'Aluguel']), [
+      'Aluguel',
+      'aluguel',
+      'Zebra',
+    ]);
   });
 
   test('acento não joga a palavra para o fim', () {
     // `compareTo` põe tudo que tem acento depois do `z` — "Água" apareceria
     // embaixo de "Zebra", que é onde ninguém procura.
-    expect(
-      ordenado(['Zebra', 'Água', 'Banco']),
-      ['Água', 'Banco', 'Zebra'],
-    );
+    expect(ordenado(['Zebra', 'Água', 'Banco']), ['Água', 'Banco', 'Zebra']);
   });
 
   test('ç ordena junto do c, e não no fim', () {

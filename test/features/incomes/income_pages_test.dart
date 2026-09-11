@@ -140,10 +140,7 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.widgetWithText(
-            ListTile,
-            'Entra em ${Month.label(proximo)}',
-          ),
+          of: find.widgetWithText(ListTile, 'Entra em ${Month.label(proximo)}'),
           matching: find.text(r'R$ 5.800,00'),
         ),
         findsOneWidget,

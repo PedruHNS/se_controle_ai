@@ -63,9 +63,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '108356233019',
     projectId: 'secontroleai',
     storageBucket: 'secontroleai.firebasestorage.app',
-    androidClientId: '108356233019-6resku28iotd37lke81hiajmffo6qt5m.apps.googleusercontent.com',
-    iosClientId: '108356233019-fbhfg3n6d91ases2v6klvq0u0gsl8gov.apps.googleusercontent.com',
+    androidClientId:
+        '108356233019-6resku28iotd37lke81hiajmffo6qt5m.apps.googleusercontent.com',
+    iosClientId:
+        '108356233019-fbhfg3n6d91ases2v6klvq0u0gsl8gov.apps.googleusercontent.com',
     iosBundleId: 'com.secontroleai.app',
   );
-
 }

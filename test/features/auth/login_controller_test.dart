@@ -125,9 +125,9 @@ void main() {
 
     test('falha ao sair aparece na tela', () async {
       final mock = authRepositoryMock(current: pedroLogado);
-      when(() => mock.signOut()).thenAnswer(
-        (_) async => const Error(NetworkFailure()),
-      );
+      when(
+        () => mock.signOut(),
+      ).thenAnswer((_) async => const Error(NetworkFailure()));
       final controller = comRepositorio(mock);
 
       await controller.signOut();

@@ -56,7 +56,10 @@ void main() {
   testWidgets('abre no mês selecionado, sem recorrência', (tester) async {
     await pumpForm(tester);
 
-    expect(find.text(Month.label(SelectedMonthService.initial())), findsOneWidget);
+    expect(
+      find.text(Month.label(SelectedMonthService.initial())),
+      findsOneWidget,
+    );
     // O switch nasce desligado, então a explicação é a do lançamento único.
     expect(
       find.text('Entra só nesta competência — 13º, freela, bônus.'),
@@ -151,7 +154,10 @@ void main() {
     await tester.tap(find.byTooltip('Próximo mês'));
     await tester.pumpAndSettle();
 
-    expect(find.text(Month.label(Month.next(SelectedMonthService.initial()))), findsOneWidget);
+    expect(
+      find.text(Month.label(Month.next(SelectedMonthService.initial()))),
+      findsOneWidget,
+    );
 
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();

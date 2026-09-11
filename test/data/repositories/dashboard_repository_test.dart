@@ -23,7 +23,8 @@ ResponseBody _json(Object? body, int status) => ResponseBody.fromString(
   },
 );
 
-({DashboardRepository repository, MockHttpClientAdapter adapter}) _repoQueResponde(
+({DashboardRepository repository, MockHttpClientAdapter adapter})
+_repoQueResponde(
   Future<ResponseBody> Function(RequestOptions options) responder,
 ) {
   final adapter = MockHttpClientAdapter();

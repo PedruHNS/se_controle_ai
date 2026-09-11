@@ -160,9 +160,7 @@ void main() {
       await tester.tap(find.text('Dinheiro e crédito'));
       await tester.pumpAndSettle();
 
-      final page = tester.widget<ExpenseListPage>(
-        find.byType(ExpenseListPage),
-      );
+      final page = tester.widget<ExpenseListPage>(find.byType(ExpenseListPage));
       expect(page.paymentMethod, isNull);
       expect(find.text('Gastos'), findsWidgets);
     });
@@ -175,9 +173,7 @@ void main() {
       await tester.tap(find.text('Dinheiro'));
       await tester.pumpAndSettle();
 
-      final page = tester.widget<ExpenseListPage>(
-        find.byType(ExpenseListPage),
-      );
+      final page = tester.widget<ExpenseListPage>(find.byType(ExpenseListPage));
       expect(page.paymentMethod, PaymentMethod.debit);
       // O título separa os dois destinos: sem ele, o recorte é
       // indistinguível da lista completa que veio faltando.
@@ -221,21 +217,22 @@ void main() {
 
     // Voltar do formulário cai na home, e não na lista do assunto: o caminho
     // foi o atalho, não o menu.
-    testWidgets('voltar do formulário devolve para a home, com o menu fechado', (
-      tester,
-    ) async {
-      await abrirMenu(tester);
+    testWidgets(
+      'voltar do formulário devolve para a home, com o menu fechado',
+      (tester) async {
+        await abrirMenu(tester);
 
-      await tester.tap(opcao(Icons.payments_outlined));
-      await tester.pumpAndSettle();
+        await tester.tap(opcao(Icons.payments_outlined));
+        await tester.pumpAndSettle();
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+        await tester.pageBack();
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ExpenseFormPage), findsNothing);
-      expect(find.byType(ExpenseListPage), findsNothing);
-      expect(find.byIcon(Icons.menu), findsOneWidget);
-      expect(opcao(Icons.payments_outlined).hitTestable(), findsNothing);
-    });
+        expect(find.byType(ExpenseFormPage), findsNothing);
+        expect(find.byType(ExpenseListPage), findsNothing);
+        expect(find.byIcon(Icons.menu), findsOneWidget);
+        expect(opcao(Icons.payments_outlined).hitTestable(), findsNothing);
+      },
+    );
   });
 }

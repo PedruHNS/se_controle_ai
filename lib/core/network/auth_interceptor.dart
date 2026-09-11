@@ -61,8 +61,7 @@ class AuthInterceptor extends Interceptor {
     // 403 não passa por aqui de propósito: cadastro pendente (AUT-11) não se
     // resolve com token novo. Renovar ali seria gastar uma ida à rede para
     // receber o mesmo 403.
-    if (err.response?.statusCode != 401 ||
-        options.extra[_jaRenovou] == true) {
+    if (err.response?.statusCode != 401 || options.extra[_jaRenovou] == true) {
       return handler.next(err);
     }
 

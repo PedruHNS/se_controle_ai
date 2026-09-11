@@ -101,6 +101,5 @@ void main() {
       expect(opcaoGanho.left, greaterThan(0));
       expect(opcaoGasto.right, lessThan(tela.width));
     });
-
   });
 }

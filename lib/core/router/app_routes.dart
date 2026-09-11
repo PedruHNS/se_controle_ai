@@ -98,7 +98,6 @@ abstract final class AppRoutes {
   static const dashboard = 'dashboard';
   static const dashboardPath = '/dashboard';
 
-
   /// Tags — sem fase no ROADMAP e sem endpoint no backend. A rota existe porque
   /// a tela existe: um aviso de "em desenvolvimento" alcançável pelo menu.
   static const tags = 'tags';

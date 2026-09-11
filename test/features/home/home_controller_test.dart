@@ -83,7 +83,6 @@ void main() {
 
       expect(slowController.balance.value, isA<Loaded<MonthlyBalanceModel>>());
     });
-
   });
 
   // As duas seções de gasto leem a mesma competência com filtros diferentes, e
@@ -98,10 +97,7 @@ void main() {
         gastos.data.items.map((item) => item.description),
         containsAll(['Aluguel', 'Netflix', 'Notebook']),
       );
-      expect(
-        debito.data.items.map((item) => item.description),
-        ['Aluguel'],
-      );
+      expect(debito.data.items.map((item) => item.description), ['Aluguel']);
     });
 
     test('o total da seção de gastos é o do saldo', () {
@@ -252,10 +248,7 @@ void main() {
       // tem de disparar a busca de novo, senão "voltar para o mês atual" estando
       // no mês atual não faria nada e a tela ficaria presa no erro.
       final failing = summaryRepositoryMock(failure: const NetworkFailure());
-      final controllerInError = HomeController(
-        failing,
-        SelectedMonthService(),
-      );
+      final controllerInError = HomeController(failing, SelectedMonthService());
       addTearDown(controllerInError.dispose);
       await Future<void>.delayed(Duration.zero);
 

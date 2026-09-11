@@ -16,7 +16,6 @@ import '../../fixtures/tag_fixture.dart';
 /// Sem widget: o que está em jogo é a lista que o `POST` deixa em memória, e um
 /// teste de tela faria a mesma pergunta passando por diálogo, FAB e navegação.
 void main() {
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MockTagRepository repository;
@@ -59,7 +58,10 @@ void main() {
     await criar('Mercado');
 
     expect(carregadas().map((tag) => tag.name), contains('Mercado'));
-    expect(carregadas().firstWhere((tag) => tag.name == 'Mercado').id, criadaTagId);
+    expect(
+      carregadas().firstWhere((tag) => tag.name == 'Mercado').id,
+      criadaTagId,
+    );
     verifyNever(() => repository.list());
   });
 
@@ -170,7 +172,10 @@ void main() {
     await criar('moradia');
 
     expect(carregadas().map((tag) => tag.name), contains('moradia'));
-    expect(carregadas().firstWhere((tag) => tag.name == 'moradia').usageCount, 3);
+    expect(
+      carregadas().firstWhere((tag) => tag.name == 'moradia').usageCount,
+      3,
+    );
     verifyNever(() => repository.list());
   });
 
@@ -229,14 +234,17 @@ void main() {
     // Mutar a lista de dentro do `Loaded` deixaria o sinal com o mesmo objeto,
     // e sem objeto novo o `SignalBuilder` não repinta: a tag sumia da memória e
     // continuava na tela.
-    test('publica um estado novo, e não a mesma lista mexida por dentro', () async {
-      final antes = controller.state.value;
+    test(
+      'publica um estado novo, e não a mesma lista mexida por dentro',
+      () async {
+        final antes = controller.state.value;
 
-      await controller.delete(moradia);
+        await controller.delete(moradia);
 
-      expect(controller.state.value, isNot(same(antes)));
-      expect((antes as Loaded<List<TagModel>>).data, hasLength(3));
-    });
+        expect(controller.state.value, isNot(same(antes)));
+        expect((antes as Loaded<List<TagModel>>).data, hasLength(3));
+      },
+    );
 
     test('arquivada também sai da lista', () async {
       stubTagDelete(repository, archived: true);
@@ -263,7 +271,6 @@ void main() {
       verify(() => nav.pop()).called(1);
     });
   });
-
 
   // A edição devolve a tag pronta, como a criação. Sem isso a tela teria que
   // pedir a lista de novo só para ver um nome trocado.
@@ -294,19 +301,22 @@ void main() {
 
     // Espelha o mesmo teste do `delete`. O `update` publicava `current.data`
     // direto, então o `[]=` e o `sort` reescreviam a lista do estado anterior.
-    test('publica um estado novo, e não a mesma lista mexida por dentro', () async {
-      final antes = controller.state.value as Loaded<List<TagModel>>;
-      final listaAntiga = antes.data;
+    test(
+      'publica um estado novo, e não a mesma lista mexida por dentro',
+      () async {
+        final antes = controller.state.value as Loaded<List<TagModel>>;
+        final listaAntiga = antes.data;
 
-      await editar(moradia.id, nome: 'Zebra');
+        await editar(moradia.id, nome: 'Zebra');
 
-      expect(controller.state.value, isNot(same(antes)));
-      expect(listaAntiga.map((tag) => tag.name), [
-        'Moradia',
-        'Outros',
-        'Transporte',
-      ]);
-    });
+        expect(controller.state.value, isNot(same(antes)));
+        expect(listaAntiga.map((tag) => tag.name), [
+          'Moradia',
+          'Outros',
+          'Transporte',
+        ]);
+      },
+    );
 
     // Renomear muda o lugar na lista: `update` reordena depois de substituir,
     // como a criação faz. "Moradia" vira "Zebra" e a linha vai para o fim, em
@@ -342,5 +352,4 @@ void main() {
       expect(carregadas().map((tag) => tag.name), contains('Moradia'));
     });
   });
-
 }

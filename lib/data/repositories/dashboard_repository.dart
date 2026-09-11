@@ -16,9 +16,7 @@ abstract interface class DashboardRepository {
   /// Sem ele o backend responde a competência do relógio **dele** (DSH-01), e
   /// a tela mostraria um mês que não é o que o app selecionou — erro que não
   /// aparece em teste nenhum, só na virada do mês.
-  Future<Result<DashboardModel, Failure>> getDashboard({
-    required String month,
-  });
+  Future<Result<DashboardModel, Failure>> getDashboard({required String month});
 }
 
 class DashboardRepositoryImpl implements DashboardRepository {

@@ -125,7 +125,6 @@ void main() {
     });
   });
 
-
   group('dia da compra na linha do resumo (GFX-12)', () {
     Map<String, dynamic> linha(Object? spentAt) => <String, dynamic>{
       'id': 'a0843022-eea2-48ef-8c43-2ab4e4f9bc1f',

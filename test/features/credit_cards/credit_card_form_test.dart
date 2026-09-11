@@ -37,13 +37,10 @@ void main() {
     int? limitCents,
   }) {
     controller.form.control('name').value = name;
-    controller.form.control('lastDigits').value =
-        lastDigits;
-    controller.form.control('closingDay').value =
-        closingDay;
+    controller.form.control('lastDigits').value = lastDigits;
+    controller.form.control('closingDay').value = closingDay;
     controller.form.control('dueDay').value = dueDay;
-    controller.form.control('limitCents').value =
-        limitCents;
+    controller.form.control('limitCents').value = limitCents;
   }
 
   group('cadastro', () {
@@ -57,27 +54,29 @@ void main() {
       // expect(controller.isEditing, isFalse);
     }, skip: 'refatoração do CreditCardController em andamento (04/09)');
 
-    test('recusa submit vazio sem chamar o backend', () async {
-      controller.resetForm();
+    test(
+      'recusa submit vazio sem chamar o backend',
+      () async {
+        controller.resetForm();
 
-      await controller.create();
+        await controller.create();
 
-      // Marcar como tocado é o que faz a mensagem aparecer: campo nunca tocado
-      // fica inválido e silencioso.
-      expect(
-        controller.form.control('name').touched,
-        isTrue,
-      );
-      verifyNever(
-        () => repository.create(
-          name: any(named: 'name'),
-          closingDay: any(named: 'closingDay'),
-          dueDay: any(named: 'dueDay'),
-          lastDigits: any(named: 'lastDigits'),
-          limitCents: any(named: 'limitCents'),
-        ),
-      );
-    }, skip: 'a validação antes de enviar saiu junto com o submit(); ver nota no topo');
+        // Marcar como tocado é o que faz a mensagem aparecer: campo nunca tocado
+        // fica inválido e silencioso.
+        expect(controller.form.control('name').touched, isTrue);
+        verifyNever(
+          () => repository.create(
+            name: any(named: 'name'),
+            closingDay: any(named: 'closingDay'),
+            dueDay: any(named: 'dueDay'),
+            lastDigits: any(named: 'lastDigits'),
+            limitCents: any(named: 'limitCents'),
+          ),
+        );
+      },
+      skip:
+          'a validação antes de enviar saiu junto com o submit(); ver nota no topo',
+    );
 
     test('cria com os opcionais preenchidos', () async {
       controller.resetForm();
@@ -156,10 +155,7 @@ void main() {
       repository = creditCardRepositoryMock(
         create: const Error(NetworkFailure(message: 'sem rede')),
       );
-      final outro = CreditCardController(
-        repository,
-        SelectedMonthService(),
-      );
+      final outro = CreditCardController(repository, SelectedMonthService());
       addTearDown(outro.dispose);
       await Future<void>.delayed(Duration.zero);
 
@@ -220,7 +216,9 @@ void main() {
       fill(lastDigits: '123');
 
       expect(
-        controller.form.control('lastDigits').hasError(ValidationMessage.pattern),
+        controller.form
+            .control('lastDigits')
+            .hasError(ValidationMessage.pattern),
         isTrue,
       );
       expect(controller.form.valid, isFalse);
@@ -418,9 +416,7 @@ void main() {
     // Um cartão que já era magro continua magro: os dois opcionais vão como
     // null, e vão — chave faltando não existe mais.
     test('opcional que já era vazio vai como null, e não some', () async {
-      controller.loadCardCredit(
-        CreditCardModel.fromJson(cartaoSimplesJson),
-      );
+      controller.loadCardCredit(CreditCardModel.fromJson(cartaoSimplesJson));
       controller.form.control('name').value = 'Outro';
 
       await controller.update(nubankId);

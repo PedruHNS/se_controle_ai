@@ -307,8 +307,8 @@ void main() {
           limitCents: any(named: 'limitCents'),
         ),
       );
-    // Pulado: refatoração do CreditCardController em andamento (04/09).
-  }, skip: true);
+      // Pulado: refatoração do CreditCardController em andamento (04/09).
+    }, skip: true);
 
     testWidgets('cadastra com nome, dias pelas setas e limite digitado', (
       tester,
@@ -447,7 +447,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, 'sem rede'), findsOneWidget);
-    // Pulado: sem _applyFailure, generalFailure nunca é preenchido.
+      // Pulado: sem _applyFailure, generalFailure nunca é preenchido.
     }, skip: true);
   });
 
@@ -491,7 +491,9 @@ void main() {
     // O que a tela precisa provar do CAR-08: o que ela mandou é o cartão
     // inteiro, montado a partir do que está nos campos — e não só o que a
     // pessoa digitou.
-    testWidgets('editar o nome manda o cartão inteiro (CAR-08)', (tester) async {
+    testWidgets('editar o nome manda o cartão inteiro (CAR-08)', (
+      tester,
+    ) async {
       await pumpForm(tester, id: 'id-nubank');
 
       await tester.enterText(find.byType(TextField).first, 'Nubank roxo');

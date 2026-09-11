@@ -160,9 +160,9 @@ void main() {
       // Quem chama é o interceptor. Estourar aqui viraria exceção no meio de
       // qualquer tela; sem header, a requisição vira 401, que já tem caminho.
       final user = logado();
-      when(() => user.getIdToken(any())).thenThrow(
-        FirebaseAuthException(code: 'network-request-failed'),
-      );
+      when(
+        () => user.getIdToken(any()),
+      ).thenThrow(FirebaseAuthException(code: 'network-request-failed'));
       when(() => auth.currentUser).thenReturn(user);
 
       expect(await repository.idToken(), isNull);
@@ -185,14 +185,14 @@ void main() {
 
     test('changes emite null ao sair', () async {
       final user = logado();
-      when(() => auth.authStateChanges()).thenAnswer(
-        (_) => Stream<User?>.fromIterable([user, null]),
-      );
+      when(
+        () => auth.authStateChanges(),
+      ).thenAnswer((_) => Stream<User?>.fromIterable([user, null]));
 
-      expect(
-        await repository.changes.map((u) => u?.uid).toList(),
-        ['uid-do-pedro', null],
-      );
+      expect(await repository.changes.map((u) => u?.uid).toList(), [
+        'uid-do-pedro',
+        null,
+      ]);
     });
   });
 }

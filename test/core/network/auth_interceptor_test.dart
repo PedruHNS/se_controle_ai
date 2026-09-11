@@ -98,7 +98,10 @@ void main() {
       stubToken(normal: null);
       final (:dio, :servidor) = montar([401]);
 
-      await expectLater(dio.get<dynamic>('/tags'), throwsA(isA<DioException>()));
+      await expectLater(
+        dio.get<dynamic>('/tags'),
+        throwsA(isA<DioException>()),
+      );
 
       expect(servidor.recebidas.first.containsKey('Authorization'), isFalse);
     });
@@ -126,7 +129,10 @@ void main() {
       stubToken(normal: 'token-velho', renovado: 'token-novo');
       final (:dio, :servidor) = montar([401]);
 
-      await expectLater(dio.get<dynamic>('/tags'), throwsA(isA<DioException>()));
+      await expectLater(
+        dio.get<dynamic>('/tags'),
+        throwsA(isA<DioException>()),
+      );
 
       expect(servidor.recebidas, hasLength(2));
       verify(() => auth.idToken(forceRefresh: true)).called(1);
@@ -136,7 +142,10 @@ void main() {
       stubToken(normal: 'token-velho', renovado: null);
       final (:dio, :servidor) = montar([401]);
 
-      await expectLater(dio.get<dynamic>('/tags'), throwsA(isA<DioException>()));
+      await expectLater(
+        dio.get<dynamic>('/tags'),
+        throwsA(isA<DioException>()),
+      );
 
       expect(servidor.recebidas, hasLength(1));
     });

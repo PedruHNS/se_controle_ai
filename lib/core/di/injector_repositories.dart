@@ -11,10 +11,8 @@ void _registerRepositories() {
   // é o único que outra peça de infraestrutura consome — o interceptor do Dio
   // pede o token a ele antes de cada requisição.
   getIt.registerLazySingleton<AuthRepository>(
-    () => FirebaseAuthRepository(
-      FirebaseAuth.instance,
-      PlatformGoogleIdentity(),
-    ),
+    () =>
+        FirebaseAuthRepository(FirebaseAuth.instance, PlatformGoogleIdentity()),
   );
 
   getIt.registerLazySingleton<SummaryRepository>(

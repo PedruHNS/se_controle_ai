@@ -55,7 +55,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Entrando…'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('login-google')), warnIfMissed: false);
+    await tester.tap(
+      find.byKey(const Key('login-google')),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle();
 
     verify(() => mock.signInWithGoogle()).called(1);
@@ -105,7 +108,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('login-erro')), findsOneWidget);
-    expect(find.text('Esta conta já entra por outro provedor.'), findsOneWidget);
+    expect(
+      find.text('Esta conta já entra por outro provedor.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('desistir não deixa nada vermelho na tela', (tester) async {

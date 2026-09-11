@@ -79,8 +79,7 @@ void main() {
 
       await controller.start('cartao-1');
 
-      final view =
-          (controller.state.value as Loaded<CreditCardBillModel>).data;
+      final view = (controller.state.value as Loaded<CreditCardBillModel>).data;
       expect(view.totalCents, 20490);
     });
 
