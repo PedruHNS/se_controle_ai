@@ -351,7 +351,8 @@ porque a rota destrava os sete cards de uma vez.
       estreou a pasta `lib/data/enums/`. **O teste de contrato roda contra o
       exemplo da spec, e não contra payload real capturado**: os números foram
       escolhidos para os cinco invariantes fecharem, e é isso que os 20 testes
-      conferem. Trocar o fixture pelo payload real continua pendente.
+      conferem. Ele conferiu a tela contra o backend de verdade em 11/09 e deu
+      por bom — o contrato ficou validado pelo uso, e não por teste.
 - [x] **A3 · Repositório.** No molde do `CreditCardRepository`, com uma
       diferença: `month` é obrigatório. Sem ele o backend responde a
       competência do relógio **dele**, e a tela mostraria um mês diferente do
@@ -396,9 +397,16 @@ porque a rota destrava os sete cards de uma vez.
 Nada aqui bloqueia o dashboard — são pontas que apareceram no caminho e ficaram
 registradas em vez de sumirem:
 
-- [ ] **O payload real nunca foi capturado.** O fixture do app e o teste de
-      contrato saem do exemplo da spec. Os cinco invariantes (DSH-03, 10, 12,
-      19 e 22) seguem sem conferência contra o banco de verdade.
+- [x] **O payload real não foi capturado, e ficou assim de propósito.** O
+      fixture do app e o teste de contrato saem do exemplo da spec. Ele
+      conferiu a tela rodando contra o backend de verdade em 11/09/2026 e deu
+      por bom — então o contrato está validado pelo uso, e não por teste.
+
+      O que isso cobre: o app lê o que o backend manda, nos meses que ele
+      olhou. O que continua descoberto: os cinco invariantes (DSH-03, 10, 12,
+      19 e 22) conferidos aritmeticamente contra o banco, e o dia em que o
+      backend mudar de forma sem ninguém notar — nenhum teste do app acusaria,
+      porque todos comem o fixture escrito à mão.
 - [ ] **O logout deixa os outros controllers com a instância antiga do
       `SelectedMonthService`.** Só a `HomeController` e o serviço são
       resetados; os demais `lazySingleton` continuam segurando o signal já
