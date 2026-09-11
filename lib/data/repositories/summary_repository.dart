@@ -4,7 +4,6 @@ import '../../core/errors/app_exception.dart';
 import '../../core/errors/failure.dart';
 import '../../core/errors/serialization_failure.dart';
 import '../../core/network/api_client.dart';
-import '../models/month_projection_model.dart';
 import '../models/credit_card_invoice_model.dart';
 import '../models/monthly_balance_model.dart';
 import '../models/monthly_summary_model.dart';
@@ -35,12 +34,6 @@ abstract interface class SummaryRepository {
   /// Resumo do mês inteiro numa resposta. A home não usa mais — ver
   /// [MonthlySummaryModel].
   Future<Result<MonthlySummaryModel, Failure>> getMonthly({String? month});
-
-  /// Projeção de saldo a partir de [from], por [months] meses (1 a 60).
-  Future<Result<List<MonthProjectionModel>, Failure>> getProjection({
-    String? from,
-    int months = 12,
-  });
 }
 
 class SummaryRepositoryImpl implements SummaryRepository {
@@ -119,26 +112,6 @@ class SummaryRepositoryImpl implements SummaryRepository {
       );
       return Success(
         MonthlySummaryModel.fromJson(Decode.object(response.data)),
-      );
-    } on AppException catch (exception) {
-      return Error(Failure.fromException(exception));
-    } catch (error, stackTrace) {
-      return Error(serializationFailure(error, stackTrace));
-    }
-  }
-
-  @override
-  Future<Result<List<MonthProjectionModel>, Failure>> getProjection({
-    String? from,
-    int months = 12,
-  }) async {
-    try {
-      final response = await _api.get(
-        '/summary/projection',
-        queryParameters: {'from': from, 'months': months},
-      );
-      return Success(
-        Decode.listOf(response.data, MonthProjectionModel.fromJson),
       );
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));

@@ -10,11 +10,11 @@ import 'package:se_controle_ai/features/home/widgets/home_fab.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 import 'package:se_controle_ai/features/notifications/view/notification_list_page.dart';
-import 'package:se_controle_ai/features/projection/view/projection_page.dart';
 import 'package:se_controle_ai/features/tags/view/tag_list_page.dart';
 
 import '../../fixtures/test_injector.dart';
 import 'package:se_controle_ai/data/enums/payment_method.dart';
+import 'package:se_controle_ai/features/dashboard/view/dashboard_page.dart';
 
 void main() {
   // O drawer navega de verdade, então o teste roda sobre o router do app e não
@@ -25,6 +25,7 @@ void main() {
     setupCreditCardTestInjector();
     setupExpenseTestInjector();
     setupTagTestInjector();
+    setupDashboardTestInjector();
   });
 
   // O appRouter é global e guarda a pilha entre testes.
@@ -50,20 +51,23 @@ void main() {
   ) async {
     await openDrawer(tester);
 
+    // O dashboard é o primeiro da lista desde 11/09, no lugar que a projeção
+    // ocupava — ela saiu do app junto com a tela.
+    expect(item('Dashboard'), findsOneWidget);
     expect(item('Ganhos'), findsOneWidget);
     expect(item('Gastos'), findsOneWidget);
     expect(item('Cartões'), findsOneWidget);
-    expect(item('Projeção'), findsOneWidget);
     expect(item('Tags'), findsOneWidget);
+    expect(item('Projeção'), findsNothing);
   });
 
-  testWidgets('Projeção leva à tela de projeção', (tester) async {
+  testWidgets('Dashboard leva ao dashboard', (tester) async {
     await openDrawer(tester);
 
-    await tester.tap(item('Projeção'));
+    await tester.tap(item('Dashboard'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ProjectionPage), findsOneWidget);
+    expect(find.byType(DashboardPage), findsOneWidget);
   });
 
   testWidgets('Gastos leva à lista de gastos', (tester) async {

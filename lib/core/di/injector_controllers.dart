@@ -42,16 +42,6 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
-  // A projeção é lazySingleton como as listas: o horizonte escolhido sobrevive
-  // a sair da tela e voltar, que é o mesmo motivo de o mês da home sobreviver.
-  getIt.registerLazySingleton<ProjectionController>(
-    () => ProjectionController(
-      getIt<SummaryRepository>(),
-      getIt<SelectedMonthService>(),
-    ),
-    dispose: (e) => e.dispose(),
-  );
-
   // O dashboard segue a regra das listas: uma tela só, estado que vale preservar
   // entre idas e vindas, e o get_it libera — o `dispose` cancela a inscrição no
   // mês, então a tela fechada não busca em segundo plano.

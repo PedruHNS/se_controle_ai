@@ -94,8 +94,10 @@ abstract final class AppRoutes {
   static const paymentMethodParam = 'paymentMethod';
 
   // Projeção — Fase 6
-  static const projection = 'projection';
-  static const projectionPath = '/projection';
+  /// O dashboard mensal — sete cards numa tela. Substitui a projeção.
+  static const dashboard = 'dashboard';
+  static const dashboardPath = '/dashboard';
+
 
   /// Tags — sem fase no ROADMAP e sem endpoint no backend. A rota existe porque
   /// a tela existe: um aviso de "em desenvolvimento" alcançável pelo menu.

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
-import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
 import 'package:se_controle_ai/data/models/summary_line_item_model.dart';
 
@@ -126,21 +125,6 @@ void main() {
     });
   });
 
-  group('MonthProjectionModel.fromJson', () {
-    test('lê saldo do mês e acumulado', () {
-      final projection = MonthProjectionModel.fromJson({
-        'month': '2026-09',
-        'incomeCents': 500000,
-        'expenseCents': 245590,
-        'balanceCents': 254410,
-        'cumulativeBalanceCents': 508820,
-      });
-
-      expect(projection.month, '2026-09');
-      expect(projection.balanceCents, 254410);
-      expect(projection.cumulativeBalanceCents, 508820);
-    });
-  });
 
   group('dia da compra na linha do resumo (GFX-12)', () {
     Map<String, dynamic> linha(Object? spentAt) => <String, dynamic>{

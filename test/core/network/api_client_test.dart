@@ -150,13 +150,13 @@ void main() {
       );
 
       await client.get(
-        '/summary/projection',
-        queryParameters: {'from': '2026-08', 'months': 12},
+        '/dashboard',
+        queryParameters: {'month': '2026-08', 'dias': 30},
       );
 
       expect(lastRequestOf(adapter).uri.queryParameters, {
-        'from': '2026-08',
-        'months': '12',
+        'month': '2026-08',
+        'dias': '30',
       });
     });
 

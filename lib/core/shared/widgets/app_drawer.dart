@@ -41,6 +41,11 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
           _DrawerItem(
+            icon: Icons.dashboard_outlined,
+            label: 'Dashboard',
+            route: AppRoutes.dashboard,
+          ),
+          _DrawerItem(
             icon: Icons.trending_up,
             label: 'Ganhos',
             route: AppRoutes.incomes,
@@ -54,11 +59,6 @@ class AppDrawer extends StatelessWidget {
             icon: Icons.credit_card,
             label: 'Cartões',
             route: AppRoutes.creditCards,
-          ),
-          _DrawerItem(
-            icon: Icons.show_chart,
-            label: 'Projeção',
-            route: AppRoutes.projection,
           ),
           _DrawerItem(
             icon: Icons.sell_outlined,

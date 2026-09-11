@@ -20,7 +20,7 @@ import '../../features/expenses/view/expense_form_page.dart';
 import '../../features/expenses/view/expense_list_page.dart';
 import '../../features/incomes/view/income_list_page.dart';
 import '../../features/notifications/view/notification_list_page.dart';
-import '../../features/projection/view/projection_page.dart';
+import '../../features/dashboard/view/dashboard_page.dart';
 import '../../features/tags/view/tag_list_page.dart';
 import 'app_routes.dart';
 import 'auth_gate.dart';
@@ -226,9 +226,9 @@ final GoRouter appRouter = GoRouter(
     ),
 
     GoRoute(
-      path: AppRoutes.projectionPath,
-      name: AppRoutes.projection,
-      builder: (context, state) => const ProjectionPage(),
+      path: AppRoutes.dashboardPath,
+      name: AppRoutes.dashboard,
+      builder: (context, state) => const DashboardPage(),
     ),
   ],
 

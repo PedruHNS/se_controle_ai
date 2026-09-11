@@ -18,10 +18,11 @@ import 'package:se_controle_ai/features/incomes/controller/income_detail_control
 import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_list_controller.dart';
 import 'package:se_controle_ai/core/theme/theme_controller.dart';
-import 'package:se_controle_ai/features/projection/controller/projection_controller.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 
 import 'mocks.dart';
+import 'package:se_controle_ai/features/dashboard/controller/dashboard_controller.dart';
+import 'package:se_controle_ai/data/repositories/dashboard_repository.dart';
 
 /// Registra as dependências que as telas resolvem, com os repositórios mockados.
 ///
@@ -75,9 +76,6 @@ MockSummaryRepository setupTestInjector() {
   if (getIt.isRegistered<HomeController>()) {
     getIt.unregister<HomeController>();
   }
-  if (getIt.isRegistered<ProjectionController>()) {
-    getIt.unregister<ProjectionController>();
-  }
   if (getIt.isRegistered<ThemeController>()) {
     getIt.unregister<ThemeController>();
   }
@@ -102,13 +100,6 @@ MockSummaryRepository setupTestInjector() {
         getIt<SelectedMonthService>(),
       ),
       dispose: (controller) => controller.dispose(),
-    )
-    // A projeção lê o mesmo repositório do resumo, então vem no mesmo pacote.
-    ..registerFactory<ProjectionController>(
-      () => ProjectionController(
-        getIt<SummaryRepository>(),
-        getIt<SelectedMonthService>(),
-      ),
     )
     // O tema não é de feature nenhuma, mas o menu lateral o resolve — e o menu
     // aparece em todo teste que monta a home. Sem isto, qualquer tela com
@@ -260,6 +251,37 @@ MockCreditCardRepository setupCreditCardTestInjector({
 /// [setupCreditCardTestInjector] logo acima. Registrar um mock de cartão aqui
 /// dentro esconderia essa dependência, que é justamente o que a Fase 4 tem de
 /// novo em relação a ganhos.
+/// O mesmo para o dashboard.
+MockDashboardRepository setupDashboardTestInjector({
+  MockDashboardRepository? mock,
+}) {
+  final repository = mock ?? dashboardRepositoryMock();
+
+  if (!getIt.isRegistered<SelectedMonthService>()) setupSelectedMonth();
+
+  if (getIt.isRegistered<DashboardRepository>()) {
+    getIt.unregister<DashboardRepository>();
+  }
+  if (getIt.isRegistered<DashboardController>()) {
+    getIt.unregister<DashboardController>();
+  }
+
+  getIt
+    ..registerSingleton<DashboardRepository>(repository)
+    // `lazySingleton` com `dispose:`, como as outras listas: a `DashboardPage`
+    // chama `resetLazySingleton` no seu `dispose`, e o get_it recusa isso em
+    // registro que não seja lazy.
+    ..registerLazySingleton<DashboardController>(
+      () => DashboardController(
+        repository: getIt<DashboardRepository>(),
+        selectedMonth: getIt<SelectedMonthService>(),
+      ),
+      dispose: (controller) => controller.dispose(),
+    );
+
+  return repository;
+}
+
 MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
   final repository = mock ?? expenseRepositoryMock();
   setupTagTestInjector();

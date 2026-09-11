@@ -58,10 +58,10 @@ resposta atrasada. Decidido em 11/09/2026.
 **Sem `silent`.** `load({bool silent = false})` não existe: rebuscar mostra o
 estado de carregamento, e ponto. A tela cuida do que aparece durante ele.
 
-Essas duas ficaram para trás em oito controllers antigos — `home`,
-`expense_list`, `expense_detail`, `income_list`, `income_detail`,
-`credit_card_expenses`, `projection`. **Não sair tirando em mutirão**; alinhar
-ao mexer, e sabendo o que muda:
+Essas duas ficaram para trás em seis controllers antigos — `home`,
+`expense_list`, `expense_detail`, `income_list`, `income_detail` e
+`credit_card_expenses`. **Não sair tirando em mutirão**; alinhar ao mexer, e
+sabendo o que muda:
 
 - sem `requestId`, dois toques rápidos podem deixar a resposta antiga
   sobrescrever a nova;

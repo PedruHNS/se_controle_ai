@@ -8,7 +8,6 @@ import 'package:se_controle_ai/data/models/credit_card_bill_model.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
-import 'package:se_controle_ai/data/models/month_projection_model.dart';
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
 import 'package:se_controle_ai/data/models/monthly_balance_model.dart';
 import 'package:se_controle_ai/data/models/monthly_summary_model.dart';
@@ -25,7 +24,6 @@ import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'credit_card_fixture.dart';
 import 'expense_fixture.dart';
 import 'income_fixture.dart';
-import 'projection_fixture.dart';
 import 'summary_fixture.dart';
 import 'tag_fixture.dart';
 import 'package:se_controle_ai/data/enums/payment_method.dart';
@@ -277,31 +275,8 @@ void stubHome(
   );
 }
 
-/// Stub de `getProjection`.
-///
-/// O padrão é a projeção de exemplo, e não uma lista vazia: quase todo teste que
-/// mexe em projeção quer os seis meses reais, e quem quiser vazio passa vazio.
-void stubProjection(
-  MockSummaryRepository mock, {
-  Result<List<MonthProjectionModel>, Failure>? result,
-  Future<void>? pendenteAte,
-}) {
-  final answer =
-      result ??
-      Success(projectionJson.map(MonthProjectionModel.fromJson).toList());
-  when(
-    () => mock.getProjection(
-      from: any(named: 'from'),
-      months: any(named: 'months'),
-    ),
-  ).thenAnswer((_) async {
-    if (pendenteAte != null) await pendenteAte;
-    return answer;
-  });
-}
-
 /// Mock de resumo pronto para uso: responde o mês de exemplo em qualquer mês
-/// pedido, e devolve projeção vazia.
+/// pedido.
 MockSummaryRepository summaryRepositoryMock({
   Map<String, dynamic>? json,
   Failure? failure,
@@ -310,7 +285,6 @@ MockSummaryRepository summaryRepositoryMock({
   final mock = MockSummaryRepository();
   stubHome(mock, json: json, failure: failure, pendenteAte: pendenteAte);
   stubMonthly(mock);
-  stubProjection(mock);
   return mock;
 }
 
