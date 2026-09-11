@@ -392,52 +392,12 @@ porque a rota destrava os sete cards de uma vez.
       isto.
 - [x] **A15 · Roadmap e commits.**
 
-#### O que sobrou, para ele ajustar depois
+#### O que sobrou
 
-Nada aqui bloqueia o dashboard — são pontas que apareceram no caminho e ficaram
-registradas em vez de sumirem:
-
-- [x] **O payload real não foi capturado, e ficou assim de propósito.** O
-      fixture do app e o teste de contrato saem do exemplo da spec. Ele
-      conferiu a tela rodando contra o backend de verdade em 11/09/2026 e deu
-      por bom — então o contrato está validado pelo uso, e não por teste.
-
-      O que isso cobre: o app lê o que o backend manda, nos meses que ele
-      olhou. O que continua descoberto: os cinco invariantes (DSH-03, 10, 12,
-      19 e 22) conferidos aritmeticamente contra o banco, e o dia em que o
-      backend mudar de forma sem ninguém notar — nenhum teste do app acusaria,
-      porque todos comem o fixture escrito à mão.
-- [ ] **O logout deixa os outros controllers com a instância antiga do
-      `SelectedMonthService`.** Só a `HomeController` e o serviço são
-      resetados; os demais `lazySingleton` continuam segurando o signal já
-      descartado.
-- [ ] **`signal read after disposed` na saída da home**, em
-      `home_page.dart:267`, `:291` e `:315`. Hoje é aviso no console, não
-      quebra a tela.
-- [ ] **O seletor de mês some durante o loading da lista de cartões**, porque
-      vive dentro do ramo `Loaded`. No dashboard isso já foi resolvido — lá ele
-      fica fora do `switch`.
-- [ ] **`ExpenseListController` nunca é liberado**, então o `effect` do mês
-      segue vivo e buscando com a tela fechada.
-- [ ] **`requestId` e `silent` em seis controllers antigos** — `home`,
-      `expense_list`, `expense_detail`, `income_list`, `income_detail` e
-      `credit_card_expenses`. A regra nova proíbe os dois; alinhar ao mexer.
-- [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models** — 13 e 7
-      membros derivados, ~90 pontos de chamada. Detalhe em `REFATORACAO.md`.
-- [ ] **Rever o `creditCardExpenses`** — pedido dele em 10/09, adiado pelo
-      dashboard.
-- [ ] **Rever o `MoneyFieldWidget` e o `MoneyValueAccessor`.** Pedido dele em
-      11/09/2026, sem diagnóstico dado — perguntar o que incomoda antes de
-      mexer. Contexto para a conversa: são
-      `lib/core/shared/widgets/money_field_widget.dart` (51 linhas) e
-      `lib/core/shared/forms/money_value_accessor.dart` (26), usados juntos em
-      **sete telas** — formulário de gasto (dois campos), de ganho, de cartão,
-      e os diálogos de valor e de reagendamento. É o par que traduz centavos
-      inteiros em texto formatado dentro do `reactive_forms`, então mexer neles
-      alcança todo lugar onde se digita dinheiro.
-- [ ] **A home recarrega as cinco rotas a cada volta de outra tela.** É a causa
-      do 429 que levou ao teto de 1500; resolver isso permite reavaliar o
-      número em vez de deixá-lo alto por inércia.
+As pontas que apareceram enquanto o dashboard era feito não moram mais aqui:
+subiram para a seção [**Para ver mais tarde**](#para-ver-mais-tarde), junto com
+o resto da fila. Nenhuma bloqueia o dashboard, e é justamente por isso que elas
+sumiriam de vista se ficassem penduradas numa tarefa concluída.
 
 ### Fase 9 — para fechar
 
@@ -512,6 +472,62 @@ A tela que hospeda as duas primeiras é a **Fase 13**, o perfil da conta.
   exigiria golden test, que o projeto não usa em lugar nenhum.
 - **O rateio de parcelas não é testado aqui**, de propósito: está coberto no
   backend, exaustivamente. Reimplementar duplicaria conhecimento.
+
+---
+
+## Para ver mais tarde
+
+A fila do que ele quer olhar com calma. Nada aqui está quebrado a ponto de
+parar alguém — são coisas que apareceram no caminho de outra tarefa e ficaram
+registradas em vez de sumirem.
+
+Ordem de pedido, não de urgência. Em toda linha marcada como "rever", ele não
+disse o que incomoda: **perguntar antes de mexer**.
+
+- [ ] **Rever o `MoneyFieldWidget` e o `MoneyValueAccessor`.** Pedido dele em
+      11/09/2026, sem diagnóstico dado — perguntar o que incomoda antes de
+      mexer. Contexto para a conversa: são
+      `lib/core/shared/widgets/money_field_widget.dart` (51 linhas) e
+      `lib/core/shared/forms/money_value_accessor.dart` (26), usados juntos em
+      **sete telas** — formulário de gasto (dois campos), de ganho, de cartão,
+      e os diálogos de valor e de reagendamento. É o par que traduz centavos
+      inteiros em texto formatado dentro do `reactive_forms`, então mexer neles
+      alcança todo lugar onde se digita dinheiro.
+- [ ] **Rever o `creditCardExpenses`** — pedido dele em 10/09, adiado pelo
+      dashboard.
+- [ ] **A home recarrega as cinco rotas a cada volta de outra tela.** É a causa
+      do 429 que levou ao teto de 1500; resolver isso permite reavaliar o
+      número em vez de deixá-lo alto por inércia.
+- [ ] **O logout deixa os outros controllers com a instância antiga do
+      `SelectedMonthService`.** Só a `HomeController` e o serviço são
+      resetados; os demais `lazySingleton` continuam segurando o signal já
+      descartado.
+- [ ] **`signal read after disposed` na saída da home**, em
+      `home_page.dart:267`, `:291` e `:315`. Hoje é aviso no console, não
+      quebra a tela.
+- [ ] **O seletor de mês some durante o loading da lista de cartões**, porque
+      vive dentro do ramo `Loaded`. No dashboard isso já foi resolvido — lá ele
+      fica fora do `switch`.
+- [ ] **`ExpenseListController` nunca é liberado**, então o `effect` do mês
+      segue vivo e buscando com a tela fechada.
+- [ ] **`requestId` e `silent` em seis controllers antigos** — `home`,
+      `expense_list`, `expense_detail`, `income_list`, `income_detail` e
+      `credit_card_expenses`. A regra nova proíbe os dois; alinhar ao mexer.
+- [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models** — 13 e 7
+      membros derivados, ~90 pontos de chamada. Detalhe em `REFATORACAO.md`.
+
+### Já resolvido, mas com ressalva
+
+- [x] **O payload real não foi capturado, e ficou assim de propósito.** O
+      fixture do app e o teste de contrato saem do exemplo da spec. Ele
+      conferiu a tela rodando contra o backend de verdade em 11/09/2026 e deu
+      por bom — então o contrato está validado pelo uso, e não por teste.
+
+      O que isso cobre: o app lê o que o backend manda, nos meses que ele
+      olhou. O que continua descoberto: os cinco invariantes (DSH-03, 10, 12,
+      19 e 22) conferidos aritmeticamente contra o banco, e o dia em que o
+      backend mudar de forma sem ninguém notar — nenhum teste do app acusaria,
+      porque todos comem o fixture escrito à mão.
 
 ---
 
