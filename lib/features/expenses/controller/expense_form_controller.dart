@@ -7,6 +7,7 @@ import '../../../core/errors/failure.dart';
 import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
+import '../../../core/utils/iso_date.dart';
 import '../../../core/utils/month.dart';
 import '../../../core/utils/text_order.dart';
 import '../../../data/models/credit_card_model.dart';
@@ -415,6 +416,10 @@ class ExpenseFormController extends BaseController {
   String get _monthField =>
       selectedType == ExpenseType.fixed ? startMonth : firstMonth;
 
+  /// O mesmo campo, para a tela poder ligar o seletor de mês quando alguém
+  /// pedir para ajustar (ver [applyDerivedMonth]).
+  String get monthField => _monthField;
+
   /// É gasto fixo recorrente — assinatura, aluguel — e não compra pontual.
   bool get _isRecurring =>
       selectedType == ExpenseType.fixed &&
@@ -445,12 +450,16 @@ class ExpenseFormController extends BaseController {
         : card.chargeMonthFor(chosen);
   }
 
-  /// O texto embaixo do calendário — que desde que o seletor de mês saiu da
-  /// tela é a **única** coisa que diz onde o gasto vai cair.
+  /// O texto embaixo do calendário: onde o gasto vai cair, e **quando ele sai
+  /// da conta**.
   ///
-  /// Responde "comprei dia 8, por que foi para outubro?" antes de a pergunta
-  /// existir. Sem cartão escolhido não há fatura a nomear, e o campo fica com
-  /// o aviso padrão do widget.
+  /// A data de vencimento entrou em 12/09/2026, junto com a CAR-03. Só o nome
+  /// do mês não bastava: quem tem um cartão que fecha 31 e vence 5 lia "fatura
+  /// de setembro" e pensava naquela que acabou de pagar no dia 5. Dizer
+  /// `vence 05/10` não deixa dúvida sobre qual das duas é.
+  ///
+  /// Sem cartão escolhido não há fatura a nomear, e o campo fica com o aviso
+  /// padrão do widget.
   String? get spentAtHelper {
     final month = derivedMonth;
     if (month == null) return null;
@@ -460,17 +469,38 @@ class ExpenseFormController extends BaseController {
       return 'Entra na competência de ${Month.label(month).toLowerCase()}';
     }
 
-    // Quando a fatura da data da compra já fechou, o texto explica a segunda
-    // conta: sem isso, a competência pular dois meses parece defeito.
+    final vence = IsoDate.label(_dueDate(card, month));
+
+    // Quando a fatura da compra já fechou e o lançamento foi empurrado para a
+    // aberta, o texto explica a segunda conta: sem isso, a competência pular um
+    // mês a mais parece defeito.
     final purchase = card.invoiceMonthFor(control<String>(spentAt).value!);
     if (purchase != month) {
       return 'A fatura de ${Month.label(purchase).toLowerCase()} já fechou '
           'dia ${card.closingDay} · entra na de '
-          '${Month.label(month).toLowerCase()}';
+          '${Month.label(month).toLowerCase()}, que vence $vence';
     }
 
-    return 'Fecha dia ${card.closingDay} · entra na fatura de '
-        '${Month.label(month).toLowerCase()}';
+    return 'Entra na fatura de ${Month.label(month).toLowerCase()} · '
+        'vence $vence';
+  }
+
+  /// O vencimento da fatura de [month]: o dia do vencimento da **própria**
+  /// competência (CAR-03), limitado ao último dia do mês (CAR-04).
+  ///
+  /// A conta mora aqui, e não no model, porque serve a um lugar só — é a regra
+  /// dos models. O `dueDate` que o backend devolve é desta mesma fórmula, mas
+  /// só existe para a competência que foi consultada; aqui o mês ainda está
+  /// sendo escolhido.
+  String _dueDate(CreditCardModel card, String month) {
+    final year = int.tryParse(month.substring(0, 4));
+    final number = int.tryParse(month.substring(5, 7));
+    if (year == null || number == null) return month;
+
+    final lastDay = DateTime(year, number + 1, 0).day;
+    final day = card.dueDay > lastDay ? lastDay : card.dueDay;
+
+    return '$month-${day.toString().padLeft(2, '0')}';
   }
 
   /// O rótulo do campo de data. Assinatura não se "compra" num dia; ela

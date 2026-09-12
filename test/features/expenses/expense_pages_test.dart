@@ -78,6 +78,20 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Pelo mesmo motivo do [tapSalvar]: o "Ajustar competência" fica embaixo do
+  /// campo de data, já fora da área visível do teste.
+  Future<void> tapAjustar(WidgetTester tester) async {
+    final button = find.text('Ajustar competência');
+    await tester.scrollUntilVisible(
+      button,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+  }
+
   /// O formulário cresceu com o seletor de tipo, e o botão saiu da área
   /// visível do teste — a ListView não constrói o que está fora da tela.
   Future<void> tapSalvar(WidgetTester tester) async {
@@ -306,6 +320,46 @@ void main() {
       expect(find.text('Primeira parcela'), findsNothing);
       expect(find.byType(MonthFieldWidget), findsNothing);
       expect(find.text('Dia da compra'), findsOneWidget);
+    });
+
+    // O seletor não voltou para a tela: ele voltou para **debaixo** dela, atrás
+    // de um botão. Quem concorda com a conta continua vendo um campo de tempo
+    // só; quem discorda tem como vencer a regra sem apagar e refazer o gasto.
+    testWidgets('"Ajustar competência" revela o seletor de mês', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      expect(find.byType(MonthFieldWidget), findsNothing);
+
+      await tapAjustar(tester);
+
+      expect(find.byType(MonthFieldWidget), findsOneWidget);
+      expect(find.text('Competência'), findsOneWidget);
+      // O botão sai de cena depois de usado: não há o que ajustar duas vezes.
+      expect(find.text('Ajustar competência'), findsNothing);
+    });
+
+    testWidgets('no parcelado o ajuste move a primeira parcela', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.text('Parcelado'));
+      await tester.pumpAndSettle();
+
+      await tapAjustar(tester);
+
+      expect(find.byType(MonthFieldWidget), findsOneWidget);
+    });
+
+    // Em edição a competência nem viaja no PATCH — um seletor ali seria um
+    // campo que não muda nada.
+    testWidgets('em edição não há ajuste de competência', (tester) async {
+      await pumpForm(tester, id: 'gasto-1');
+
+      expect(find.text('Ajustar competência'), findsNothing);
+      expect(find.byType(MonthFieldWidget), findsNothing);
     });
 
     // Campo obrigatório não tem o que limpar: o X sairia só para deixar o

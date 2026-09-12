@@ -480,21 +480,28 @@ void main() {
 
     // A fatura em que uma compra de **hoje** cai, calculada à parte do código
     // que está sob teste: até o fechamento é a deste mês, depois é a próxima.
-    String faturaDeHoje(int fechamento) {
+    /// A competência de uma compra feita **hoje**, pelas duas contas da CAR-03:
+    /// a fatura pelo fechamento e, quando ela vence depois de fechar, o mês
+    /// seguinte — que é quando a fatura é paga.
+    String faturaDeHoje(int fechamento, {int vencimento = 17}) {
       final hoje = DateTime.now();
       final mes = Month.of(hoje.year, hoje.month);
+      final fecha = hoje.day <= fechamento ? mes : Month.next(mes);
 
-      return hoje.day <= fechamento ? mes : Month.next(mes);
+      return vencimento > fechamento ? fecha : Month.next(fecha);
     }
 
-    /// Um cartão só, com o fechamento que o teste precisa.
-    void comCartaoQueFecha(int dia) {
+    /// Um cartão só, com os dias que o teste precisa. O vencimento importa
+    /// tanto quanto o fechamento desde a CAR-03: é ele que diz em que mês a
+    /// fatura é paga, e é esse mês que vira competência.
+    void comCartaoQueFecha(int dia, {int vence = 17}) {
       cards = creditCardRepositoryMock(
         list: Success([
           CreditCardModel.fromJson({
             ...nubankJson,
             'id': nubankId,
             'closingDay': dia,
+            'dueDay': vence,
           }),
         ]),
       );
@@ -525,7 +532,25 @@ void main() {
       );
     });
 
-    test('cartão que fecha no fim do mês mantém a compra neste mês', () async {
+    // O bug de 12/09/2026, como aconteceu: Inter fecha 31 e vence 5. A compra
+    // do dia 12 cabe na fatura que fecha em 30/09 — e essa fatura só é paga em
+    // 05/10. Antes ela virava competência de setembro, o mês da fatura que já
+    // tinha sido paga no dia 5.
+    test('cartão que vence antes de fechar joga a compra no mês do pagamento', () async {
+      comCartaoQueFecha(31, vence: 5);
+      await controller.start();
+
+      await comprarHoje();
+
+      final hoje = DateTime.now();
+      expect(
+        controller.control<String>(ExpenseFormController.startMonth).value,
+        Month.next(Month.of(hoje.year, hoje.month)),
+      );
+      expect(controller.spentAtHelper, contains('vence 05/'));
+    });
+
+    test('fechamento no fim do mês não empurra pela data da compra', () async {
       comCartaoQueFecha(28);
       await controller.start();
 
@@ -619,9 +644,13 @@ void main() {
       });
       await Future<void>.delayed(Duration.zero);
 
+      // Fevereiro, e não janeiro: a compra de 05/01 entra na fatura que fecha
+      // em 28/01, e essa fatura vence no dia 17 de **fevereiro**. Não é o
+      // empurrão da fatura aberta — é a segunda conta da CAR-03, que vale
+      // igual no recorrente.
       expect(
         controller.control<String>(ExpenseFormController.startMonth).value,
-        '2026-01',
+        '2026-02',
       );
 
       // A mesma data numa compra pontual cai na fatura aberta, que é o
@@ -631,7 +660,7 @@ void main() {
 
       expect(
         controller.control<String>(ExpenseFormController.startMonth).value,
-        isNot('2026-01'),
+        isNot('2026-02'),
       );
     });
 
@@ -648,7 +677,7 @@ void main() {
       });
       await Future<void>.delayed(Duration.zero);
 
-      expect(controller.spentAtHelper, contains('Fecha dia 1'));
+      expect(controller.spentAtHelper, contains('fatura de'));
 
       await comprarHoje();
 
@@ -656,6 +685,9 @@ void main() {
         controller.spentAtHelper,
         contains(Month.label(faturaDeHoje(1)).toLowerCase()),
       );
+      // O dia do vencimento entra junto: só o nome do mês não bastava para
+      // saber de qual das duas faturas a frase está falando.
+      expect(controller.spentAtHelper, contains('vence 17/'));
     });
   });
 

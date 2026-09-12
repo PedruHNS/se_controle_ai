@@ -55,24 +55,25 @@ class CreditCardModel {
 
   bool get hasLimit => limitCents != null;
 
-  /// A fatura vence no mês **seguinte** ao da competência?
+  /// A fatura fecha no mês **anterior** ao que lhe dá nome?
   ///
-  /// Espelha o CAR-03 — `dueDay > closingDay` vence no próprio mês, senão no
-  /// seguinte — e existe só para a tela **explicar** a data enquanto a pessoa
-  /// escolhe os dias, antes de haver qualquer `dueDate` para mostrar. A data que
-  /// vale continua sendo a que o backend calcula.
-  bool get dueInNextMonth => dueDay <= closingDay;
+  /// Desde a CAR-03 de 12/09/2026 a competência é o mês do **pagamento**, então
+  /// num cartão que vence antes de fechar (`dueDay <= closingDay`) a fatura de
+  /// outubro é a que fechou em setembro. Existe para a tela **explicar** isso
+  /// enquanto a pessoa escolhe os dias, antes de haver qualquer [dueDate] para
+  /// mostrar.
+  bool get closesInPreviousMonth => dueDay <= closingDay;
 
-  /// Em qual fatura cai uma compra feita em [isoDate] (`YYYY-MM-DD`).
+  /// Em qual **fatura** cai uma compra feita em [isoDate] (`YYYY-MM-DD`) — pelo
+  /// fechamento, sem ainda dizer quando ela é paga.
   ///
   /// Até o dia do fechamento a compra entra na fatura que fecha neste mês; do
-  /// dia seguinte em diante ela já é da próxima. É a mesma regra do CAR-03
-  /// vista do outro lado: em vez de "quando vence", "o que ainda entra".
+  /// dia seguinte em diante ela já é da próxima.
   ///
   /// Sem isto o app deixava a compra do dia 8, num cartão que fecha dia 5, na
   /// fatura que fechou três dias antes — o gasto aparecia num mês em que
   /// ninguém iria pagá-lo.
-  String invoiceMonthFor(String isoDate) {
+  String closingMonthFor(String isoDate) {
     if (isoDate.length != 10) return isoDate;
 
     final month = isoDate.substring(0, 7);
@@ -80,6 +81,26 @@ class CreditCardModel {
     if (day == null) return month;
 
     return day <= closingDay ? month : Month.next(month);
+  }
+
+  /// A **competência** de uma compra feita em [isoDate]: o mês em que a fatura
+  /// dela é paga.
+  ///
+  /// Duas contas em sequência, e é a segunda que mudou em 12/09/2026. A
+  /// primeira acha a fatura pelo fechamento ([closingMonthFor]); a segunda diz
+  /// em que mês essa fatura vence — no próprio, quando `dueDay > closingDay`, ou
+  /// no seguinte.
+  ///
+  /// Antes a competência parava na primeira conta, e o mês do gasto era o do
+  /// fechamento. Num cartão que fecha 31 e vence 5 isso deslocava tudo: a compra
+  /// de 12/09 ia para "setembro", mas só saía da conta em 05/10 — e a fatura
+  /// paga em 05/09 se chamava agosto. Agora a competência quer dizer a mesma
+  /// coisa no cartão e no débito: **o mês em que o dinheiro sai**.
+  String invoiceMonthFor(String isoDate) {
+    final closing = closingMonthFor(isoDate);
+    if (closing.length != 7) return closing;
+
+    return closesInPreviousMonth ? Month.next(closing) : closing;
   }
 
   /// A fatura que ainda aceita lançamento — a que vai fechar hoje ou depois.

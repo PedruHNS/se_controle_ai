@@ -38,7 +38,7 @@ const cartaoSimplesJson = <String, dynamic>{
   'closingDay': 27,
   'dueDay': 5,
   'limitCents': null,
-  'dueDate': '2026-04-05',
+  'dueDate': '2026-03-05',
   // Competência consultada, fatura limpa: zero, e não null.
   'totalCents': 0,
 };

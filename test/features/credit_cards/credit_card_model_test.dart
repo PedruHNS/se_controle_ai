@@ -54,43 +54,70 @@ void main() {
     });
   });
 
-  group('dueInNextMonth', () {
-    // CAR-03. Existe para a tela explicar a data enquanto a pessoa escolhe os
-    // dias; a data que vale continua sendo o `dueDate` do backend.
-    test('vencimento depois do fechamento vence no próprio mês', () {
+  group('closesInPreviousMonth', () {
+    // CAR-03, revista em 12/09/2026: a fatura leva o nome do mês em que é paga.
+    // Este getter diz se ela fechou no mês anterior ao do próprio nome — é o
+    // que a tela de cadastro de cartão explica enquanto a pessoa escolhe os
+    // dias.
+    test('vencimento depois do fechamento: fecha e vence no mesmo mês', () {
       final card = CreditCardModel.fromJson(nubankJson); // fecha 10, vence 17
 
-      expect(card.dueInNextMonth, isFalse);
-      // E o backend concorda: fatura de agosto vence em agosto.
+      expect(card.closesInPreviousMonth, isFalse);
+      // E o backend concorda: a fatura de agosto vence em agosto.
       expect(card.dueDate, startsWith('2026-08'));
     });
 
-    test('vencimento antes do fechamento vence no mês seguinte', () {
+    test('vencimento antes do fechamento: cobra o mês anterior', () {
       final card = CreditCardModel.fromJson(
         cartaoSimplesJson,
       ); // fecha 27, vence 5
 
-      expect(card.dueInNextMonth, isTrue);
-      // Confirmado contra o Docker: competência de março, vencimento em abril.
-      expect(card.dueDate, '2026-04-05');
+      expect(card.closesInPreviousMonth, isTrue);
+      // O vencimento agora cai na própria competência: fatura de março vence
+      // em 05/03, e o que ela cobra são as compras até 27/02.
+      expect(card.dueDate, '2026-03-05');
     });
 
-    test('dias iguais vencem no mês seguinte', () {
+    test('dias iguais também cobram o mês anterior', () {
       final card = CreditCardModel.fromJson({
         ...cartaoSimplesJson,
         'closingDay': 10,
         'dueDay': 10,
       });
 
-      expect(card.dueInNextMonth, isTrue);
+      expect(card.closesInPreviousMonth, isTrue);
+    });
+  });
+
+  group('closingMonthFor', () {
+    // A primeira das duas contas: em qual fatura a compra entra, pelo
+    // fechamento, sem ainda dizer quando ela é paga.
+    test('o próprio dia do fechamento ainda entra', () {
+      final card = CreditCardModel.fromJson(nubankJson); // fecha 10
+
+      expect(card.closingMonthFor('2026-09-10'), '2026-09');
+      expect(card.closingMonthFor('2026-09-11'), '2026-10');
+    });
+
+    // Fechamento 31 num mês de 30 dias: nenhum dia passa do fechamento, e a
+    // fatura é sempre a que fecha no próprio mês. Sem tabela de dias, sem
+    // `DateTime`.
+    test('fechamento no dia 31 nunca empurra para o mês seguinte', () {
+      final card = CreditCardModel.fromJson({...nubankJson, 'closingDay': 31});
+
+      expect(card.closingMonthFor('2026-04-30'), '2026-04');
+      expect(card.closingMonthFor('2026-02-28'), '2026-02');
     });
   });
 
   group('invoiceMonthFor', () {
+    // A competência: o mês em que a fatura da compra é **paga**. São as duas
+    // contas em sequência — fechamento, depois vencimento.
+
     // O bug de 10/09/2026: a compra do dia 12 num cartão que fecha dia 10 ia
     // para a fatura de setembro, que fechou dois dias antes da compra.
     test('depois do fechamento a compra é da fatura seguinte', () {
-      final card = CreditCardModel.fromJson(nubankJson); // fecha dia 10
+      final card = CreditCardModel.fromJson(nubankJson); // fecha 10, vence 17
 
       expect(card.invoiceMonthFor('2026-09-12'), '2026-10');
     });
@@ -101,36 +128,52 @@ void main() {
       expect(card.invoiceMonthFor('2026-09-09'), '2026-09');
     });
 
-    // A fatura que fecha no dia 10 fecha **com** o dia 10 dentro.
-    test('o próprio dia do fechamento ainda entra', () {
-      final card = CreditCardModel.fromJson(nubankJson);
-
-      expect(card.invoiceMonthFor('2026-09-10'), '2026-09');
-    });
-
     test('a virada do ano acompanha', () {
       final card = CreditCardModel.fromJson(nubankJson);
 
       expect(card.invoiceMonthFor('2026-12-28'), '2027-01');
     });
 
-    // Fechamento 31 num mês de 30 dias: nenhum dia passa do fechamento, e a
-    // fatura é sempre a do próprio mês. Sem tabela de dias, sem `DateTime`.
-    test('fechamento no dia 31 nunca empurra para o mês seguinte', () {
-      final card = CreditCardModel.fromJson({...nubankJson, 'closingDay': 31});
+    // O bug de 12/09/2026, que é o motivo desta segunda conta existir. Inter:
+    // fecha 31, vence 5. A compra do dia 12 entra na fatura que fecha em 30/09
+    // — e essa fatura é paga em 05/10. Antes ela virava competência de
+    // setembro, o mês da fatura que a pessoa já tinha pagado.
+    test('quando a fatura vence depois de fechar, a competência anda junto', () {
+      final inter = CreditCardModel.fromJson({
+        ...cartaoSimplesJson,
+        'closingDay': 31,
+        'dueDay': 5,
+      });
 
-      expect(card.invoiceMonthFor('2026-04-30'), '2026-04');
-      expect(card.invoiceMonthFor('2026-02-28'), '2026-02');
+      expect(inter.closingMonthFor('2026-09-12'), '2026-09');
+      expect(inter.invoiceMonthFor('2026-09-12'), '2026-10');
+    });
+
+    test('o dia do fechamento ainda entra, e a competência é a do pagamento', () {
+      final inter = CreditCardModel.fromJson({
+        ...cartaoSimplesJson,
+        'closingDay': 31,
+        'dueDay': 5,
+      });
+
+      // Dia 30 num mês de 30 dias é o próprio fechamento (CAR-04).
+      expect(inter.invoiceMonthFor('2026-09-30'), '2026-10');
+      expect(inter.invoiceMonthFor('2026-10-01'), '2026-11');
     });
 
     test(
       'cada cartão tem o seu dia, e a mesma compra cai em faturas diferentes',
       () {
-        final nubank = CreditCardModel.fromJson(nubankJson); // fecha 10
-        final outro = CreditCardModel.fromJson(cartaoSimplesJson); // fecha 27
+        final nubank = CreditCardModel.fromJson(nubankJson); // fecha 10/vence 17
+        final outro = CreditCardModel.fromJson(
+          cartaoSimplesJson,
+        ); // fecha 27/vence 5
 
+        // O mesmo mês nos dois, por caminhos opostos: no Nubank a compra passou
+        // do fechamento e foi para a fatura seguinte; no outro ela coube na
+        // fatura que fecha em 27/09, que é paga em outubro.
         expect(nubank.invoiceMonthFor('2026-09-12'), '2026-10');
-        expect(outro.invoiceMonthFor('2026-09-12'), '2026-09');
+        expect(outro.invoiceMonthFor('2026-09-12'), '2026-10');
       },
     );
 
@@ -147,8 +190,15 @@ void main() {
   // fechado naquele mesmo dia. A primeira parcela foi parar num mês já
   // encerrado, e a segunda em outubro.
   group('chargeMonthFor', () {
-    CreditCardModel cartao(int closingDay) =>
-        CreditCardModel.fromJson({...nubankJson, 'closingDay': closingDay});
+    /// Vencimento cinco dias depois do fechamento, de propósito: assim a fatura
+    /// é paga no mês em que fecha, a segunda conta do [invoiceMonthFor] não
+    /// desloca nada, e o que sobra sendo testado aqui é só o empurrão da fatura
+    /// fechada. O cartão deslocado tem teste próprio no fim do grupo.
+    CreditCardModel cartao(int closingDay) => CreditCardModel.fromJson({
+      ...nubankJson,
+      'closingDay': closingDay,
+      'dueDay': closingDay + 5,
+    });
 
     test('fatura já fechada empurra para a primeira aberta', () {
       final card = cartao(1);
@@ -186,6 +236,23 @@ void main() {
       expect(
         card.chargeMonthFor('2026-05-03', now: DateTime(2026, 9, 10)),
         '2026-09',
+      );
+    });
+
+    // As duas contas juntas: o empurrão acha a fatura aberta pelo fechamento, e
+    // a competência dela continua sendo a do pagamento.
+    test('num cartão que vence antes de fechar, o empurrão acompanha', () {
+      final inter = CreditCardModel.fromJson({
+        ...nubankJson,
+        'closingDay': 31,
+        'dueDay': 5,
+      });
+
+      // Compra de maio, lançada em 12/09: a fatura de maio fechou há muito. A
+      // aberta é a que fecha em 30/09, e essa é paga em outubro.
+      expect(
+        inter.chargeMonthFor('2026-05-03', now: DateTime(2026, 9, 12)),
+        '2026-10',
       );
     });
 

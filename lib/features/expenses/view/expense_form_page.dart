@@ -8,6 +8,7 @@ import '../../../core/month/selected_month_service.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/date_field_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
+import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/money.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/expense_form_controller.dart';
@@ -471,31 +472,71 @@ class _InstallmentFields extends StatelessWidget {
   }
 }
 
-/// O dia do gasto — **o único campo de tempo do formulário** desde que o
-/// seletor de competência saiu (GFX-12).
+/// O dia do gasto e, quando alguém discorda da conta, a competência.
 ///
-/// O mês não é mais uma segunda pergunta: ele sai daqui, pela regra de
-/// fechamento do cartão ou pelo próprio mês do dia no débito. Por isso o texto
-/// de apoio não é enfeite — é a única coisa na tela que diz onde o gasto vai
-/// cair, e some junto com o campo se alguém o remover.
+/// O mês normalmente não é uma segunda pergunta: ele sai do dia, pela regra de
+/// fechamento do cartão ou pelo próprio mês do dia no débito, e o texto de
+/// apoio diz em qual fatura o gasto caiu e quando ela vence.
+///
+/// **O "Ajustar" existe porque a conta já errou duas vezes.** Ele foi desenhado
+/// em 10/09/2026 e descartado por falta de caso de uso — dois dias depois
+/// apareceu o caso: num cartão que fecha 31 e vence 5 a competência ficava um
+/// mês antes do mês em que o dinheiro sai, e não havia nada na tela para
+/// discordar. A regra que adivinha continua sendo o padrão; o que muda é que
+/// agora dá para vencê-la sem apagar e refazer o gasto.
+///
+/// Fica escondido até ser pedido: quem concorda com o padrão — quase sempre —
+/// continua vendo um campo de tempo só.
 ///
 /// `ReactiveFormConsumer` porque a frase e o rótulo dependem de quatro campos
 /// ao mesmo tempo — dia, cartão, forma de pagamento e recorrência. Aninhar
 /// quatro `ReactiveValueListenable` custaria mais linhas do que reconstruir um
 /// `InputDecorator`.
-class _SpentAtField extends StatelessWidget {
+class _SpentAtField extends StatefulWidget {
   const _SpentAtField({required this.controller});
 
   final ExpenseFormController controller;
 
   @override
+  State<_SpentAtField> createState() => _SpentAtFieldState();
+}
+
+class _SpentAtFieldState extends State<_SpentAtField> {
+  /// Estado de tela, e por isso não está no controller: é só "este seletor
+  /// está aparecendo", e não sobrevive a nada nem é lido por mais ninguém.
+  bool _adjusting = false;
+
+  @override
   Widget build(BuildContext context) => ReactiveFormConsumer(
-    builder: (context, form, child) => DateFieldWidget(
-      formControlName: ExpenseFormController.spentAt,
-      label: controller.spentAtLabel,
-      helperText: controller.spentAtHelper,
-      // Obrigatório: limpar só deixaria o formulário inválido de propósito.
-      clearable: false,
+    builder: (context, form, child) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DateFieldWidget(
+          formControlName: ExpenseFormController.spentAt,
+          label: widget.controller.spentAtLabel,
+          helperText: widget.controller.spentAtHelper,
+          // Obrigatório: limpar só deixaria o formulário inválido de propósito.
+          clearable: false,
+        ),
+        // Em edição a competência nem é enviada — oferecer o ajuste ali seria
+        // um campo que não muda nada.
+        if (!widget.controller.isEditing)
+          if (_adjusting) ...[
+            const SizedBox(height: 16),
+            MonthFieldWidget(
+              formControlName: widget.controller.monthField,
+              label: 'Competência',
+              helperText: 'Trocar o dia da compra refaz esta conta',
+            ),
+          ] else
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => setState(() => _adjusting = true),
+                child: const Text('Ajustar competência'),
+              ),
+            ),
+      ],
     ),
   );
 }

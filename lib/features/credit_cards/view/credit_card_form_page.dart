@@ -146,10 +146,13 @@ class _CreditCardForm extends StatelessWidget {
   String _dueHelper(int? closingDay, int? dueDay) {
     if (closingDay == null || dueDay == null) return '';
 
+    // A fatura leva o nome do mês em que é paga (CAR-03). Quando vence antes de
+    // fechar, ela cobra o que foi comprado no mês anterior — e é esse
+    // deslocamento que a pessoa precisa entender antes de lançar um gasto.
     return dueDay > closingDay
-        ? 'Fecha dia $closingDay e vence dia $dueDay: a fatura de um mês vence '
-              'no próprio mês.'
-        : 'Fecha dia $closingDay e vence dia $dueDay: a fatura de um mês vence '
-              'no mês seguinte.';
+        ? 'Fecha dia $closingDay e vence dia $dueDay: a fatura de um mês cobra '
+              'as compras desse mesmo mês.'
+        : 'Fecha dia $closingDay e vence dia $dueDay: a fatura de um mês cobra '
+              'as compras do mês anterior, até o dia $closingDay.';
   }
 }

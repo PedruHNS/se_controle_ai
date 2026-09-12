@@ -353,8 +353,12 @@ void main() {
     ) async {
       await pumpForm(tester);
 
-      // Nasce fechando dia 1 e vencendo dia 10: vence no próprio mês.
-      expect(find.textContaining('vence no próprio mês'), findsOneWidget);
+      // Nasce fechando dia 1 e vencendo dia 10: fecha e vence no mesmo mês, e
+      // a fatura cobra as compras desse mesmo mês.
+      expect(
+        find.textContaining('cobra as compras desse mesmo mês'),
+        findsOneWidget,
+      );
 
       // Puxa o fechamento para trás do vencimento: dia 1 → dia 31.
       await tester.tap(
@@ -368,7 +372,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Dia 31'), findsOneWidget);
-      expect(find.textContaining('vence no mês seguinte'), findsOneWidget);
+      // Agora vence antes de fechar: a fatura leva o nome do mês em que é paga
+      // (CAR-03), então ela cobra o que foi comprado no mês anterior.
+      expect(
+        find.textContaining('cobra as compras do mês anterior'),
+        findsOneWidget,
+      );
     });
 
     // O controller é singleton do get_it, então o `form` sobrevive ao

@@ -105,11 +105,42 @@ mês, e a segunda pergunta só existia porque a primeira era opcional.
   mantém as parcelas anteriores ao mês informado e recusa mês posterior ao fim
   do plano.
 
-- **Competência errada não tem conserto.** O `PATCH /expenses/:id` aceita
-  descrição, tag, observação, forma de pagamento e cartão — competência não
-  está lá, e agora não há campo na tela para corrigir antes de salvar. Dia
-  errado, apagar e refazer.
+- ~~**Competência errada não tem conserto.**~~ **Desfeita em 12/09/2026.** Era
+  a perda que "quase justificou manter um ajustar revelando o seletor
+  escondido" — dois dias depois o caso apareceu, num cartão que fecha 31 e
+  vence 5, e o botão voltou. O `PATCH /expenses/:id` continua sem competência:
+  o ajuste é antes de salvar, e gasto já lançado ainda é apagar e refazer.
 - **Início a mais de doze meses para trás** não é alcançável pelo calendário.
+
+## Competência do gasto de cartão (12/09/2026)
+
+Fecha 31, vence 5, compra no dia 12: o gasto ia para a competência de setembro,
+mas a fatura que o cobra só é paga em 05/10 — e a fatura chamada "setembro" era
+justamente a que já tinha sido paga no dia 5. Todo mês ficava deslocado em
+relação ao mês em que o dinheiro sai da conta.
+
+- [x] **A competência do cartão passou a ser o mês do pagamento.** A conta do
+      app ganhou um segundo passo: acha a fatura pelo fechamento
+      (`closingMonthFor`) e depois diz em que mês ela vence (`invoiceMonthFor`).
+      Com isso a competência quer dizer a mesma coisa nas duas formas de
+      pagamento — o mês em que o dinheiro sai.
+- [x] **A CAR-03 virou do avesso no backend.** `dueDateFor` era
+      `dueDay > closingDay ? month : month.addMonths(1)`; agora é o dia do
+      vencimento da própria competência, e o `closingDay` saiu de toda conta do
+      backend. **Não dava para mudar só no app**: o `dueDate` vinha da
+      competência, e deslocar uma sem a outra poria o vencimento um mês à
+      frente.
+- [x] **O texto embaixo do calendário diz a data.** `Entra na fatura de outubro
+      2026 · vence 05/10`. Só o nome do mês não bastava — era exatamente ele
+      que confundia.
+- [x] **Voltou o "Ajustar competência"**, escondido atrás de um botão, ligado ao
+      control que nunca tinha sido apagado. Não aparece em edição, onde a
+      competência não viaja no PATCH.
+- [ ] **O passado não foi migrado.** Gastos lançados antes da mudança em cartões
+      onde `vence <= fecha` continuam um mês antes do que a regra nova diria.
+      Só esses: onde `vence > fecha` — Nubank, 20 e 27 — as duas nomeações
+      sempre coincidiram. É um `UPDATE` nas vigências desses gastos, e ficou de
+      fora por ser reescrita de dado real.
 
 ## O que falta
 
