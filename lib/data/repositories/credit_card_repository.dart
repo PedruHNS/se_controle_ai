@@ -34,9 +34,9 @@ abstract interface class CreditCardRepository {
 }
 
 class CreditCardRepositoryImpl implements CreditCardRepository {
-  CreditCardRepositoryImpl(this._api);
-
   final ApiClient _api;
+ 
+  CreditCardRepositoryImpl(this._api);
 
   @override
   Future<Result<List<CreditCardModel>, Failure>> list({String? month}) async {

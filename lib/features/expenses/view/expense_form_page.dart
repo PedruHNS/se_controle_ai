@@ -4,7 +4,7 @@ import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
 import '../../../core/utils/month.dart';
-import '../../../core/month/selected_month_service.dart';
+import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/date_field_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';

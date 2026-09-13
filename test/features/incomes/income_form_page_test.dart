@@ -1,4 +1,4 @@
-import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

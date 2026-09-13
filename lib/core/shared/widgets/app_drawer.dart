@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:signals/signals_flutter.dart';
 

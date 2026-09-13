@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../di/injector.dart';
-import '../../month/selected_month_service.dart';
+import '../../../data/services/selected_month_service.dart';
 
 class MonthSelectorWidget extends StatelessWidget {
   final bool short;

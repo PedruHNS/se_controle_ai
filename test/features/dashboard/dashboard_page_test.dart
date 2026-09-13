@@ -4,7 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/widgets/failure_card_widget.dart';
 import 'package:se_controle_ai/core/shared/widgets/month_selector_widget.dart';
 import 'package:se_controle_ai/core/utils/month.dart';

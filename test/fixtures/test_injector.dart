@@ -1,5 +1,5 @@
 import 'package:se_controle_ai/core/di/injector.dart';
-import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/data/repositories/auth_repository.dart';
 import 'package:se_controle_ai/data/repositories/credit_card_repository.dart';
 import 'package:se_controle_ai/data/repositories/expense_repository.dart';

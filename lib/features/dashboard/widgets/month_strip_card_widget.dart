@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../core/month/selected_month_service.dart';
+import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/widgets/month_selector_widget.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';

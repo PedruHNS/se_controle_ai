@@ -2,7 +2,7 @@ import 'package:se_controle_ai/core/utils/base_controller.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:signals/signals.dart';
 
-import '../../../core/month/selected_month_service.dart';
+import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/month.dart';
 import '../../../core/errors/failure.dart';

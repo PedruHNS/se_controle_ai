@@ -13,7 +13,7 @@ import 'package:se_controle_ai/features/dashboard/widgets/tag_amounts_card_widge
 import 'package:se_controle_ai/features/dashboard/widgets/top_expenses_card_widget.dart';
 
 import 'package:se_controle_ai/core/di/injector.dart';
-import 'package:se_controle_ai/core/month/selected_month_service.dart';
+import 'package:se_controle_ai/data/services/selected_month_service.dart';
 
 import '../../fixtures/dashboard_fixture.dart';
 import '../../fixtures/test_injector.dart';
