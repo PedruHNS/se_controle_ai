@@ -538,7 +538,12 @@ disse o que incomoda: **perguntar antes de mexer**.
       quebra a tela.
 - [ ] **O seletor de mês some durante o loading da lista de cartões**, porque
       vive dentro do ramo `Loaded`. No dashboard isso já foi resolvido — lá ele
-      fica fora do `switch`.
+      fica fora do `switch`, e é de lá que se copia.
+
+      **Verificar junto com a revisão do `CreditCardModel`** (pedido dele em
+      13/09/2026). As duas coisas moram na mesma feature, e quem for mexer nela
+      já vai estar com a tela aberta — separar as idas custa mais que fazer as
+      duas de uma vez.
 - [ ] **`ExpenseListController` nunca é liberado**, então o `effect` do mês
       segue vivo e buscando com a tela fechada.
 - [ ] **`requestId` e `silent` em seis controllers antigos** — `home`,
@@ -625,9 +630,32 @@ do `fromJson`, e por isso não conta — desserialização é permitida.
    `isNegative` (`monthly_balance` e `monthly_summary`) é a mesma conta
    duplicada em dois arquivos, e as duas telas que a usam pintam o valor de
    vermelho — candidato a util em `lib/core/utils/`, não a getter em cada model.
-4. **`CreditCardModel`.** As quatro contas de competência são regra de domínio
-   com muitos chamadores — pelo que a regra diz, é caso de **extension**, não de
-   espalhar pelos controllers. `hasLimit` é uma linha e some no ponto de uso.
+4. **`CreditCardModel`.** A contagem de 13/09 desfez o que estava escrito aqui:
+   não são "muitos chamadores", e portanto **não é caso de extension**. Os
+   pontos de chamada reais, fora do próprio model e fora de teste, são **três,
+   num arquivo só** — `invoiceMonthFor` (2×) e `chargeMonthFor` (1×), todos no
+   `ExpenseFormController`. Isso cai no primeiro caso da regra, "quem usa,
+   quando é uma linha e serve a um lugar só", e o destino é o controller, ao
+   lado do `_dueDate` que já foi para lá com a CAR-03.
+
+   Os outros três — `closingMonthFor`, `closesInPreviousMonth` e
+   `openInvoiceMonth` — **não são chamados por ninguém de fora**: são passos
+   intermediários dos dois acima que ficaram públicos e ganharam teste próprio.
+   Torná-los privados custa reescrever 10 testes por `invoiceMonthFor` e
+   `chargeMonthFor`, o que é perder cobertura fina numa conta que acabou de
+   mudar — não fazer isso agora, tão perto da CAR-03.
+
+   **`hasLimit` é remoção pura:** zero usos em `lib/`, e quem mostra limite na
+   tela lê `limitCents` direto (`credit_card_expenses_page.dart:204`). Saem a
+   linha e os dois testes, e nada mais acontece.
+
+   Duas coisas para decidir na hora de mexer, e nenhuma tem resposta ainda:
+   **(a)** o `_dueHelper` de `credit_card_form_page.dart:146` refaz o
+   `dueDay > closingDay` na mão, e é o único lugar da tela que usaria o
+   `closesInPreviousMonth` — tirar a conta do model e deixar a tela com a
+   comparação solta resolve a regra e piora o outro lado; **(b)** verificar
+   junto o **seletor de mês que some no loading da lista de cartões**, que está
+   na fila do "para ver mais tarde" e é da mesma feature.
 5. **`ExpenseModel` e `IncomeModel`, por último.** São ~90 pontos de chamada e
    a decisão de 11/09 continua valendo: **não sair refatorando em mutirão**,
    alinhar ao mexer por outro motivo.
