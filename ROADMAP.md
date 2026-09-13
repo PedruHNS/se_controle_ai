@@ -579,9 +579,58 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
 | `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: 78 linhas. A tela dele tem 254 |
 | `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
-| `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09): `ExpenseModel` tem 13 membros derivados e `IncomeModel` 7, com ~90 pontos de chamada — **adiado por decisão dele**, alinhar só ao mexer. Outros oito models têm um ou dois getters cada, e falta `toString` em todos. Já seguem a regra: os nove do dashboard e o `TagModel`. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
+| `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09) — a varredura de 13/09 está logo abaixo: 11 dos 22 models têm membro derivado, 33 no total, e 11 não têm `toString`. **Adiado por decisão dele**, alinhar só ao mexer. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
 | `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **853** e `test_injector.dart` de 207 para **314**. Dividir por feature e manter um arquivo que reexporta |
 | `notifications` | — | Só o estado vazio. Vira código de verdade com a Etapa 8 do backend; nada a refatorar antes |
+
+### Models fora da regra (varredura de 13/09/2026)
+
+Varredura dos 22 arquivos de `lib/data/models/` contra
+[`.claude/rules/models.md`](.claude/rules/models.md). **Nenhum importa
+`package:flutter`** — a pior das violações não existe em lugar nenhum. O que há
+é conta derivada e `toString` faltando.
+
+Entrou na lista porque a CAR-03 de 12/09 **piorou o `CreditCardModel` de
+propósito**: ele foi de 5 para 6 membros derivados, e os dois novos
+(`closingMonthFor` e `invoiceMonthFor`) são as duas contas da competência. Foi
+decisão consciente — o alinhamento fica para depois, junto com o resto.
+
+| Model | Membros derivados | Quais | `toString` |
+|---|---|---|---|
+| `expense_model` | 13 | `isFixed`, `isInstallment`, `onCreditCard`, `isClosed`, `isSingleMonth`, `endedBefore`, `amountCentsIn`, `installmentIn`, `installmentLabelIn`, `isActiveIn`, `latestAmountCents`, `currentVersion`, `hasAdjustments` | falta |
+| `income_model` | 7 | `isClosed`, `isSingleMonth`, `endedBefore`, `amountCentsIn`, `isActiveIn`, `currentVersion`, `hasAdjustments` | falta |
+| `credit_card_model` | 6 | `hasLimit`, `closesInPreviousMonth`, `closingMonthFor`, `invoiceMonthFor`, `openInvoiceMonth`, `chargeMonthFor` | falta |
+| `amount_version_model` | 1 | `isOpen` | falta |
+| `auth_user_model` | 1 | `label` | tem |
+| `credit_card_invoice_model` | 1 | `limitUsage` | falta |
+| `installment_model` | 1 | `label` | falta |
+| `monthly_balance_model` | 1 | `isNegative` | falta |
+| `monthly_summary_model` | 1 | `isNegative` | falta |
+| `summary_section_model` | 1 | `isEmpty` | falta |
+| `credit_card_bill_model` | 0 | — | falta |
+| `summary_line_item_model` | 0 | — | falta |
+
+**Já limpos, e é o padrão a copiar:** os nove models do dashboard e o
+`TagModel`. O `_serie` do `dashboard_daily_model` é `static` privado a serviço
+do `fromJson`, e por isso não conta — desserialização é permitida.
+
+#### Por onde começar, em ordem de retorno
+
+1. **`summary_section_model.isEmpty` não tem um único chamador.** A tela usa
+   `items.isEmpty` direto. É apagar a linha, e sai um item da lista sem
+   nenhuma reescrita.
+2. **`toString` nos 11 que não têm.** Não quebra chamador nenhum, e é a parte
+   da regra que só melhora o dia em que um teste falha.
+3. **Os sete models de um getter só.** Cada um é entre 1 e 6 pontos de chamada;
+   `isNegative` (`monthly_balance` e `monthly_summary`) é a mesma conta
+   duplicada em dois arquivos, e as duas telas que a usam pintam o valor de
+   vermelho — candidato a util em `lib/core/utils/`, não a getter em cada model.
+4. **`CreditCardModel`.** As quatro contas de competência são regra de domínio
+   com muitos chamadores — pelo que a regra diz, é caso de **extension**, não de
+   espalhar pelos controllers. `hasLimit` é uma linha e some no ponto de uso.
+5. **`ExpenseModel` e `IncomeModel`, por último.** São ~90 pontos de chamada e
+   a decisão de 11/09 continua valendo: **não sair refatorando em mutirão**,
+   alinhar ao mexer por outro motivo.
 
 ---
 
