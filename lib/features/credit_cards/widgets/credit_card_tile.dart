@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:se_controle_ai/core/shared/widgets/custom_box_shadow_widget.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/credit_card_model.dart';
 
 /// Uma linha da lista de cartões: o rótulo, os dois dias e o limite.
@@ -87,7 +87,7 @@ class CreditCardWidget extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        Money.formatCompact(remainingLimit),
+                        MoneyUtils.formatCompact(remainingLimit),
                         style: theme.textTheme.titleLarge,
                       ),
                     ],
@@ -106,13 +106,13 @@ class CreditCardWidget extends StatelessWidget {
                         mainAxisAlignment: .spaceBetween,
                         children: [
                           Text(
-                            Money.formatCompact(totalCents),
+                            MoneyUtils.formatCompact(totalCents),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           Text(
-                            Money.formatCompact(limit),
+                            MoneyUtils.formatCompact(limit),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -144,7 +144,7 @@ class CreditCardWidget extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Vence dia ${IsoDate.label(card.dueDay.toString())}',
+                        'Vence dia ${IsoDateUtils.label(card.dueDay.toString())}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

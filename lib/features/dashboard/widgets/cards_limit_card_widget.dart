@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/dashboard_card_model.dart';
 import 'dashboard_card_widget.dart';
 
@@ -56,7 +56,7 @@ class _Fatura extends StatelessWidget {
           children: [
             Expanded(child: Text(card.label, overflow: .ellipsis)),
             Text(
-              Money.format(card.totalCents),
+              MoneyUtils.format(card.totalCents),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -76,7 +76,7 @@ class _Fatura extends StatelessWidget {
             ),
           ),
           Text(
-            'de ${Money.format(limite!)} de limite',
+            'de ${MoneyUtils.format(limite!)} de limite',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

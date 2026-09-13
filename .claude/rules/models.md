@@ -36,7 +36,7 @@ Onde a conta mora, em ordem de preferência:
 
 - **Quem usa**, quando é uma linha e serve a um lugar só.
 - **Um utilitário em `lib/core/utils/`**, quando a mesma regra serve a telas
-  diferentes — é o caso do `TagColor.parse`, que pinta a tag no formulário, no
+  diferentes — é o caso do `TagColorUtils.parse`, que pinta a tag no formulário, no
   tile e no card do dashboard.
 - **Uma extension**, quando é regra de domínio com muitos pontos de chamada e
   mover para fora reescreveria dezenas de linhas.

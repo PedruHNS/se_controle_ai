@@ -3,18 +3,18 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/date_field_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/tag_model.dart';
 import '../controller/expense_form_controller.dart';
 import 'package:se_controle_ai/data/enums/payment_method.dart';
 import 'package:se_controle_ai/data/enums/expense_type.dart';
-import 'package:se_controle_ai/core/utils/tag_color.dart';
+import 'package:se_controle_ai/core/utils/tag_color_utils.dart';
 
 /// Cadastro e edição de gasto.
 ///
@@ -76,7 +76,7 @@ class _ExpenseFormPageState extends State<ExpenseFormPage> {
     if (month != null && month != selected.month.value) {
       selected.select(month);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lançado em ${Month.label(month)}')),
+        SnackBar(content: Text('Lançado em ${MonthUtils.label(month)}')),
       );
     }
 
@@ -576,8 +576,8 @@ class _InstallmentPreview extends StatelessWidget {
 
               return Text(
                 remainder == 0
-                    ? '${count}x de ${Money.format(each)}'
-                    : '${count}x de ${Money.format(each)} — as $remainder '
+                    ? '${count}x de ${MoneyUtils.format(each)}'
+                    : '${count}x de ${MoneyUtils.format(each)} — as $remainder '
                           'primeiras saem um centavo mais caras',
                 style: style?.copyWith(color: color),
               );
@@ -619,7 +619,7 @@ class _TagChipLabel extends StatelessWidget {
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: TagColor.parse(tag.color),
+            color: TagColorUtils.parse(tag.color),
             shape: BoxShape.circle,
           ),
         ),

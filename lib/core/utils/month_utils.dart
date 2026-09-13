@@ -6,7 +6,7 @@
 /// local em fuso positivo lido como UTC volta para o mês anterior. O backend já
 /// trata disso desligando a conversão de `DATE` no driver do Postgres; do lado do
 /// app, não converter para `DateTime` resolve na origem.
-abstract final class Month {
+abstract final class MonthUtils {
   static const minYear = 2000;
   static const maxYear = 2100;
 

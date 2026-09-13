@@ -9,9 +9,9 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
 import '../widgets/expense_amount_dialog.dart';
@@ -217,18 +217,18 @@ class _ExpenseDetail extends StatelessWidget {
       final total = expense.totalCents;
       return [
         if (label != null) 'Parcela $label',
-        if (total != null) 'total de ${Money.format(total)}',
+        if (total != null) 'total de ${MoneyUtils.format(total)}',
         if (label == null)
-          Month.periodLabel(expense.startMonth, expense.endMonth),
+          MonthUtils.periodLabel(expense.startMonth, expense.endMonth),
       ].join(' · ');
     }
 
     if (expense.isClosed) {
-      return 'Encerrado em ${Month.label(expense.endMonth!)}';
+      return 'Encerrado em ${MonthUtils.label(expense.endMonth!)}';
     }
     return expense.recurring
-        ? 'Recorrente desde ${Month.label(expense.startMonth)}'
-        : 'Mês único — ${Month.label(expense.startMonth)}';
+        ? 'Recorrente desde ${MonthUtils.label(expense.startMonth)}'
+        : 'Mês único — ${MonthUtils.label(expense.startMonth)}';
   }
 
   String get _paymentLine {
@@ -257,7 +257,7 @@ class _ExpenseDetail extends StatelessWidget {
                   Text(expense.description, style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(
-                    amount == null ? '—' : Money.format(amount),
+                    amount == null ? '—' : MoneyUtils.format(amount),
                     style: theme.textTheme.headlineMedium?.copyWith(
                       color: theme.colorScheme.error,
                     ),
@@ -283,8 +283,8 @@ class _ExpenseDetail extends StatelessWidget {
                   if (expense.spentAt case final spentAt?) ...[
                     const SizedBox(height: 4),
                     Text(
-                      '${IsoDate.isFuture(spentAt) ? 'Previsto para' : 'Compra em'} '
-                      '${IsoDate.fullLabel(spentAt)}',
+                      '${IsoDateUtils.isFuture(spentAt) ? 'Previsto para' : 'Compra em'} '
+                      '${IsoDateUtils.fullLabel(spentAt)}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

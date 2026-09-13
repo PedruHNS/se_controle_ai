@@ -1,4 +1,4 @@
-import '../../core/utils/month.dart';
+import '../../core/utils/month_utils.dart';
 
 /// Um cartão de crédito cadastrado.
 ///
@@ -80,7 +80,7 @@ class CreditCardModel {
     final day = int.tryParse(isoDate.substring(8, 10));
     if (day == null) return month;
 
-    return day <= closingDay ? month : Month.next(month);
+    return day <= closingDay ? month : MonthUtils.next(month);
   }
 
   /// A **competência** de uma compra feita em [isoDate]: o mês em que a fatura
@@ -100,7 +100,7 @@ class CreditCardModel {
     final closing = closingMonthFor(isoDate);
     if (closing.length != 7) return closing;
 
-    return closesInPreviousMonth ? Month.next(closing) : closing;
+    return closesInPreviousMonth ? MonthUtils.next(closing) : closing;
   }
 
   /// A fatura que ainda aceita lançamento — a que vai fechar hoje ou depois.
@@ -134,7 +134,7 @@ class CreditCardModel {
     final purchase = invoiceMonthFor(isoDate);
     final open = openInvoiceMonth(now);
 
-    return Month.isBefore(purchase, open) ? open : purchase;
+    return MonthUtils.isBefore(purchase, open) ? open : purchase;
   }
 
   factory CreditCardModel.fromJson(Map<String, dynamic> json) =>

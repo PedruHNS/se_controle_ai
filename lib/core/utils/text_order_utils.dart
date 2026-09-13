@@ -13,11 +13,11 @@
 /// para casos que este não cobre — ß, dígrafos, ordenação de números dentro do
 /// texto. Para rótulos curtos em português, dobrar o acento e a caixa resolve o
 /// que se vê, sem dependência nova.
-abstract final class TextOrder {
+abstract final class TextOrderUtils {
   /// Comparador para `sort`, ignorando caixa e acento.
   ///
   /// ```dart
-  /// tags.sort((a, b) => TextOrder.alfabetica(a.name, b.name));
+  /// tags.sort((a, b) => TextOrderUtils.alfabetica(a.name, b.name));
   /// ```
   static int alfabetica(String a, String b) {
     final comparacao = _chave(a).compareTo(_chave(b));

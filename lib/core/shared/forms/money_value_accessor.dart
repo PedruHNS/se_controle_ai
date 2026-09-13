@@ -1,6 +1,6 @@
 import 'package:reactive_forms/reactive_forms.dart';
 
-import '../../utils/money.dart';
+import '../../utils/money_utils.dart';
 
 /// Ponte entre o `FormControl<int>` em **centavos** e o texto do campo.
 ///
@@ -15,12 +15,13 @@ import '../../utils/money.dart';
 /// exemplo — chega formatado no campo.
 class MoneyValueAccessor extends ControlValueAccessor<int, String> {
   @override
-  String? modelToViewValue(int? modelValue) =>
-      modelValue == null ? '' : Money.format(modelValue, showSymbol: false);
+  String? modelToViewValue(int? modelValue) => modelValue == null
+      ? ''
+      : MoneyUtils.format(modelValue, showSymbol: false);
 
   @override
   int? viewToModelValue(String? viewValue) {
     if (viewValue == null || viewValue.trim().isEmpty) return null;
-    return Money.tryParse(viewValue);
+    return MoneyUtils.tryParse(viewValue);
   }
 }

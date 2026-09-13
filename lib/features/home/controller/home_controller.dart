@@ -4,7 +4,7 @@ import 'package:signals/signals.dart';
 
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../core/errors/failure.dart';
 import '../../../data/models/credit_card_invoice_model.dart';
 import '../../../data/models/monthly_balance_model.dart';
@@ -166,10 +166,10 @@ class HomeController extends BaseController {
 
   Future<void> goToNextMonth() async => _selectedMonth.goToNext();
 
-  Future<void> goToCurrentMonth() => goToMonth(Month.current());
+  Future<void> goToCurrentMonth() => goToMonth(MonthUtils.current());
 
   Future<void> goToMonth(String month) async {
-    if (!Month.isValid(month)) return;
+    if (!MonthUtils.isValid(month)) return;
 
     // Pedir o mês que já está selecionado só é no-op se o dado dele estiver na
     // tela. Em Loading ou Failed a busca ainda precisa acontecer — senão um

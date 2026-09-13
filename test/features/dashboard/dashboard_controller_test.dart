@@ -4,7 +4,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/dashboard_model.dart';
 import 'package:se_controle_ai/features/dashboard/controller/dashboard_controller.dart';
 
@@ -47,7 +47,7 @@ void main() {
 
     expect(mesesBuscados(), [
       SelectedMonthService.initial(),
-      Month.next(SelectedMonthService.initial()),
+      MonthUtils.next(SelectedMonthService.initial()),
     ]);
   });
 

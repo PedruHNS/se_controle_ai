@@ -3,7 +3,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_detail_controller.dart';
 
@@ -51,8 +51,10 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
 
   String get _initialMonth {
     final from = _minMonth;
-    if (from == null) return Month.current();
-    return Month.isAfter(from, Month.current()) ? from : Month.current();
+    if (from == null) return MonthUtils.current();
+    return MonthUtils.isAfter(from, MonthUtils.current())
+        ? from
+        : MonthUtils.current();
   }
 
   @override

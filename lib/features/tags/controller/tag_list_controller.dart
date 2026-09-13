@@ -4,7 +4,7 @@ import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
-import '../../../core/utils/text_order.dart';
+import '../../../core/utils/text_order_utils.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/tag_repository.dart';
 
@@ -78,7 +78,7 @@ class TagListController extends BaseController with MessageMixin {
     result.when(
       (tag) {
         final newList = [...current.data, tag]
-          ..sort((a, b) => TextOrder.alfabetica(a.name, b.name));
+          ..sort((a, b) => TextOrderUtils.alfabetica(a.name, b.name));
 
         _state.value = Loaded(newList);
         Future.delayed(
@@ -114,7 +114,7 @@ class TagListController extends BaseController with MessageMixin {
 
         final newList = [...current.data];
         newList[index] = tag;
-        newList.sort((a, b) => TextOrder.alfabetica(a.name, b.name));
+        newList.sort((a, b) => TextOrderUtils.alfabetica(a.name, b.name));
 
         _state.value = Loaded(newList);
       },

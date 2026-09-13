@@ -6,7 +6,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
 import 'package:se_controle_ai/data/models/monthly_balance_model.dart';
 import 'package:se_controle_ai/data/models/summary_section_model.dart';
@@ -216,12 +216,12 @@ void main() {
       clearInteractions(repository);
 
       await controller.goToNextMonth();
-      expect(controller.month.value, Month.next(start));
+      expect(controller.month.value, MonthUtils.next(start));
 
       await controller.goToPreviousMonth();
       expect(controller.month.value, start);
 
-      expect(capturedMonths(repository), [Month.next(start), start]);
+      expect(capturedMonths(repository), [MonthUtils.next(start), start]);
     });
 
     test('goToCurrentMonth volta de qualquer lugar', () async {
@@ -229,7 +229,7 @@ void main() {
       expect(controller.isCurrentMonth.value, isFalse);
 
       await controller.goToCurrentMonth();
-      expect(controller.month.value, Month.current());
+      expect(controller.month.value, MonthUtils.current());
     });
 
     test('já no mês da tela e com dado carregado, não refaz a busca', () async {
@@ -261,7 +261,7 @@ void main() {
 
       await controllerInError.goToCurrentMonth();
 
-      verify(() => failing.getBalance(month: Month.current())).called(1);
+      verify(() => failing.getBalance(month: MonthUtils.current())).called(1);
       expect(
         controllerInError.balance.value,
         isA<Loaded<MonthlyBalanceModel>>(),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 
 /// Uma linha da lista de gastos: descrição, período, forma de pagamento e o
@@ -70,7 +70,7 @@ class ExpenseTile extends StatelessWidget {
         children: [
           Text(
             [
-              Month.periodLabel(expense.startMonth, expense.endMonth),
+              MonthUtils.periodLabel(expense.startMonth, expense.endMonth),
               expense.tag.name,
             ].join(' · '),
           ),
@@ -83,8 +83,8 @@ class ExpenseTile extends StatelessWidget {
           // "compra em" sobre o que não aconteceu seria afirmação falsa.
           if (expense.spentAt case final spentAt?)
             Text(
-              '${IsoDate.isFuture(spentAt) ? 'Previsto para' : 'Compra em'} '
-              '${IsoDate.fullLabel(spentAt)}',
+              '${IsoDateUtils.isFuture(spentAt) ? 'Previsto para' : 'Compra em'} '
+              '${IsoDateUtils.fullLabel(spentAt)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -96,7 +96,7 @@ class ExpenseTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            amount == null ? '—' : Money.format(amount),
+            amount == null ? '—' : MoneyUtils.format(amount),
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.error,
             ),

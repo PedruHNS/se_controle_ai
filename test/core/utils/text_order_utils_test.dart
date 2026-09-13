@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:se_controle_ai/core/utils/text_order.dart';
+import 'package:se_controle_ai/core/utils/text_order_utils.dart';
 
 void main() {
   List<String> ordenado(List<String> itens) =>
-      [...itens]..sort(TextOrder.alfabetica);
+      [...itens]..sort(TextOrderUtils.alfabetica);
 
   test('caixa não separa palavras iguais', () {
     // Com `compareTo` puro, toda maiúscula vem antes de toda minúscula: a lista

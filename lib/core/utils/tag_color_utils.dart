@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-abstract final class TagColor {
+abstract final class TagColorUtils {
   static const fallback = Color(0xFF78909C);
   static final _formato = RegExp(r'^#[0-9A-Fa-f]{6}$');
 

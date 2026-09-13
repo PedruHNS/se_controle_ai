@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/dashboard_top_expense_model.dart';
 import 'dashboard_card_widget.dart';
 
@@ -39,8 +39,8 @@ class _Linha extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // O backend manda ISO 8601 com hora; a tela mostra só o dia.
-    final iso = IsoDate.fromInstant(gasto.spentAt);
-    final dia = iso == null ? null : IsoDate.label(iso);
+    final iso = IsoDateUtils.fromInstant(gasto.spentAt);
+    final dia = iso == null ? null : IsoDateUtils.label(iso);
     final parcela = gasto.installmentLabel;
 
     return Row(
@@ -61,7 +61,7 @@ class _Linha extends StatelessWidget {
           ),
         ),
         Text(
-          Money.format(gasto.amountCents),
+          MoneyUtils.format(gasto.amountCents),
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),

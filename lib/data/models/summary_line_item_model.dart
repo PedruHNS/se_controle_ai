@@ -1,4 +1,4 @@
-import '../../core/utils/iso_date.dart';
+import '../../core/utils/iso_date_utils.dart';
 import 'tag_model.dart';
 
 /// Uma linha do resumo — serve para ganho, gasto no débito e item de fatura.
@@ -35,7 +35,7 @@ class SummaryLineItemModel {
         description: json['description'] as String,
         amountCents: json['amountCents'] as int,
         installmentLabel: json['installmentLabel'] as String?,
-        spentAt: IsoDate.fromInstant(json['spentAt'] as String?),
+        spentAt: IsoDateUtils.fromInstant(json['spentAt'] as String?),
         tag: json['tag'] == null
             ? null
             : TagModel.fromJson(json['tag'] as Map<String, dynamic>),

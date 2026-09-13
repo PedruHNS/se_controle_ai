@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/amount_version_model.dart';
-import '../../utils/money.dart';
-import '../../utils/month.dart';
+import '../../utils/money_utils.dart';
+import '../../utils/month_utils.dart';
 
 /// A linha do tempo de vigências — é a prova visual de que um reajuste em
 /// novembro não mexeu no que foi pago em setembro.
@@ -52,10 +52,10 @@ class AmountHistoryCard extends StatelessWidget {
                     : theme.colorScheme.onSurfaceVariant,
               ),
               title: Text(
-                Month.periodLabel(version.validFrom, version.validTo),
+                MonthUtils.periodLabel(version.validFrom, version.validTo),
               ),
               trailing: Text(
-                Money.format(version.amountCents),
+                MoneyUtils.format(version.amountCents),
                 style: theme.textTheme.bodyLarge,
               ),
             ),

@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/credit_card_invoice_model.dart';
 import 'package:se_controle_ai/core/router/app_router.dart';
 import 'package:se_controle_ai/features/home/view/home_page.dart';
@@ -353,7 +353,7 @@ void main() {
       await pumpHome(tester);
 
       expect(
-        find.text(Month.label(SelectedMonthService.initial())),
+        find.text(MonthUtils.label(SelectedMonthService.initial())),
         findsOneWidget,
       );
     });
@@ -372,8 +372,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(Month.label(Month.next(start))), findsOneWidget);
-      expect(capturedMonths(repository), [start, Month.next(start)]);
+      expect(
+        find.text(MonthUtils.label(MonthUtils.next(start))),
+        findsOneWidget,
+      );
+      expect(capturedMonths(repository), [start, MonthUtils.next(start)]);
     });
 
     testWidgets('atalho de voltar ao mês atual aparece só fora dele', (
@@ -388,7 +391,7 @@ void main() {
       await tester.tap(find.text('Voltar para o mês atual'));
       await tester.pumpAndSettle();
       expect(find.text('Voltar para o mês atual'), findsNothing);
-      expect(find.text(Month.label(Month.current())), findsOneWidget);
+      expect(find.text(MonthUtils.label(MonthUtils.current())), findsOneWidget);
 
       // E volta a aparecer assim que a pessoa sai do mês corrente de novo.
       await tester.tap(
@@ -421,7 +424,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final label = find.text(
-        Month.label(Month.next(SelectedMonthService.initial())),
+        MonthUtils.label(MonthUtils.next(SelectedMonthService.initial())),
       );
       expect(label, findsOneWidget);
 
@@ -456,7 +459,7 @@ void main() {
 
       await pumpHome(tester, inteira: false);
 
-      final label = find.text(Month.label(SelectedMonthService.initial()));
+      final label = find.text(MonthUtils.label(SelectedMonthService.initial()));
       final paragraph = tester.renderObject<RenderParagraph>(label);
 
       expect(

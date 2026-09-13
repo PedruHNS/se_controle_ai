@@ -1,4 +1,4 @@
-import '../../core/utils/month.dart';
+import '../../core/utils/month_utils.dart';
 import 'amount_version_model.dart';
 import 'tag_model.dart';
 
@@ -61,7 +61,7 @@ class IncomeModel {
   /// a venda de agosto como encerrada já em agosto.
   bool endedBefore(String month) {
     final end = endMonth;
-    return end != null && Month.isBefore(end, month);
+    return end != null && MonthUtils.isBefore(end, month);
   }
 
   /// O valor vigente em [month], lido do histórico. Null quando o ganho não
@@ -73,9 +73,9 @@ class IncomeModel {
   /// para saber quanto entra este mês daria um total diferente do da home.
   int? amountCentsIn(String month) {
     for (final version in history) {
-      final started = Month.compare(month, version.validFrom) >= 0;
+      final started = MonthUtils.compare(month, version.validFrom) >= 0;
       final to = version.validTo;
-      final notFinished = to == null || Month.compare(month, to) <= 0;
+      final notFinished = to == null || MonthUtils.compare(month, to) <= 0;
       if (started && notFinished) return version.amountCents;
     }
     return null;

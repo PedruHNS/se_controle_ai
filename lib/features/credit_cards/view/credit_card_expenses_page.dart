@@ -7,9 +7,9 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/credit_card_bill_model.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
@@ -154,7 +154,7 @@ class _CardExpenses extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Nenhum gasto deste cartão é cobrado em '
-                    '${Month.label(view.month)}. Trocar o mês no topo mostra '
+                    '${MonthUtils.label(view.month)}. Trocar o mês no topo mostra '
                     'as outras faturas.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -212,12 +212,12 @@ class _InvoiceCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Fatura de ${Month.label(month)}',
+              'Fatura de ${MonthUtils.label(month)}',
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              Money.format(totalCents),
+              MoneyUtils.format(totalCents),
               style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.error,
               ),
@@ -226,7 +226,7 @@ class _InvoiceCard extends StatelessWidget {
             Text(
               due == null
                   ? 'Fecha dia ${card.closingDay} · vence dia ${card.dueDay}'
-                  : 'Fecha dia ${card.closingDay} · vence ${IsoDate.label(due)}',
+                  : 'Fecha dia ${card.closingDay} · vence ${IsoDateUtils.label(due)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -240,7 +240,7 @@ class _InvoiceCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '${Money.format(totalCents)} de ${Money.format(limit)}',
+                '${MoneyUtils.format(totalCents)} de ${MoneyUtils.format(limit)}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

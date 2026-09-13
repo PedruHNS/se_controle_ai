@@ -6,7 +6,7 @@ import '../../../core/di/injector.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/dashboard_model.dart';
 import '../controller/dashboard_controller.dart';
 import '../widgets/allowance_card_widget.dart';
@@ -125,7 +125,6 @@ class _DashboardContent extends StatelessWidget {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     return SliverPadding(
-      
       padding: .fromLTRB(24, 8, 24, bottomPadding + 24),
       sliver: SliverList.list(
         children: [
@@ -193,7 +192,7 @@ class _TotaisCard extends StatelessWidget {
             ),
           ),
           Text(
-            Money.format(sobra),
+            MoneyUtils.format(sobra),
             style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: sobra < 0 ? theme.colorScheme.error : null,
@@ -231,7 +230,7 @@ class _Numero extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          Text(Money.format(cents)),
+          Text(MoneyUtils.format(cents)),
         ],
       ),
     );

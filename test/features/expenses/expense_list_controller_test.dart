@@ -6,7 +6,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
 
@@ -157,7 +157,7 @@ void main() {
   });
 
   test('trocar o mês na home refaz a busca com o novo activeFrom', () async {
-    final outro = Month.previous(Month.current());
+    final outro = MonthUtils.previous(MonthUtils.current());
 
     selectedMonth.select(outro);
     // O `effect` chama `load` de forma síncrona, mas a busca é assíncrona.

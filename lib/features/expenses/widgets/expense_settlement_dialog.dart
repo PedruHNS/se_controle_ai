@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 
 import '../../../core/shared/widgets/month_field_widget.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
 
@@ -57,15 +57,15 @@ class _SettlementDialogState extends State<_SettlementDialog> {
   }
 
   String get _initialMonth {
-    final current = Month.current();
+    final current = MonthUtils.current();
     final floor = _minMonth;
     if (floor == null) return current;
-    return Month.isAfter(floor, current) ? floor : current;
+    return MonthUtils.isAfter(floor, current) ? floor : current;
   }
 
   /// O que deixa de ser cobrado se quitar a partir de [month].
   int _droppedCents(String month) => widget.expense.installments
-      .where((parcel) => Month.compare(parcel.referenceMonth, month) >= 0)
+      .where((parcel) => MonthUtils.compare(parcel.referenceMonth, month) >= 0)
       .fold(0, (total, parcel) => total + parcel.amountCents);
 
   @override
@@ -131,13 +131,15 @@ class _SettlementDialogState extends State<_SettlementDialog> {
             ReactiveValueListenableBuilder<String>(
               formControlName: _fromMonth,
               builder: (context, control, child) {
-                final dropped = _droppedCents(control.value ?? Month.current());
+                final dropped = _droppedCents(
+                  control.value ?? MonthUtils.current(),
+                );
                 if (dropped == 0) return const SizedBox.shrink();
 
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Deixa de ser cobrado: ${Money.format(dropped)}',
+                    'Deixa de ser cobrado: ${MoneyUtils.format(dropped)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 
-import '../../utils/month.dart';
+import '../../utils/month_utils.dart';
 
 /// Seletor de competência `YYYY-MM` por setas, ligado a um `FormControl<String>`.
 ///
@@ -30,9 +30,9 @@ class MonthFieldWidget extends StatelessWidget {
   final String? minMonth;
 
   bool _canGoPrevious(String month) {
-    if (!Month.hasPrevious(month)) return false;
+    if (!MonthUtils.hasPrevious(month)) return false;
     final floor = minMonth;
-    return floor == null || Month.isAfter(month, floor);
+    return floor == null || MonthUtils.isAfter(month, floor);
   }
 
   @override
@@ -46,7 +46,7 @@ class MonthFieldWidget extends StatelessWidget {
         'backend': (error) => '$error',
       },
       builder: (field) {
-        final month = field.value ?? Month.current();
+        final month = field.value ?? MonthUtils.current();
 
         return InputDecorator(
           decoration: InputDecoration(
@@ -61,12 +61,12 @@ class MonthFieldWidget extends StatelessWidget {
                 tooltip: 'Mês anterior',
                 icon: const Icon(Icons.chevron_left),
                 onPressed: _canGoPrevious(month)
-                    ? () => field.didChange(Month.previous(month))
+                    ? () => field.didChange(MonthUtils.previous(month))
                     : null,
               ),
               Expanded(
                 child: Text(
-                  Month.label(month),
+                  MonthUtils.label(month),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium,
                 ),
@@ -74,8 +74,8 @@ class MonthFieldWidget extends StatelessWidget {
               IconButton(
                 tooltip: 'Próximo mês',
                 icon: const Icon(Icons.chevron_right),
-                onPressed: Month.hasNext(month)
-                    ? () => field.didChange(Month.next(month))
+                onPressed: MonthUtils.hasNext(month)
+                    ? () => field.didChange(MonthUtils.next(month))
                     : null,
               ),
             ],

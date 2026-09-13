@@ -7,7 +7,7 @@ import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/widgets/failure_card_widget.dart';
 import 'package:se_controle_ai/core/shared/widgets/month_selector_widget.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/features/dashboard/view/dashboard_page.dart';
 
 import '../../fixtures/mocks.dart';
@@ -81,8 +81,8 @@ void main() {
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
 
-    final proximo = Month.next(SelectedMonthService.initial());
+    final proximo = MonthUtils.next(SelectedMonthService.initial());
     verify(() => repository.getDashboard(month: proximo)).called(1);
-    expect(find.text(Month.label(proximo)), findsOneWidget);
+    expect(find.text(MonthUtils.label(proximo)), findsOneWidget);
   });
 }

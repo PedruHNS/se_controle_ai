@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/dashboard_allowance_model.dart';
 import '../../../data/models/dashboard_daily_model.dart';
 import 'dashboard_card_widget.dart';
@@ -61,7 +61,7 @@ class DailyPaceCardWidget extends StatelessWidget {
     return DashboardCardWidget(
       title: 'Ritmo do mês',
       footnote:
-          'Fixos e parcelas de compras antigas: ${Money.format(daily.baselineCents)} '
+          'Fixos e parcelas de compras antigas: ${MoneyUtils.format(daily.baselineCents)} '
           'já estavam lançados antes do mês começar.',
       child: SizedBox(
         height: 180,

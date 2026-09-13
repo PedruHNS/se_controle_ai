@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/enums/dashboard_scope.dart';
 import '../../../data/models/dashboard_allowance_model.dart';
 import '../../../data/models/dashboard_totals_model.dart';
@@ -54,7 +54,7 @@ class AllowanceCardWidget extends StatelessWidget {
           // negativo pelos dias é aritmética certa e conselho inútil.
           if (perDay == null && overspent != null)
             Text(
-              'Você já passou ${Money.format(overspent)} do que tinha este mês.',
+              'Você já passou ${MoneyUtils.format(overspent)} do que tinha este mês.',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.error,
                 fontWeight: FontWeight.w600,
@@ -62,7 +62,7 @@ class AllowanceCardWidget extends StatelessWidget {
             )
           else
             Text(
-              Money.format(perDay ?? 0),
+              MoneyUtils.format(perDay ?? 0),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

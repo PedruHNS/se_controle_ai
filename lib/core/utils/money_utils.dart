@@ -8,7 +8,7 @@
 /// Formatação é feita à mão em vez de via `intl` para não adicionar dependência
 /// só por causa disto. Se um dia entrar `intl` (por causa de datas, plural ou
 /// outro idioma), este arquivo é o único lugar a trocar.
-abstract final class Money {
+abstract final class MoneyUtils {
   static const _symbol = r'R$';
   static const _thousandSeparator = '.';
   static const _decimalSeparator = ',';

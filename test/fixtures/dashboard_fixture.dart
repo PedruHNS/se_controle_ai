@@ -1,4 +1,4 @@
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 
 // Payload de `GET /dashboard?month=2026-09` montado campo a campo a partir do
 // exemplo da spec (`expense-tracker-api/docs/specs/09-dashboard.md`), e **não**
@@ -255,7 +255,7 @@ const _movimento = <String, (int, int)>{
 
 final _regua = [
   for (var deslocamento = -12; deslocamento <= 24; deslocamento++)
-    _mesDaRegua(Month.offset('2026-09', deslocamento)),
+    _mesDaRegua(MonthUtils.offset('2026-09', deslocamento)),
 ];
 
 Map<String, dynamic> _mesDaRegua(String month) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/dashboard_nature_model.dart';
 import 'dashboard_card_widget.dart';
 
@@ -74,7 +74,7 @@ class NatureCardWidget extends StatelessWidget {
                 ),
                 Expanded(child: Text(fatia.rotulo)),
                 Text(
-                  Money.format(fatia.cents),
+                  MoneyUtils.format(fatia.cents),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),

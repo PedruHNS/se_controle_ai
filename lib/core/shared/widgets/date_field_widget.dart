@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 
-import '../../utils/iso_date.dart';
+import '../../utils/iso_date_utils.dart';
 
 /// Seletor de data `YYYY-MM-DD` por calendário, ligado a um
 /// `FormControl<String>`.
@@ -140,7 +140,7 @@ class DateFieldWidget extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  hasDate ? IsoDate.fullLabel(value) : emptyText,
+                  hasDate ? IsoDateUtils.fullLabel(value) : emptyText,
                   style: hasDate
                       ? theme.textTheme.titleMedium
                       : theme.textTheme.bodyMedium?.copyWith(

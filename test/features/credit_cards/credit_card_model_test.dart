@@ -138,33 +138,41 @@ void main() {
     // fecha 31, vence 5. A compra do dia 12 entra na fatura que fecha em 30/09
     // — e essa fatura é paga em 05/10. Antes ela virava competência de
     // setembro, o mês da fatura que a pessoa já tinha pagado.
-    test('quando a fatura vence depois de fechar, a competência anda junto', () {
-      final inter = CreditCardModel.fromJson({
-        ...cartaoSimplesJson,
-        'closingDay': 31,
-        'dueDay': 5,
-      });
+    test(
+      'quando a fatura vence depois de fechar, a competência anda junto',
+      () {
+        final inter = CreditCardModel.fromJson({
+          ...cartaoSimplesJson,
+          'closingDay': 31,
+          'dueDay': 5,
+        });
 
-      expect(inter.closingMonthFor('2026-09-12'), '2026-09');
-      expect(inter.invoiceMonthFor('2026-09-12'), '2026-10');
-    });
+        expect(inter.closingMonthFor('2026-09-12'), '2026-09');
+        expect(inter.invoiceMonthFor('2026-09-12'), '2026-10');
+      },
+    );
 
-    test('o dia do fechamento ainda entra, e a competência é a do pagamento', () {
-      final inter = CreditCardModel.fromJson({
-        ...cartaoSimplesJson,
-        'closingDay': 31,
-        'dueDay': 5,
-      });
+    test(
+      'o dia do fechamento ainda entra, e a competência é a do pagamento',
+      () {
+        final inter = CreditCardModel.fromJson({
+          ...cartaoSimplesJson,
+          'closingDay': 31,
+          'dueDay': 5,
+        });
 
-      // Dia 30 num mês de 30 dias é o próprio fechamento (CAR-04).
-      expect(inter.invoiceMonthFor('2026-09-30'), '2026-10');
-      expect(inter.invoiceMonthFor('2026-10-01'), '2026-11');
-    });
+        // Dia 30 num mês de 30 dias é o próprio fechamento (CAR-04).
+        expect(inter.invoiceMonthFor('2026-09-30'), '2026-10');
+        expect(inter.invoiceMonthFor('2026-10-01'), '2026-11');
+      },
+    );
 
     test(
       'cada cartão tem o seu dia, e a mesma compra cai em faturas diferentes',
       () {
-        final nubank = CreditCardModel.fromJson(nubankJson); // fecha 10/vence 17
+        final nubank = CreditCardModel.fromJson(
+          nubankJson,
+        ); // fecha 10/vence 17
         final outro = CreditCardModel.fromJson(
           cartaoSimplesJson,
         ); // fecha 27/vence 5

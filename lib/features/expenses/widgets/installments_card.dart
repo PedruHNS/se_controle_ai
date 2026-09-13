@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/installment_model.dart';
 
 /// O plano de parcelas — o que o histórico de vigências é para o gasto fixo.
@@ -28,7 +28,8 @@ class InstallmentsCard extends StatelessWidget {
   /// que ainda não venceu.
   int get _remainingCents => installments
       .where(
-        (parcel) => Month.compare(parcel.referenceMonth, currentMonth) >= 0,
+        (parcel) =>
+            MonthUtils.compare(parcel.referenceMonth, currentMonth) >= 0,
       )
       .fold(0, (total, parcel) => total + parcel.amountCents);
 
@@ -55,7 +56,7 @@ class InstallmentsCard extends StatelessWidget {
                 Text('Parcelas', style: theme.textTheme.titleSmall),
                 const Spacer(),
                 Text(
-                  Money.format(_totalCents),
+                  MoneyUtils.format(_totalCents),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -67,7 +68,7 @@ class InstallmentsCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'Falta pagar ${Money.format(remaining)}',
+                'Falta pagar ${MoneyUtils.format(remaining)}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -79,7 +80,7 @@ class InstallmentsCard extends StatelessWidget {
             _InstallmentTile(
               parcel: parcel,
               isCurrent: parcel.referenceMonth == currentMonth,
-              isPast: Month.isBefore(parcel.referenceMonth, currentMonth),
+              isPast: MonthUtils.isBefore(parcel.referenceMonth, currentMonth),
             ),
           const SizedBox(height: 8),
         ],
@@ -121,9 +122,9 @@ class _InstallmentTile extends StatelessWidget {
             ? theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)
             : null,
       ),
-      subtitle: Text(Month.label(parcel.referenceMonth)),
+      subtitle: Text(MonthUtils.label(parcel.referenceMonth)),
       trailing: Text(
-        Money.format(parcel.amountCents),
+        MoneyUtils.format(parcel.amountCents),
         style: theme.textTheme.bodyLarge,
       ),
     );

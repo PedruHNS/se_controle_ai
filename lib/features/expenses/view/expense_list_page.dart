@@ -9,8 +9,8 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_list_controller.dart';
 import '../widgets/expense_tile.dart';
@@ -158,7 +158,7 @@ class _ExpenseList extends StatelessWidget {
       // acabou. Prometer "nenhum gasto cadastrado" para o segundo seria mentira.
       return EmptyStateWidget(
         icon: Icons.payments_outlined,
-        title: 'Nenhum gasto em ${Month.label(month)}',
+        title: 'Nenhum gasto em ${MonthUtils.label(month)}',
         message:
             'Comece pelo que se repete todo mês — aluguel, streaming, escola.',
         onRefresh: onRefresh,
@@ -182,11 +182,11 @@ class _ExpenseList extends StatelessWidget {
               children: [
                 ListTile(
                   title: Text(
-                    'Sai em ${Month.label(month)}',
+                    'Sai em ${MonthUtils.label(month)}',
                     style: theme.textTheme.titleSmall,
                   ),
                   trailing: Text(
-                    Money.format(monthTotal),
+                    MoneyUtils.format(monthTotal),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.error,
                     ),
@@ -204,7 +204,7 @@ class _ExpenseList extends StatelessWidget {
                       ),
                     ),
                     trailing: Text(
-                      Money.format(recurring),
+                      MoneyUtils.format(recurring),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

@@ -1,24 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:se_controle_ai/core/utils/iso_date.dart';
+import 'package:se_controle_ai/core/utils/iso_date_utils.dart';
 
 void main() {
   group('label', () {
     test('corta dia e mês da data ISO', () {
-      expect(IsoDate.label('2026-08-17'), '17/08');
+      expect(IsoDateUtils.label('2026-08-17'), '17/08');
     });
 
     test('preserva o zero à esquerda do dia e do mês', () {
-      expect(IsoDate.label('2026-01-05'), '05/01');
+      expect(IsoDateUtils.label('2026-01-05'), '05/01');
     });
 
     test('último dia do mês, que é o ajuste do CAR-04', () {
-      expect(IsoDate.label('2026-02-28'), '28/02');
+      expect(IsoDateUtils.label('2026-02-28'), '28/02');
     });
 
     // Um contrato quebrado no backend não pode virar exceção durante o build.
     test('devolve intacto o que não tem tamanho de data ISO', () {
-      expect(IsoDate.label('2026-08'), '2026-08');
-      expect(IsoDate.label(''), '');
+      expect(IsoDateUtils.label('2026-08'), '2026-08');
+      expect(IsoDateUtils.label(''), '');
     });
   });
 
@@ -27,7 +27,10 @@ void main() {
     // dia. Nenhum fuso do mundo real move meio-dia para outra data, então
     // este é o caso que vale em qualquer máquina que rode o teste.
     test('instante ao meio-dia em UTC devolve o mesmo dia', () {
-      expect(IsoDate.fromInstant('2026-08-17T12:00:00.000Z'), '2026-08-17');
+      expect(
+        IsoDateUtils.fromInstant('2026-08-17T12:00:00.000Z'),
+        '2026-08-17',
+      );
     });
 
     // A expectativa sai de `toLocal()` para o teste valer em qualquer fuso em
@@ -40,37 +43,37 @@ void main() {
           '${local.month.toString().padLeft(2, '0')}-'
           '${local.day.toString().padLeft(2, '0')}';
 
-      expect(IsoDate.fromInstant(instant), esperado);
+      expect(IsoDateUtils.fromInstant(instant), esperado);
 
       // Em qualquer fuso atrás de Greenwich — o do Brasil inclusive — 23h30
       // em UTC ainda é dia 17. É exatamente aqui que o corte de string erraria
       // por um dia, e é isto que a conversão existe para evitar.
       if (local.timeZoneOffset.isNegative) {
-        expect(IsoDate.fromInstant(instant), '2026-08-17');
+        expect(IsoDateUtils.fromInstant(instant), '2026-08-17');
       }
     });
 
     test('aceita data sem hora, tratada como dia local', () {
-      expect(IsoDate.fromInstant('2026-08-17'), '2026-08-17');
+      expect(IsoDateUtils.fromInstant('2026-08-17'), '2026-08-17');
     });
 
     test('ganho não tem dia de compra, e nulo entra e sai nulo', () {
-      expect(IsoDate.fromInstant(null), isNull);
+      expect(IsoDateUtils.fromInstant(null), isNull);
     });
 
     test('devolve nulo no que não é instante, em vez de estourar', () {
-      expect(IsoDate.fromInstant('ontem'), isNull);
-      expect(IsoDate.fromInstant(''), isNull);
+      expect(IsoDateUtils.fromInstant('ontem'), isNull);
+      expect(IsoDateUtils.fromInstant(''), isNull);
     });
   });
 
   group('fullLabel', () {
     test('inclui o ano', () {
-      expect(IsoDate.fullLabel('2026-08-17'), '17/08/2026');
+      expect(IsoDateUtils.fullLabel('2026-08-17'), '17/08/2026');
     });
 
     test('devolve intacto o que não tem tamanho de data ISO', () {
-      expect(IsoDate.fullLabel('17/08'), '17/08');
+      expect(IsoDateUtils.fullLabel('17/08'), '17/08');
     });
   });
 
@@ -87,18 +90,18 @@ void main() {
           '${d.month.toString().padLeft(2, '0')}-'
           '${d.day.toString().padLeft(2, '0')}';
 
-      expect(IsoDate.isFuture(iso(amanha)), isTrue);
-      expect(IsoDate.isFuture(iso(hoje)), isFalse);
+      expect(IsoDateUtils.isFuture(iso(amanha)), isTrue);
+      expect(IsoDateUtils.isFuture(iso(hoje)), isFalse);
       expect(
-        IsoDate.isFuture(iso(hoje.subtract(const Duration(days: 1)))),
+        IsoDateUtils.isFuture(iso(hoje.subtract(const Duration(days: 1)))),
         isFalse,
       );
     });
 
     test('lixo não é futuro, e não estoura', () {
-      expect(IsoDate.isFuture('ontem'), isFalse);
-      expect(IsoDate.isFuture(''), isFalse);
-      expect(IsoDate.isFuture('2026-09'), isFalse);
+      expect(IsoDateUtils.isFuture('ontem'), isFalse);
+      expect(IsoDateUtils.isFuture(''), isFalse);
+      expect(IsoDateUtils.isFuture('2026-09'), isFalse);
     });
   });
 }

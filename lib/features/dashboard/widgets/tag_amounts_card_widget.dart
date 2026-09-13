@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
-import '../../../core/utils/tag_color.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/tag_color_utils.dart';
 import '../../../data/models/dashboard_tag_amount_model.dart';
 import 'dashboard_card_widget.dart';
 
@@ -45,7 +45,7 @@ class TagAmountsCardWidget extends StatelessWidget {
               tag: tag,
               proporcao: maior == 0 ? 0 : tag.amountCents / maior,
               cor:
-                  TagColor.tryParse(tag.color) ??
+                  TagColorUtils.tryParse(tag.color) ??
                   _semCor[indice % _semCor.length],
             ),
         ],
@@ -73,7 +73,7 @@ class _Barra extends StatelessWidget {
           children: [
             Expanded(child: Text(tag.name, overflow: .ellipsis)),
             Text(
-              Money.format(tag.amountCents),
+              MoneyUtils.format(tag.amountCents),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

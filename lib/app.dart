@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
         // Quem lê isto é o Material — o `showDatePicker` do dia da compra é o
         // primeiro a precisar. Nada do app passou a ser traduzido por aqui: os
         // textos continuam escritos em português no código, e moeda e data
-        // continuam formatadas por `Money` e `IsoDate`.
+        // continuam formatadas por `MoneyUtils` e `IsoDateUtils`.
         locale: const Locale('pt', 'BR'),
         supportedLocales: const [Locale('pt', 'BR')],
         localizationsDelegates: const [

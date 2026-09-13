@@ -4,8 +4,8 @@ import 'package:reactive_forms/reactive_forms.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
 
@@ -66,17 +66,17 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
   /// todas já passaram. Reparcelar o passado é permitido (GPR-13), mas não é o
   /// que se quer por padrão.
   String get _initialMonth {
-    final current = Month.current();
+    final current = MonthUtils.current();
     final future = widget.expense.installments
         .map((parcel) => parcel.referenceMonth)
-        .where((month) => Month.compare(month, current) >= 0);
+        .where((month) => MonthUtils.compare(month, current) >= 0);
     return future.isEmpty ? current : future.first;
   }
 
   /// Quantas parcelas ficam de fora do replanejamento — as anteriores ao mês
   /// escolhido, que já foram cobradas.
   int _keptBefore(String month) => widget.expense.installments
-      .where((parcel) => Month.isBefore(parcel.referenceMonth, month))
+      .where((parcel) => MonthUtils.isBefore(parcel.referenceMonth, month))
       .length;
 
   @override
@@ -101,7 +101,7 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
       setState(
         () => _generalError =
             '$kept parcela(s) já foram cobradas antes de '
-            '${Month.label(fromMonth)}. O novo total precisa ser maior que '
+            '${MonthUtils.label(fromMonth)}. O novo total precisa ser maior que '
             'isso — para encerrar o parcelamento, use Quitar.',
       );
       return;
@@ -198,14 +198,16 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
               ReactiveValueListenableBuilder<String>(
                 formControlName: _fromMonth,
                 builder: (context, control, child) {
-                  final kept = _keptBefore(control.value ?? Month.current());
+                  final kept = _keptBefore(
+                    control.value ?? MonthUtils.current(),
+                  );
                   if (kept == 0) return const SizedBox.shrink();
 
                   final total = widget.expense.installments
                       .where(
-                        (parcel) => Month.isBefore(
+                        (parcel) => MonthUtils.isBefore(
                           parcel.referenceMonth,
-                          control.value ?? Month.current(),
+                          control.value ?? MonthUtils.current(),
                         ),
                       )
                       .fold(0, (sum, parcel) => sum + parcel.amountCents);
@@ -213,7 +215,7 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      '$kept parcela(s) já cobradas, ${Money.format(total)} — '
+                      '$kept parcela(s) já cobradas, ${MoneyUtils.format(total)} — '
                       'ficam como estão.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,

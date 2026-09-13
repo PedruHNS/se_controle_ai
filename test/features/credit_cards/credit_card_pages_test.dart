@@ -5,7 +5,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/core/router/app_routes.dart';
 import 'package:se_controle_ai/core/shared/widgets/day_field_widget.dart';
@@ -83,7 +83,7 @@ void main() {
       await pumpList(tester);
 
       expect(
-        find.text(Month.label(SelectedMonthService.initial())),
+        find.text(MonthUtils.label(SelectedMonthService.initial())),
         findsOneWidget,
       );
     });
@@ -102,8 +102,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.chevron_right));
       await tester.pumpAndSettle();
 
-      final proximo = Month.next(SelectedMonthService.initial());
-      expect(find.text(Month.label(proximo)), findsOneWidget);
+      final proximo = MonthUtils.next(SelectedMonthService.initial());
+      expect(find.text(MonthUtils.label(proximo)), findsOneWidget);
       verify(() => repository.list(month: proximo)).called(1);
     });
 

@@ -4,8 +4,8 @@ import '../../../core/di/injector.dart';
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/widgets/month_selector_widget.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/dashboard_history_entry_model.dart';
 
 /// A régua de meses: uma barra de gasto por competência, rolável na horizontal.
@@ -154,7 +154,7 @@ class _Mes extends StatelessWidget {
             child: selecionado
                 ? FittedBox(
                     child: Text(
-                      Money.formatCompact(entrada.expenseCents),
+                      MoneyUtils.formatCompact(entrada.expenseCents),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.primary,
@@ -188,7 +188,7 @@ class _Mes extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            Month.shortLabel(entrada.month).split('/').first,
+            MonthUtils.shortLabel(entrada.month).split('/').first,
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: selecionado ? FontWeight.w700 : FontWeight.w400,
               color: selecionado ? theme.colorScheme.primary : null,

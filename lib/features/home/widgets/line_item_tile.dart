@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/summary_line_item_model.dart';
 
 /// Uma linha do resumo. Serve para ganho, gasto no débito e item de fatura — as
@@ -34,7 +34,7 @@ class LineItemTile extends StatelessWidget {
     final label = item.installmentLabel;
 
     final parts = [
-      if (spentAt != null) IsoDate.fullLabel(spentAt),
+      if (spentAt != null) IsoDateUtils.fullLabel(spentAt),
       if (label != null) 'Parcela $label',
     ];
 
@@ -65,7 +65,7 @@ class LineItemTile extends StatelessWidget {
               ),
             ),
       trailing: Text(
-        Money.format(item.amountCents),
+        MoneyUtils.format(item.amountCents),
         style: theme.textTheme.bodyMedium?.copyWith(
           fontWeight: FontWeight.w600,
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/summary_line_item_model.dart';
 import 'line_item_tile.dart';
 
@@ -75,7 +75,7 @@ class SummarySection extends StatelessWidget {
                     child: Text(title, style: theme.textTheme.titleSmall),
                   ),
                   Text(
-                    Money.format(totalCents),
+                    MoneyUtils.format(totalCents),
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),

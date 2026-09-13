@@ -6,7 +6,7 @@ import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/features/incomes/view/income_detail_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
@@ -66,7 +66,10 @@ void main() {
       // 5.000 do salário + 800 da venda — o mesmo número que a home mostra.
       expect(
         find.descendant(
-          of: find.widgetWithText(ListTile, 'Entra em ${Month.label(month)}'),
+          of: find.widgetWithText(
+            ListTile,
+            'Entra em ${MonthUtils.label(month)}',
+          ),
           matching: find.text(r'R$ 5.800,00'),
         ),
         findsOneWidget,
@@ -84,7 +87,7 @@ void main() {
     testWidgets('ganho que acabou em mês passado é marcado como encerrado', (
       tester,
     ) async {
-      final past = Month.previous(Month.current());
+      final past = MonthUtils.previous(MonthUtils.current());
       stubIncomeList(
         repository,
         result: Success(
@@ -103,7 +106,7 @@ void main() {
         find.descendant(
           of: find.widgetWithText(
             ListTile,
-            'Entra em ${Month.label(SelectedMonthService.initial())}',
+            'Entra em ${MonthUtils.label(SelectedMonthService.initial())}',
           ),
           matching: find.text(r'R$ 5.000,00'),
         ),
@@ -115,7 +118,7 @@ void main() {
     // do aparelho em vez do mês escolhido na home.
     testWidgets('o total segue o mês selecionado na home', (tester) async {
       final atual = SelectedMonthService.initial();
-      final proximo = Month.next(atual);
+      final proximo = MonthUtils.next(atual);
       stubIncomeList(
         repository,
         result: Success(
@@ -129,7 +132,10 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.widgetWithText(ListTile, 'Entra em ${Month.label(atual)}'),
+          of: find.widgetWithText(
+            ListTile,
+            'Entra em ${MonthUtils.label(atual)}',
+          ),
           matching: find.text(r'R$ 5.000,00'),
         ),
         findsOneWidget,
@@ -140,7 +146,10 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.widgetWithText(ListTile, 'Entra em ${Month.label(proximo)}'),
+          of: find.widgetWithText(
+            ListTile,
+            'Entra em ${MonthUtils.label(proximo)}',
+          ),
           matching: find.text(r'R$ 5.800,00'),
         ),
         findsOneWidget,
@@ -246,7 +255,7 @@ void main() {
         () => repository.adjust(
           'income-1',
           amountCents: 550000,
-          effectiveFrom: Month.current(),
+          effectiveFrom: MonthUtils.current(),
         ),
       ).called(1);
       expect(find.byType(AlertDialog), findsNothing);

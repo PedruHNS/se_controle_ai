@@ -9,8 +9,8 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_list_controller.dart';
 import '../widgets/income_tile.dart';
@@ -152,11 +152,11 @@ class _IncomeList extends StatelessWidget {
               children: [
                 ListTile(
                   title: Text(
-                    'Entra em ${Month.label(month)}',
+                    'Entra em ${MonthUtils.label(month)}',
                     style: theme.textTheme.titleSmall,
                   ),
                   trailing: Text(
-                    Money.format(monthTotal),
+                    MoneyUtils.format(monthTotal),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
@@ -174,7 +174,7 @@ class _IncomeList extends StatelessWidget {
                       ),
                     ),
                     trailing: Text(
-                      Money.format(recurring),
+                      MoneyUtils.format(recurring),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

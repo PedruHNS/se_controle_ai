@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-import '../../../core/utils/money.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/monthly_balance_model.dart';
 
 /// O cabeçalho do mês: saldo em destaque, ganho e gasto ao lado, e quanto do
@@ -38,7 +38,7 @@ class BalanceCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              Money.format(balance.balanceCents),
+              MoneyUtils.format(balance.balanceCents),
               style: theme.textTheme.displaySmall?.copyWith(
                 color: balanceColor,
                 fontWeight: FontWeight.bold,
@@ -113,7 +113,7 @@ class _Figure extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          Money.format(value),
+          MoneyUtils.format(value),
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),

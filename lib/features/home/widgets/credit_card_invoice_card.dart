@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/money.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/money_utils.dart';
 import '../../../data/models/credit_card_invoice_model.dart';
 import 'line_item_tile.dart';
 
@@ -78,7 +78,7 @@ class CreditCardInvoiceCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Vence em ${IsoDate.label(invoice.dueDate)}',
+                            'Vence em ${IsoDateUtils.label(invoice.dueDate)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -89,7 +89,7 @@ class CreditCardInvoiceCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      Money.format(invoice.totalCents),
+                      MoneyUtils.format(invoice.totalCents),
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -180,8 +180,8 @@ class _LimitUsage extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           overLimit
-              ? 'Acima do limite de ${Money.format(limitCents)}'
-              : '${(usage * 100).toStringAsFixed(0)}% do limite de ${Money.format(limitCents)}',
+              ? 'Acima do limite de ${MoneyUtils.format(limitCents)}'
+              : '${(usage * 100).toStringAsFixed(0)}% do limite de ${MoneyUtils.format(limitCents)}',
           style: theme.textTheme.bodySmall?.copyWith(
             color: overLimit
                 ? theme.colorScheme.error

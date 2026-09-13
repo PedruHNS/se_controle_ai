@@ -1,5 +1,5 @@
-import '../../core/utils/iso_date.dart';
-import '../../core/utils/month.dart';
+import '../../core/utils/iso_date_utils.dart';
+import '../../core/utils/month_utils.dart';
 import '../enums/expense_type.dart';
 import '../enums/payment_method.dart';
 import 'amount_version_model.dart';
@@ -107,7 +107,7 @@ class ExpenseModel {
   /// Já acabou **antes** de [month] — aí sim "não é mais cobrado".
   bool endedBefore(String month) {
     final end = endMonth;
-    return end != null && Month.isBefore(end, month);
+    return end != null && MonthUtils.isBefore(end, month);
   }
 
   /// O valor cobrado em [month]. Null quando o gasto não é cobrado naquela
@@ -119,9 +119,9 @@ class ExpenseModel {
   /// de que tipo é o gasto.
   int? amountCentsIn(String month) {
     for (final version in history) {
-      final started = Month.compare(month, version.validFrom) >= 0;
+      final started = MonthUtils.compare(month, version.validFrom) >= 0;
       final to = version.validTo;
-      final notFinished = to == null || Month.compare(month, to) <= 0;
+      final notFinished = to == null || MonthUtils.compare(month, to) <= 0;
       if (started && notFinished) return version.amountCents;
     }
     return installmentIn(month)?.amountCents;
@@ -174,7 +174,7 @@ class ExpenseModel {
     paymentMethod: PaymentMethod.fromWire(json['paymentMethod'] as String),
     creditCardId: json['creditCardId'] as String?,
     recurring: json['recurring'] as bool,
-    spentAt: IsoDate.fromInstant(json['spentAt'] as String?),
+    spentAt: IsoDateUtils.fromInstant(json['spentAt'] as String?),
     startMonth: json['startMonth'] as String,
     endMonth: json['endMonth'] as String?,
     amountCents: json['amountCents'] as int?,

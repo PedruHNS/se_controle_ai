@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 
 /// Uma linha da lista de ganhos: descrição, valor vigente e o período.
@@ -36,13 +36,15 @@ class IncomeTile extends StatelessWidget {
       onTap: onTap,
       title: Text(income.description),
       // O período é o que diferencia um salário de um 13º na lista.
-      subtitle: Text(Month.periodLabel(income.startMonth, income.endMonth)),
+      subtitle: Text(
+        MonthUtils.periodLabel(income.startMonth, income.endMonth),
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            Money.format(income.amountCents),
+            MoneyUtils.format(income.amountCents),
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.primary,
             ),

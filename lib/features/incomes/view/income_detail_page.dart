@@ -6,8 +6,8 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
-import '../../../core/utils/money.dart';
-import '../../../core/utils/month.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_detail_controller.dart';
 import '../widgets/income_amount_dialog.dart';
@@ -170,7 +170,7 @@ class _IncomeDetail extends StatelessWidget {
                   Text(income.description, style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Text(
-                    Money.format(income.amountCents),
+                    MoneyUtils.format(income.amountCents),
                     style: theme.textTheme.headlineMedium?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
@@ -178,10 +178,10 @@ class _IncomeDetail extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     income.isClosed
-                        ? 'Encerrado em ${Month.label(income.endMonth!)}'
+                        ? 'Encerrado em ${MonthUtils.label(income.endMonth!)}'
                         : income.recurring
-                        ? 'Recorrente desde ${Month.label(income.startMonth)}'
-                        : 'Mês único — ${Month.label(income.startMonth)}',
+                        ? 'Recorrente desde ${MonthUtils.label(income.startMonth)}'
+                        : 'Mês único — ${MonthUtils.label(income.startMonth)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

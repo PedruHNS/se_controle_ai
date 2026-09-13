@@ -6,8 +6,8 @@ import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/shared/widgets/month_field_widget.dart';
-import 'package:se_controle_ai/core/utils/iso_date.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/iso_date_utils.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
@@ -145,14 +145,14 @@ void main() {
       expect(find.textContaining(RegExp('Mês único|Encerrado')), findsWidgets);
     });
 
-    // O bug que este teste fecha: a tela mostrava o total de `Month.current()`
+    // O bug que este teste fecha: a tela mostrava o total de `MonthUtils.current()`
     // enquanto a home estava em outro mês. Quem olhava setembro via o total de
     // agosto — e, com tudo começando em setembro, via R$ 0,00.
     testWidgets('o total e as linhas seguem o mês selecionado na home', (
       tester,
     ) async {
       final atual = SelectedMonthService.initial();
-      final proximo = Month.next(atual);
+      final proximo = MonthUtils.next(atual);
       final presenteNoProximo = <String, dynamic>{
         ...presenteJson,
         'startMonth': proximo,
@@ -177,7 +177,10 @@ void main() {
       // No mês corrente o presente ainda não saiu: só o aluguel conta.
       expect(
         find.descendant(
-          of: find.widgetWithText(ListTile, 'Sai em ${Month.label(atual)}'),
+          of: find.widgetWithText(
+            ListTile,
+            'Sai em ${MonthUtils.label(atual)}',
+          ),
           matching: find.text(r'R$ 1.350,00'),
         ),
         findsOneWidget,
@@ -190,7 +193,10 @@ void main() {
       // o novo `activeFrom` e o rodapé se recompôs, agora com o presente somado.
       expect(
         find.descendant(
-          of: find.widgetWithText(ListTile, 'Sai em ${Month.label(proximo)}'),
+          of: find.widgetWithText(
+            ListTile,
+            'Sai em ${MonthUtils.label(proximo)}',
+          ),
           matching: find.text(r'R$ 1.530,00'),
         ),
         findsOneWidget,
@@ -258,13 +264,13 @@ void main() {
       // "em <mês>" e não "cadastrado": com o `?activeFrom` (GFX-11), lista
       // vazia também é o mês em que nada é cobrado.
       //
-      // O mês sai do controller e não de `Month.current()`: o
+      // O mês sai do controller e não de `MonthUtils.current()`: o
       // `SelectedMonthService` é singleton do `getIt` e sobrevive entre os
       // testes deste arquivo — o de cima deixa a home no mês seguinte.
       expect(
         find.text(
           'Nenhum gasto em '
-          '${Month.label(getIt<SelectedMonthService>().month.value)}',
+          '${MonthUtils.label(getIt<SelectedMonthService>().month.value)}',
         ),
         findsOneWidget,
       );
@@ -302,7 +308,7 @@ void main() {
       await pumpForm(tester);
 
       expect(find.text('Dia da compra'), findsOneWidget);
-      expect(find.text(IsoDate.fullLabel(primeiroDoMes())), findsNothing);
+      expect(find.text(IsoDateUtils.fullLabel(primeiroDoMes())), findsNothing);
       expect(find.text('Não informado'), findsNothing);
 
       expect(find.text('A partir de'), findsNothing);
@@ -379,7 +385,7 @@ void main() {
 
       // Do relógio, e não da competência: desde que o dia passou a decidir a
       // fatura, o calendário deixou de ser preso ao mês escolhido na tela.
-      final esperado = IsoDate.fullLabel(primeiroDoMes());
+      final esperado = IsoDateUtils.fullLabel(primeiroDoMes());
 
       expect(find.text(esperado), findsOneWidget);
       expect(find.text('Não informado'), findsNothing);
@@ -413,13 +419,13 @@ void main() {
       // Dia 1 é o próprio fechamento: a fatura deste mês fechou nele. Se hoje
       // ainda for dia 1, ela continua aberta e a compra fica aqui mesmo.
       final hoje = DateTime.now();
-      final mes = Month.of(hoje.year, hoje.month);
-      final esperada = hoje.day <= 1 ? mes : Month.next(mes);
+      final mes = MonthUtils.of(hoje.year, hoje.month);
+      final esperada = hoje.day <= 1 ? mes : MonthUtils.next(mes);
 
       // O seletor de mês não existe mais: o texto embaixo do calendário é o
       // único lugar da tela que diz onde o gasto vai cair.
       expect(
-        find.textContaining(Month.label(esperada).toLowerCase()),
+        find.textContaining(MonthUtils.label(esperada).toLowerCase()),
         findsOneWidget,
         reason: 'o texto de apoio nomeia a fatura que recebeu a compra',
       );
@@ -483,7 +489,7 @@ void main() {
     testWidgets('salvar leva a home para o mês onde o gasto caiu', (
       tester,
     ) async {
-      final outroMes = Month.next(Month.next(Month.current()));
+      final outroMes = MonthUtils.next(MonthUtils.next(MonthUtils.current()));
       getIt<SelectedMonthService>().select(outroMes);
 
       // Com pilha de verdade: o aviso é mostrado no instante em que a tela
@@ -520,7 +526,7 @@ void main() {
       );
       await tapSalvar(tester);
 
-      expect(getIt<SelectedMonthService>().month.value, Month.current());
+      expect(getIt<SelectedMonthService>().month.value, MonthUtils.current());
       expect(find.textContaining('Lançado em'), findsOneWidget);
     });
 

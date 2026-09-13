@@ -7,9 +7,9 @@ import '../../../core/errors/failure.dart';
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
-import '../../../core/utils/iso_date.dart';
-import '../../../core/utils/month.dart';
-import '../../../core/utils/text_order.dart';
+import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/utils/month_utils.dart';
+import '../../../core/utils/text_order_utils.dart';
 import '../../../data/models/credit_card_model.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
@@ -274,7 +274,7 @@ class ExpenseFormController extends BaseController {
       if (!_tags.any((tag) => tag.id == expense.tag.id)) {
         _setTags(
           [..._tags, expense.tag]
-            ..sort((a, b) => TextOrder.alfabetica(a.name, b.name)),
+            ..sort((a, b) => TextOrderUtils.alfabetica(a.name, b.name)),
         );
       }
 
@@ -319,7 +319,7 @@ class ExpenseFormController extends BaseController {
       // linha que a lista já conhece.
       _setTags(
         [..._tags.where((item) => item.id != tag.id), tag]
-          ..sort((a, b) => TextOrder.alfabetica(a.name, b.name)),
+          ..sort((a, b) => TextOrderUtils.alfabetica(a.name, b.name)),
       );
       control<String>(tagId).updateValue(tag.id);
       return null;
@@ -466,22 +466,22 @@ class ExpenseFormController extends BaseController {
 
     final card = selectedCard;
     if (card == null) {
-      return 'Entra na competência de ${Month.label(month).toLowerCase()}';
+      return 'Entra na competência de ${MonthUtils.label(month).toLowerCase()}';
     }
 
-    final vence = IsoDate.label(_dueDate(card, month));
+    final vence = IsoDateUtils.label(_dueDate(card, month));
 
     // Quando a fatura da compra já fechou e o lançamento foi empurrado para a
     // aberta, o texto explica a segunda conta: sem isso, a competência pular um
     // mês a mais parece defeito.
     final purchase = card.invoiceMonthFor(control<String>(spentAt).value!);
     if (purchase != month) {
-      return 'A fatura de ${Month.label(purchase).toLowerCase()} já fechou '
+      return 'A fatura de ${MonthUtils.label(purchase).toLowerCase()} já fechou '
           'dia ${card.closingDay} · entra na de '
-          '${Month.label(month).toLowerCase()}, que vence $vence';
+          '${MonthUtils.label(month).toLowerCase()}, que vence $vence';
     }
 
-    return 'Entra na fatura de ${Month.label(month).toLowerCase()} · '
+    return 'Entra na fatura de ${MonthUtils.label(month).toLowerCase()} · '
         'vence $vence';
   }
 

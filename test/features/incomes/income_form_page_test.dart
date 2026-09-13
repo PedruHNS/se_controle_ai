@@ -5,7 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/utils/month.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 
 import '../../fixtures/mocks.dart';
@@ -57,7 +57,7 @@ void main() {
     await pumpForm(tester);
 
     expect(
-      find.text(Month.label(SelectedMonthService.initial())),
+      find.text(MonthUtils.label(SelectedMonthService.initial())),
       findsOneWidget,
     );
     // O switch nasce desligado, então a explicação é a do lançamento único.
@@ -155,7 +155,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text(Month.label(Month.next(SelectedMonthService.initial()))),
+      find.text(
+        MonthUtils.label(MonthUtils.next(SelectedMonthService.initial())),
+      ),
       findsOneWidget,
     );
 
@@ -166,7 +168,7 @@ void main() {
       () => repository.create(
         description: 'Aluguel recebido',
         amountCents: 120000,
-        startMonth: Month.next(SelectedMonthService.initial()),
+        startMonth: MonthUtils.next(SelectedMonthService.initial()),
         recurring: any(named: 'recurring'),
       ),
     ).called(1);

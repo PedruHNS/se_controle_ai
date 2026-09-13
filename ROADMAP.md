@@ -83,7 +83,7 @@ mês, e a segunda pergunta só existia porque a primeira era opcional.
 - [x] **Recorrente é outra coisa.** Rótulo `Começou em` e trava de fatura
       fechada desligada: cadastrar hoje o aluguel de janeiro é registro
       retroativo, não lançamento novo numa fatura encerrada.
-- [x] **O rótulo segue a data.** `IsoDate.isFuture` decide entre `Compra em` e
+- [x] **O rótulo segue a data.** `IsoDateUtils.isFuture` decide entre `Compra em` e
       `Previsto para` na lista e no detalhe. A linha do resumo mostra a data
       pelada, sem verbo, e por isso não mente em nenhum dos dois casos.
 - [x] **O `MonthFieldWidget` saiu dos dois blocos.** O que sobrou no lugar é o
@@ -874,7 +874,7 @@ operação.
 recebe o instante em que cadastrou. Volta em toda leitura de gasto **e em toda
 linha do resumo** (`items[].spentAt`, nulo em ganho), sempre em ISO 8601 com
 fuso — é a única data do contrato que não é `DATE`, porque é instante. Do lado
-do app ela é convertida uma vez, em `IsoDate.fromInstant`, e daí em diante
+do app ela é convertida uma vez, em `IsoDateUtils.fromInstant`, e daí em diante
 circula como `YYYY-MM-DD`: cortar a string em dez caracteres daria o dia em UTC,
 e às 21h de Brasília isso já é amanhã.
 
@@ -1196,10 +1196,10 @@ volta para o login sem deixar sessão de pé.
   `DropdownButtonFormField` com valor sem item correspondente é **assertion do
   Flutter**, não campo vazio.
 - **Ícone repetido quebra `find.byIcon`** — use `find.descendant`.
-- **`Month.label` capitaliza**, e no meio de uma frase lê como erro de digitação
-  ("Janeiro 2026 a Outubro 2026"). Por isso existe `Month.periodLabel`.
+- **`MonthUtils.label` capitaliza**, e no meio de uma frase lê como erro de digitação
+  ("Janeiro 2026 a Outubro 2026"). Por isso existe `MonthUtils.periodLabel`.
 - **Arredondar não conserta ponto flutuante.** `0.145` chega como `0.1449999…` e
-  vira 14 centavos. Entrada de usuário usa `Money.tryParse`, que lê os dígitos do
+  vira 14 centavos. Entrada de usuário usa `MoneyUtils.tryParse`, que lê os dígitos do
   texto sem passar por `double`.
 - **`amountCents`, `history` e `installments` são nulos conforme o tipo.** Ler o
   campo errado dá `null` silencioso, não erro. E `/summary` recebe o mês por
