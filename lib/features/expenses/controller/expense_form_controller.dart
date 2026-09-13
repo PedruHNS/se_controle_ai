@@ -7,6 +7,7 @@ import '../../../core/errors/failure.dart';
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/patch.dart';
 import '../../../core/utils/base_controller.dart';
+import '../../../core/utils/credit_card_months_utils.dart';
 import '../../../core/utils/iso_date_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../core/utils/text_order_utils.dart';
@@ -446,8 +447,16 @@ class ExpenseFormController extends BaseController {
     if (card == null) return chosen.substring(0, 7);
 
     return _isRecurring
-        ? card.invoiceMonthFor(chosen)
-        : card.chargeMonthFor(chosen);
+        ? CreditCardMonthsUtils.invoiceMonthFor(
+            chosen,
+            closingDay: card.closingDay,
+            dueDay: card.dueDay,
+          )
+        : CreditCardMonthsUtils.chargeMonthFor(
+            chosen,
+            closingDay: card.closingDay,
+            dueDay: card.dueDay,
+          );
   }
 
   /// O texto embaixo do calendário: onde o gasto vai cair, e **quando ele sai
@@ -474,7 +483,11 @@ class ExpenseFormController extends BaseController {
     // Quando a fatura da compra já fechou e o lançamento foi empurrado para a
     // aberta, o texto explica a segunda conta: sem isso, a competência pular um
     // mês a mais parece defeito.
-    final purchase = card.invoiceMonthFor(control<String>(spentAt).value!);
+    final purchase = CreditCardMonthsUtils.invoiceMonthFor(
+      control<String>(spentAt).value!,
+      closingDay: card.closingDay,
+      dueDay: card.dueDay,
+    );
     if (purchase != month) {
       return 'A fatura de ${MonthUtils.label(purchase).toLowerCase()} já fechou '
           'dia ${card.closingDay} · entra na de '

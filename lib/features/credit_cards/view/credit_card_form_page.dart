@@ -6,6 +6,7 @@ import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_controller.dart';
 import 'package:signals/signals_flutter.dart';
 
+import '../../../core/utils/credit_card_months_utils.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/shared/widgets/day_field_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
@@ -149,10 +150,18 @@ class _CreditCardForm extends StatelessWidget {
     // A fatura leva o nome do mês em que é paga (CAR-03). Quando vence antes de
     // fechar, ela cobra o que foi comprado no mês anterior — e é esse
     // deslocamento que a pessoa precisa entender antes de lançar um gasto.
-    return dueDay > closingDay
+    //
+    // A pergunta vem do `CreditCardMonthsUtils`, e não de um `dueDay > closingDay`
+    // escrito aqui: é a mesma regra que decide a competência no formulário de
+    // gasto, e escrita duas vezes seriam dois lugares para achar no dia em que
+    // ela mudar de novo — como mudou em 12/09/2026.
+    return CreditCardMonthsUtils.closesInPreviousMonth(
+          closingDay: closingDay,
+          dueDay: dueDay,
+        )
         ? 'Fecha dia $closingDay e vence dia $dueDay: a fatura de um mês cobra '
-              'as compras desse mesmo mês.'
+              'as compras do mês anterior, até o dia $closingDay.'
         : 'Fecha dia $closingDay e vence dia $dueDay: a fatura de um mês cobra '
-              'as compras do mês anterior, até o dia $closingDay.';
+              'as compras desse mesmo mês.';
   }
 }
