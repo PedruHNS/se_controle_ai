@@ -55,39 +55,53 @@ class _CreditCardListPageState extends State<CreditCardListPage> {
         onPressed: () => _nav.pushNamed(AppRoutes.creditCardForm),
         child: const Icon(Icons.add),
       ),
-      body: SignalBuilder(
-        builder: (context) {
-          final state = _controller.state.value;
-          return switch (state) {
-            Loading() => ListView.separated(
-              padding: .all(24),
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemCount: 6,
-              itemBuilder: (_, _) =>
-                  Skeletonizer(child: CreditCardWidget.esqueleton()),
+      body: RefreshIndicator.adaptive(
+        onRefresh: _controller.refresh,
+        child: CustomScrollView(
+          slivers: [
+            const PinnedHeaderSliver(
+              child: Material(child: MonthSelectorWidget()),
             ),
-            Failed(failure: final failure) => Center(
-              child: Padding(
-                padding: const .all(16),
-                child: FailureCardWidget(
-                  failure: failure,
-                  onRetry: _controller.refresh,
-                ),
-              ),
+            SignalBuilder(
+              builder: (context) {
+                final state = _controller.state.value;
+                return switch (state) {
+                  Loading() => SliverPadding(
+                    padding: .all(24),
+                    sliver: SliverList.separated(
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemCount: 6,
+                      itemBuilder: (_, _) =>
+                          Skeletonizer(child: CreditCardWidget.esqueleton()),
+                    ),
+                  ),
+                  Failed(failure: final failure) => SliverFillRemaining(
+                    child: Center(
+                      child: Padding(
+                        padding: const .all(16),
+                        child: FailureCardWidget(
+                          failure: failure,
+                          onRetry: _controller.refresh,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Loaded(data: final cards) => _CreditCardList(
+                    cards: cards,
+                    controller: _controller,
+                    onOpen: (card) => _nav.pushNamed(
+                      AppRoutes.creditCardExpenses,
+                      pathParameters: {RouteParams.id: card.id},
+                    ),
+                    onEdit: (card) =>
+                        _nav.pushNamed(AppRoutes.creditCardEdit, extra: card),
+                    onDelete: _confirmDelete,
+                  ),
+                };
+              },
             ),
-            Loaded(data: final cards) => _CreditCardList(
-              cards: cards,
-              controller: _controller,
-              onOpen: (card) => _nav.pushNamed(
-                AppRoutes.creditCardExpenses,
-                pathParameters: {RouteParams.id: card.id},
-              ),
-              onEdit: (card) =>
-                  _nav.pushNamed(AppRoutes.creditCardEdit, extra: card),
-              onDelete: _confirmDelete,
-            ),
-          };
-        },
+          ],
+        ),
       ),
     );
   }
@@ -114,42 +128,33 @@ class _CreditCardList extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
     if (cards.isEmpty) {
-      return EmptyStateWidget(
-        icon: Icons.credit_card,
-        title: 'Nenhum cartão cadastrado',
-        message: 'Cadastre um para poder lançar gasto no cartão.',
-        onRefresh: controller.refresh,
+      return SliverFillRemaining(
+        hasScrollBody: true,
+        child: EmptyStateWidget(
+          icon: Icons.credit_card,
+          title: 'Nenhum cartão cadastrado',
+          message: 'Cadastre um para poder lançar gasto no cartão.',
+          onRefresh: controller.refresh,
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: controller.refresh,
-      child: CustomScrollView(
-        slivers: [
-          // O `Material` é daqui: cabeçalho fixo tem de ser opaco, senão a
-          // lista rola por baixo e aparece através dele.
-          const PinnedHeaderSliver(
-            child: Material(child: MonthSelectorWidget()),
-          ),
-          SignalBuilder(
-            builder: (context) => SliverPadding(
-              padding: .fromLTRB(24, 24, 24, bottomPadding + 80),
-              sliver: SliverList.separated(
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
+    return SignalBuilder(
+      builder: (context) => SliverPadding(
+        padding: .fromLTRB(24, 24, 24, bottomPadding + 80),
+        sliver: SliverList.separated(
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
 
-                itemCount: cards.length,
-                itemBuilder: (_, i) {
-                  return CreditCardWidget(
-                    card: cards[i],
-                    onTap: () => onOpen(cards[i]),
-                    onEdit: () => onEdit(cards[i]),
-                    onDelete: () => onDelete(cards[i]),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+          itemCount: cards.length,
+          itemBuilder: (_, i) {
+            return CreditCardWidget(
+              card: cards[i],
+              onTap: () => onOpen(cards[i]),
+              onEdit: () => onEdit(cards[i]),
+              onDelete: () => onDelete(cards[i]),
+            );
+          },
+        ),
       ),
     );
   }
@@ -173,7 +178,12 @@ class _DeleteDialog extends StatelessWidget {
       content: Text('${card.label} sai do cadastro.'),
       actions: [
         TextButton(onPressed: onCancel, child: const Text('Cancelar')),
-        FilledButton(onPressed: onConfirm, child: const Text('Excluir')),
+        FilledButton(
+          onPressed: () async {
+            await onConfirm();
+          },
+          child: const Text('Excluir'),
+        ),
       ],
     );
   }

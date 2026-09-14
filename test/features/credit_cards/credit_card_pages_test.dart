@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
@@ -82,6 +85,45 @@ void main() {
     ) async {
       await pumpList(tester);
 
+      expect(
+        find.text(MonthUtils.label(SelectedMonthService.initial())),
+        findsOneWidget,
+      );
+    });
+
+    // Estava dentro do ramo `Loaded`, e sumia no próprio toque que a pessoa
+    // acabava de dar: trocar a competência põe a lista em `Loading`, e o
+    // controle ia embora junto com o conteúdo. O `Completer` segura a resposta
+    // para o teste ver o estado do meio, que é onde o defeito morava.
+    testWidgets('o seletor de mês continua na tela durante o loading', (
+      tester,
+    ) async {
+      final pendente = Completer<void>();
+      addTearDown(() {
+        if (!pendente.isCompleted) pendente.complete();
+      });
+
+      repository = setupCreditCardTestInjector(
+        mock: creditCardRepositoryMock(pendenteAte: pendente.future),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: CreditCardListPage()));
+      await tester.pump();
+
+      // Está mesmo carregando: o esqueleto na tela é o ramo `Loading`, e o
+      // cartão de verdade ainda não chegou. O `Skeletonizer` público não
+      // aparece na árvore — quem aparece é o `SkeletonizerScope` que ele monta.
+      expect(find.byType(SkeletonizerScope), findsWidgets);
+      expect(find.text('Nubank ••••4321'), findsNothing);
+      expect(
+        find.text(MonthUtils.label(SelectedMonthService.initial())),
+        findsOneWidget,
+      );
+
+      pendente.complete();
+      await tester.pumpAndSettle();
+
+      // E segue lá depois que o conteúdo chega — um só, não dois.
       expect(
         find.text(MonthUtils.label(SelectedMonthService.initial())),
         findsOneWidget,
