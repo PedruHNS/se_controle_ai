@@ -35,7 +35,7 @@ abstract interface class CreditCardRepository {
 
 class CreditCardRepositoryImpl implements CreditCardRepository {
   final ApiClient _api;
- 
+
   CreditCardRepositoryImpl(this._api);
 
   @override
