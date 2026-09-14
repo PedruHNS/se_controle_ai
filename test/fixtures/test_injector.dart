@@ -225,8 +225,8 @@ MockCreditCardRepository setupCreditCardTestInjector({
     // seu `dispose`, e o get_it recusa isso em registro que não seja lazy.
     ..registerLazySingleton<CreditCardController>(
       () => CreditCardController(
-        getIt<CreditCardRepository>(),
-        getIt<SelectedMonthService>(),
+        repository: getIt<CreditCardRepository>(),
+        selectedMonth: getIt<SelectedMonthService>(),
       ),
       dispose: (controller) => controller.dispose(),
     )

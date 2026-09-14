@@ -1,5 +1,6 @@
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
+
 import 'package:signals/signals.dart';
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
@@ -10,7 +11,11 @@ import '../../../data/repositories/credit_card_repository.dart';
 class CreditCardController extends BaseController with MessageMixin {
   final CreditCardRepository _repository;
   final SelectedMonthService _selectedMonth;
-  CreditCardController(this._repository, this._selectedMonth);
+
+  CreditCardController({
+    required this._repository,
+    required this._selectedMonth,
+  });
 
   EffectCleanup? _watchingMonth;
 
@@ -75,7 +80,7 @@ class CreditCardController extends BaseController with MessageMixin {
     if (current is! Loaded<List<CreditCardModel>>) return;
     final result = await _repository.delete(id);
 
-    return result.when(
+    result.when(
       (_) async {
         _state.value = Loaded(current.data.where((e) => e.id != id).toList());
 

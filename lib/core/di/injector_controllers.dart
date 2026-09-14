@@ -99,8 +99,8 @@ void _registerControllers() {
   // lista, quem garante isso é o reset no começo do `startForm`.
   getIt.registerLazySingleton<CreditCardController>(
     () => CreditCardController(
-      getIt<CreditCardRepository>(),
-      getIt<SelectedMonthService>(),
+      repository: getIt<CreditCardRepository>(),
+      selectedMonth: getIt<SelectedMonthService>(),
     ),
     dispose: (e) => e.dispose(),
   );

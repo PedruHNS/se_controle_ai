@@ -25,7 +25,10 @@ void main() {
     repository = MockCreditCardRepository();
     stubCreditCardList(repository);
     stubCreditCardOperations(repository);
-    controller = CreditCardController(repository, SelectedMonthService());
+    controller = CreditCardController(
+      repository: repository,
+      selectedMonth: SelectedMonthService(),
+    );
   });
 
   tearDown(() => controller.dispose());

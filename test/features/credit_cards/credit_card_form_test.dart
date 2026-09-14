@@ -23,7 +23,10 @@ void main() {
   // lista se inscreve nele — e é a lista carregada que o `create` altera.
   setUp(() {
     repository = creditCardRepositoryMock();
-    controller = CreditCardController(repository, SelectedMonthService());
+    controller = CreditCardController(
+      repository: repository,
+      selectedMonth: SelectedMonthService(),
+    );
   });
 
   tearDown(() => controller.dispose());
@@ -155,7 +158,10 @@ void main() {
       repository = creditCardRepositoryMock(
         create: const Error(NetworkFailure(message: 'sem rede')),
       );
-      final outro = CreditCardController(repository, SelectedMonthService());
+      final outro = CreditCardController(
+        repository: repository,
+        selectedMonth: SelectedMonthService(),
+      );
       addTearDown(outro.dispose);
       await Future<void>.delayed(Duration.zero);
 
