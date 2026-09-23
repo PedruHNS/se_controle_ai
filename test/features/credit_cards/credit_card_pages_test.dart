@@ -422,6 +422,44 @@ void main() {
       );
     });
 
+    // O outro lado do mesmo helper, e o que o teste acima não cobre: mexer só
+    // no **vencimento** também reescreve a frase. Vale a pena porque os dois
+    // dias chegam por caminhos diferentes — o fechamento por um ouvinte aqui na
+    // tela, o vencimento pelo redesenho do próprio campo, que é quem chama o
+    // `helperBuilder`. Um caminho pode quebrar com o outro inteiro.
+    testWidgets('mudar só o vencimento também reescreve o helper', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      expect(
+        find.textContaining('cobra as compras desse mesmo mês'),
+        findsOneWidget,
+      );
+
+      // Vencimento do dia 10 ao dia 1, sem tocar no fechamento, que segue no 1.
+      // Empatar já basta: o `<=` do `CreditCardMonthsUtils` conta o empate como
+      // vencer antes de fechar.
+      final anterior = find.descendant(
+        of: find.byType(DayFieldWidget).last,
+        matching: find.byTooltip('Dia anterior'),
+      );
+      // Um `pumpAndSettle` por toque, e não um no fim: o dia que a seta
+      // decrementa é o que o último desenho deixou no campo, então nove toques
+      // sem redesenho são nove vezes o mesmo 10 → 9.
+      for (var i = 0; i < 9; i++) {
+        await tester.tap(anterior);
+        await tester.pumpAndSettle();
+      }
+
+      // Os dois campos no dia 1 — o fechamento não se mexeu.
+      expect(find.text('Dia 1'), findsNWidgets(2));
+      expect(
+        find.textContaining('cobra as compras do mês anterior'),
+        findsOneWidget,
+      );
+    });
+
     // O controller é singleton do get_it, então o `form` sobrevive ao
     // fechamento da tela. Quem garante que "Novo cartão" abre em branco é o
     // `resetForm` no `initState` — sem ele, o cartão anterior ainda estaria

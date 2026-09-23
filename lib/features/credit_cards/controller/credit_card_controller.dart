@@ -1,5 +1,6 @@
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 
 import 'package:signals/signals.dart';
 import '../../../data/services/selected_month_service.dart';
@@ -11,10 +12,12 @@ import '../../../data/repositories/credit_card_repository.dart';
 class CreditCardController extends BaseController with MessageMixin {
   final CreditCardRepository _repository;
   final SelectedMonthService _selectedMonth;
+  final NavigationService _nav;
 
   CreditCardController({
     required this._repository,
     required this._selectedMonth,
+    required this._nav,
   });
 
   EffectCleanup? _watchingMonth;
@@ -22,14 +25,20 @@ class CreditCardController extends BaseController with MessageMixin {
   final _state = signal<ViewState<List<CreditCardModel>>>(const Loading());
 
   ReadonlySignal<ViewState<List<CreditCardModel>>> get state => _state;
+  final _closingDay = signal<int>(1);
+  ReadonlySignal<int> get getClosingDay => _closingDay;
+  set setClosingDay(int day) => _closingDay.value = day;
+
+  final _dueDay = signal<int>(10);
+  ReadonlySignal<int> get getDueDay => _dueDay;
+  set setDueDay(int day) => _dueDay.value = day;
 
   final form = FormGroup({
     'name': FormControl<String>(validators: [Validators.required]),
     'lastDigits': FormControl<String>(
       validators: [Validators.pattern(r'^\d{4}$')],
     ),
-    'closingDay': FormControl<int>(value: 1, validators: [Validators.required]),
-    'dueDay': FormControl<int>(value: 10, validators: [Validators.required]),
+
     'limitCents': FormControl<int>(),
   });
 
@@ -47,20 +56,23 @@ class CreditCardController extends BaseController with MessageMixin {
   void dispose() {
     _watchingMonth?.call();
     _state.dispose();
+    _closingDay.dispose();
+    _dueDay.dispose();
     form.dispose();
     super.dispose();
   }
 
   void resetForm() {
     form.reset();
-    form.patchValue({'closingDay': 1, 'dueDay': 10});
+    _closingDay.value = 1;
+    _dueDay.value = 10;
   }
 
   void loadCardCredit(final CreditCardModel creditCard) {
     form.control('name').value = creditCard.name;
     form.control('lastDigits').value = creditCard.lastDigits;
-    form.control('closingDay').value = creditCard.closingDay;
-    form.control('dueDay').value = creditCard.dueDay;
+    _closingDay.value = creditCard.closingDay;
+    _dueDay.value = creditCard.dueDay;
     form.control('limitCents').value = creditCard.limitCents;
   }
 
@@ -99,8 +111,8 @@ class CreditCardController extends BaseController with MessageMixin {
   Future<void> create() async {
     final result = await _repository.create(
       name: form.control('name').value.trim(),
-      closingDay: form.control('closingDay').value!,
-      dueDay: form.control('dueDay').value!,
+      closingDay: _closingDay.value,
+      dueDay: _dueDay.value,
       lastDigits: form.control('lastDigits').value,
       limitCents: form.control('limitCents').value,
     );
@@ -133,8 +145,8 @@ class CreditCardController extends BaseController with MessageMixin {
     final result = await _repository.update(
       id,
       name: form.control('name').value.trim(),
-      closingDay: form.control('closingDay').value!,
-      dueDay: form.control('dueDay').value!,
+      closingDay: _closingDay.value,
+      dueDay: _dueDay.value,
       lastDigits: form.control('lastDigits').value,
       limitCents: form.control('limitCents').value,
       month: _selectedMonth.month.value,
@@ -162,5 +174,14 @@ class CreditCardController extends BaseController with MessageMixin {
         );
       },
     );
+  }
+
+  Future<void> onSubmit({required String? cardId}) async {
+    if (cardId != null) {
+      await update(cardId);
+    } else {
+      await create();
+    }
+    _nav.pop();
   }
 }

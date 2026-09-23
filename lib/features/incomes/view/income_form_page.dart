@@ -93,10 +93,7 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
               ),
             ),
             const SizedBox(height: 16),
-            MoneyFieldWidget(
-              formControlName: IncomeFormController.amountCents,
-              onSubmitted: (_) => _submit(),
-            ),
+            MoneyFieldWidget(formControlName: IncomeFormController.amountCents),
             const SizedBox(height: 16),
             MonthFieldWidget(
               formControlName: IncomeFormController.startMonth,

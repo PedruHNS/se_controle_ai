@@ -16,6 +16,7 @@ import '../../fixtures/mocks.dart';
 
 void main() {
   late MockCreditCardRepository repository;
+  late MockNavigationService nav;
   late CreditCardController controller;
 
   // O formulário não tem mais controller próprio: ele é o lado de cadastro e
@@ -23,9 +24,11 @@ void main() {
   // lista se inscreve nele — e é a lista carregada que o `create` altera.
   setUp(() {
     repository = creditCardRepositoryMock();
+    nav = navigationServiceMock();
     controller = CreditCardController(
       repository: repository,
       selectedMonth: SelectedMonthService(),
+      nav: nav,
     );
   });
 
@@ -41,8 +44,8 @@ void main() {
   }) {
     controller.form.control('name').value = name;
     controller.form.control('lastDigits').value = lastDigits;
-    controller.form.control('closingDay').value = closingDay;
-    controller.form.control('dueDay').value = dueDay;
+    controller.setClosingDay = closingDay;
+    controller.setDueDay = dueDay;
     controller.form.control('limitCents').value = limitCents;
   }
 
@@ -142,8 +145,8 @@ void main() {
       expect(controller.form.control('limitCents').value, isNull);
       // Os dias voltam ao padrão, e não a null: são obrigatórios, e um form que
       // abrisse com eles vazios já nasceria inválido.
-      expect(controller.form.control('closingDay').value, 1);
-      expect(controller.form.control('dueDay').value, 10);
+      expect(controller.getClosingDay.value, 1);
+      expect(controller.getDueDay.value, 10);
       // Limpo é diferente de recém-recusado: o campo não pode abrir vermelho
       // por causa do cadastro anterior.
       expect(controller.form.touched, isFalse);
@@ -161,6 +164,7 @@ void main() {
       final outro = CreditCardController(
         repository: repository,
         selectedMonth: SelectedMonthService(),
+        nav: navigationServiceMock(),
       );
       addTearDown(outro.dispose);
       await Future<void>.delayed(Duration.zero);
@@ -248,8 +252,8 @@ void main() {
 
       expect(controller.form.control('name').value, 'Nubank');
       expect(controller.form.control('lastDigits').value, '4321');
-      expect(controller.form.control('closingDay').value, 10);
-      expect(controller.form.control('dueDay').value, 17);
+      expect(controller.getClosingDay.value, 10);
+      expect(controller.getDueDay.value, 17);
       expect(controller.form.control('limitCents').value, 800000);
     });
 
@@ -275,8 +279,8 @@ void main() {
       expect(controller.form.control('name').value, 'Caixa');
       expect(controller.form.control('lastDigits').value, isNull);
       expect(controller.form.control('limitCents').value, isNull);
-      expect(controller.form.control('closingDay').value, 3);
-      expect(controller.form.control('dueDay').value, 12);
+      expect(controller.getClosingDay.value, 3);
+      expect(controller.getDueDay.value, 12);
     });
   });
 
@@ -320,8 +324,100 @@ void main() {
       expect(controller.form.control('name').value, isNull);
       expect(controller.form.control('lastDigits').value, isNull);
       expect(controller.form.control('limitCents').value, isNull);
-      expect(controller.form.control('closingDay').value, 1);
-      expect(controller.form.control('dueDay').value, 10);
+      expect(controller.getClosingDay.value, 1);
+      expect(controller.getDueDay.value, 10);
+    });
+  });
+
+  // O botão "Salvar" é um só para cadastrar e editar, e quem separa os dois é o
+  // `onSubmit`, pelo `cardId` que a tela passa — o `widget.card?.id`, o mesmo
+  // objeto que chegou pelo `extra` da rota. O controller continua sem guardar
+  // qual cartão está aberto (ver o grupo acima); estes testes vigiam a única
+  // decisão que sobrou para ele.
+  //
+  // Enquanto a tela construía o `_CreditCardForm` sem passar o id, o `cardId`
+  // chegava sempre nulo e **editar cadastrava um cartão novo** — daí o
+  // `verifyNever` do lado oposto em cada teste, e não só o `verify` do certo.
+  group('onSubmit — cadastrar ou editar', () {
+    // O id do Nubank do fixture, o cartão que o `loadCardCredit` leva ao form.
+    const nubankId = '39e95359-97f2-441c-bc26-f68a8821ae5a';
+
+    // A lista carregada: sem `Loaded`, o `update` desiste antes de chegar ao
+    // repositório e o teste passaria pelo motivo errado.
+    setUp(() async => await Future<void>.delayed(Duration.zero));
+
+    test('sem cardId cadastra, e não edita', () async {
+      controller.resetForm();
+      fill();
+
+      await controller.onSubmit(cardId: null);
+
+      verify(
+        () => repository.create(
+          name: 'Nubank',
+          closingDay: 10,
+          dueDay: 17,
+          lastDigits: any(named: 'lastDigits'),
+          limitCents: any(named: 'limitCents'),
+        ),
+      ).called(1);
+      verifyNever(
+        () => repository.update(
+          any(),
+          name: any(named: 'name'),
+          closingDay: any(named: 'closingDay'),
+          dueDay: any(named: 'dueDay'),
+          lastDigits: any(named: 'lastDigits'),
+          limitCents: any(named: 'limitCents'),
+          month: any(named: 'month'),
+        ),
+      );
+    });
+
+    test('com cardId edita aquele cartão, e não cadastra outro', () async {
+      controller.loadCardCredit(CreditCardModel.fromJson(nubankJson));
+
+      await controller.onSubmit(cardId: nubankId);
+
+      verify(
+        () => repository.update(
+          nubankId,
+          name: 'Nubank',
+          closingDay: 10,
+          dueDay: 17,
+          lastDigits: '4321',
+          limitCents: 800000,
+          month: any(named: 'month'),
+        ),
+      ).called(1);
+      verifyNever(
+        () => repository.create(
+          name: any(named: 'name'),
+          closingDay: any(named: 'closingDay'),
+          dueDay: any(named: 'dueDay'),
+          lastDigits: any(named: 'lastDigits'),
+          limitCents: any(named: 'limitCents'),
+        ),
+      );
+    });
+
+    // Fechar a tela é do `onSubmit`, e não do `create`/`update`: quem chama os
+    // dois direto — os testes de corpo aqui de cima — não navega.
+    test('salvar fecha a tela pelo NavigationService', () async {
+      controller.resetForm();
+      fill();
+
+      await controller.onSubmit(cardId: null);
+
+      verify(() => nav.pop<dynamic>()).called(1);
+    });
+
+    test('editar também fecha a tela', () async {
+      controller.loadCardCredit(CreditCardModel.fromJson(nubankJson));
+
+      await controller.onSubmit(cardId: nubankId);
+
+      verify(() => nav.pop<dynamic>()).called(1);
     });
   });
 

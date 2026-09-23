@@ -19,15 +19,18 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late MockCreditCardRepository repository;
+  late MockNavigationService nav;
   late CreditCardController controller;
 
   setUp(() {
     repository = MockCreditCardRepository();
+    nav = navigationServiceMock();
     stubCreditCardList(repository);
     stubCreditCardOperations(repository);
     controller = CreditCardController(
       repository: repository,
       selectedMonth: SelectedMonthService(),
+      nav: nav,
     );
   });
 

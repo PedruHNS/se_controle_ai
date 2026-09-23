@@ -396,7 +396,6 @@ class _FixedFields extends StatelessWidget {
         MoneyFieldWidget(
           formControlName: ExpenseFormController.amountCents,
           label: 'Valor por mês',
-          onSubmitted: (_) => onSubmit(),
         ),
         const SizedBox(height: 16),
         _SpentAtField(controller: controller),
@@ -439,7 +438,6 @@ class _InstallmentFields extends StatelessWidget {
         MoneyFieldWidget(
           formControlName: ExpenseFormController.totalCents,
           label: 'Total da compra',
-          onSubmitted: (_) => onSubmit(),
         ),
         const SizedBox(height: 16),
         ReactiveTextField<int>(

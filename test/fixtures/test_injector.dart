@@ -227,6 +227,7 @@ MockCreditCardRepository setupCreditCardTestInjector({
       () => CreditCardController(
         repository: getIt<CreditCardRepository>(),
         selectedMonth: getIt<SelectedMonthService>(),
+        nav: getIt<NavigationService>(),
       ),
       dispose: (controller) => controller.dispose(),
     )

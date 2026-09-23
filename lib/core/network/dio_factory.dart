@@ -26,7 +26,8 @@ import 'auth_interceptor.dart';
 Dio buildDio({AuthRepository? auth}) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: AppConfig.apiBaseUrl,
+      baseUrl: 'https://secontroleai.com.br',
+      // baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       sendTimeout: AppConfig.sendTimeout,
@@ -50,9 +51,6 @@ Dio buildDio({AuthRepository? auth}) {
   if (AppConfig.logHttp) {
     dio.interceptors.add(
       PrettyDioLogger(
-        // Desligado desde que o header carrega a chave: com ele ligado, cada
-        // requisição despejava o segredo no console em debug — e console vira
-        // captura de tela, issue e cópia em chat.
         requestHeader: false,
         requestBody: true,
         responseBody: true,

@@ -101,6 +101,7 @@ void _registerControllers() {
     () => CreditCardController(
       repository: getIt<CreditCardRepository>(),
       selectedMonth: getIt<SelectedMonthService>(),
+      nav: getIt<NavigationService>(),
     ),
     dispose: (e) => e.dispose(),
   );
