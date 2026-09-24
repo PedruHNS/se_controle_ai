@@ -119,14 +119,18 @@ class _CardExpenses extends StatelessWidget {
               totalCents: view.totalCents,
             ),
           ),
-          SliverList.separated(
-            itemCount: view.expenses.length,
-            itemBuilder: (context, i) => ExpenseTile(
-              expense: view.expenses[i],
-              month: view.month,
-              onTap: () => onOpen(view.expenses[i]),
+          SliverVisibility(
+            visible: view.expenses.isNotEmpty,
+            replacementSliver: SliverToBoxAdapter(),
+            sliver: SliverList.separated(
+              itemCount: view.expenses.length,
+              itemBuilder: (context, i) => ExpenseTile(
+                expense: view.expenses[i],
+                month: view.month,
+                onTap: () => onOpen(view.expenses[i]),
+              ),
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
             ),
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
           ),
         ],
       ),
@@ -135,19 +139,6 @@ class _CardExpenses extends StatelessWidget {
 }
 
 // RefreshIndicator(
-//       onRefresh: onRefresh,
-//       child: ListView(
-//         physics: const AlwaysScrollableScrollPhysics(),
-//         padding: const EdgeInsets.only(bottom: 24),
-//         children: [
-//           Padding(
-//             padding: const EdgeInsets.all(16),
-//             child: _InvoiceCard(
-//               card: view.card,
-//               month: view.month,
-//               totalCents: view.totalCents,
-//             ),
-//           ),
 
 //           if (view.expenses.isEmpty)
 //             Padding(
