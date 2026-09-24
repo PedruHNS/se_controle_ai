@@ -5,6 +5,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/credit_card_bill_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
@@ -24,18 +25,25 @@ void main() {
   });
 
   group('controller', () {
+    late SelectedMonthService month;
     late CreditCardExpensesController controller;
 
-    setUp(
-      () => controller = CreditCardExpensesController(
-        cards,
-        SelectedMonthService(),
-      ),
-    );
+    setUp(() {
+      month = SelectedMonthService();
+      controller = CreditCardExpensesController(
+        repository: cards,
+        selectedMonth: month,
+      );
+    });
     tearDown(() => controller.dispose());
 
+    Future<void> start() async {
+      controller.start('cartao-1');
+      await pumpEventQueue();
+    }
+
     test('busca a fatura do mês numa requisição só', () async {
-      await controller.start('cartao-1');
+      await start();
 
       final state = controller.state.value;
       expect(state, isA<Loaded<CreditCardBillModel>>());
@@ -52,7 +60,7 @@ void main() {
     // O ponto da mudança: a tela era duas rotas — o cartão e a lista de gastos
     // — juntadas no cliente. Uma tela, uma resposta.
     test('não pede mais o cartão e os gastos em rotas separadas', () async {
-      await controller.start('cartao-1');
+      await start();
 
       verifyNever(() => cards.getById(any(), month: any(named: 'month')));
       verifyNever(
@@ -77,15 +85,30 @@ void main() {
         ],
       );
 
-      await controller.start('cartao-1');
+      await start();
 
       final view = (controller.state.value as Loaded<CreditCardBillModel>).data;
       expect(view.totalCents, 20490);
     });
 
+    test('trocar a competência rebusca a fatura do novo mês', () async {
+      await start();
+
+      month.goToNext();
+      await pumpEventQueue();
+
+      verifyInOrder([
+        () => cards.getBill('cartao-1', month: SelectedMonthService.initial()),
+        () => cards.getBill(
+          'cartao-1',
+          month: MonthUtils.next(SelectedMonthService.initial()),
+        ),
+      ]);
+    });
+
     test('o refresh rebusca a fatura', () async {
-      await controller.start('cartao-1');
-      await controller.refresh();
+      await start();
+      await controller.refresh(id: 'cartao-1');
 
       verify(
         () => cards.getBill('cartao-1', month: SelectedMonthService.initial()),
@@ -98,7 +121,7 @@ void main() {
         result: const Error(NetworkFailure(message: 'sem rede')),
       );
 
-      await controller.start('cartao-1');
+      await start();
 
       expect(controller.state.value, isA<Failed<CreditCardBillModel>>());
     });

@@ -27,52 +27,46 @@ import '../../../data/repositories/credit_card_repository.dart';
 /// `amountCents: null`, e num gasto parcelado o valor do mês nem sequer está no
 /// `history` — está nas parcelas (GFX-09).
 class CreditCardExpensesController extends BaseController {
-  CreditCardExpensesController(this._cards, this._selectedMonth);
-
-  final CreditCardRepository _cards;
+  final CreditCardRepository _repository;
   final SelectedMonthService _selectedMonth;
+  CreditCardExpensesController({
+    required this._repository,
+    required this._selectedMonth,
+  });
 
-  /// Preenchido por [start]. Id é dado de rota, então quem o conhece é a view.
-  late String _id;
-
-  String get id => _id;
+  EffectCleanup? _watchingMonth;
 
   final _state = signal<ViewState<CreditCardBillModel>>(const Loading());
-
-  /// Cresce a cada requisição, para descartar resposta atrasada.
-  int _requestId = 0;
-
   ReadonlySignal<ViewState<CreditCardBillModel>> get state => _state;
 
-  Future<void> start(String id) {
-    _id = id;
-    return load();
+  /// A inscrição no mês mora aqui, e não no `onInit`: sem o id ainda não há o
+  /// que buscar.
+  void start(String id) {
+    _watchingMonth = effect(() {
+      _selectedMonth.month.value;
+      untracked(() => _load(id: id));
+    });
   }
-
-  Future<void> load({bool silent = false}) async {
-    final requestId = ++_requestId;
-    // A fatura do mês que a pessoa está olhando, não a de hoje. Não precisa de
-    // `effect` como a lista de cartões: este controller é `factory`, nasce
-    // quando a tela abre e morre com ela, e o mês não muda no meio disso.
-    final month = _selectedMonth.month.value;
-
-    if (!silent) _state.value = const Loading();
-
-    final result = await _cards.getBill(_id, month: month);
-
-    if (requestId != _requestId) return;
-
-    result.when(
-      (bill) => _state.value = Loaded(bill),
-      (failure) => _state.value = Failed(failure),
-    );
-  }
-
-  Future<void> refresh() => load(silent: true);
 
   @override
   void dispose() {
-    _state.dispose();
+    _watchingMonth?.call();
     super.dispose();
+    _state.dispose();
   }
+
+  Future<void> _load({required String id}) async {
+    _state.value = const Loading();
+    final result = await _repository.getBill(
+      id,
+      month: _selectedMonth.month.value,
+    );
+
+    result.when(
+      (success) => _state.value = Loaded(success),
+      (err) => _state.value = Failed(err),
+    );
+  }
+
+  Future<void> refresh({required String id}) async => await _load(id: id);
 }

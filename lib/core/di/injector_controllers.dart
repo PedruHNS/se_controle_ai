@@ -108,11 +108,12 @@ void _registerControllers() {
 
   // Factory pelo mesmo motivo do detalhe de ganho: dois cartões podem estar na
   // pilha, e cada tela fala do seu.
-  getIt.registerFactory<CreditCardExpensesController>(
+  getIt.registerLazySingleton<CreditCardExpensesController>(
     () => CreditCardExpensesController(
-      getIt<CreditCardRepository>(),
-      getIt<SelectedMonthService>(),
+      repository: getIt<CreditCardRepository>(),
+      selectedMonth: getIt<SelectedMonthService>(),
     ),
+    dispose: (e) => e.dispose(),
   );
 
   // Gastos repetem a divisão de ganhos: lista lazySingleton, formulário e

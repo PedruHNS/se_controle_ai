@@ -237,8 +237,8 @@ MockCreditCardRepository setupCreditCardTestInjector({
     // hora de construir.
     ..registerFactory<CreditCardExpensesController>(
       () => CreditCardExpensesController(
-        getIt<CreditCardRepository>(),
-        getIt<SelectedMonthService>(),
+        repository: getIt<CreditCardRepository>(),
+        selectedMonth: getIt<SelectedMonthService>(),
       ),
     );
 
