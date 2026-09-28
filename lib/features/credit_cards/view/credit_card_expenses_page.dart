@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/features/credit_cards/widgets/expense_empty_widget.dart';
 import 'package:signals/signals_flutter.dart';
-
 import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
-import '../../../core/utils/iso_date_utils.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/credit_card_bill_model.dart';
@@ -16,13 +16,6 @@ import '../../../data/services/navigation_service.dart';
 import '../../expenses/widgets/expense_tile.dart';
 import '../controller/credit_card_expenses_controller.dart';
 
-/// Um cartão e o que foi lançado nele.
-///
-/// É a tela que a Fase 3 decidiu **não** ter — na época um cartão eram cinco
-/// campos, e uma tela só de leitura para eles seria um passo a mais para chegar
-/// ao mesmo formulário. O que mudou é que agora existe gasto no cartão, e essa
-/// é a pergunta que a lista de cartões não responde: *o que eu lancei neste?*
-/// A edição continua a um toque, agora pelo lápis da barra.
 class CreditCardExpensesPage extends StatefulWidget {
   const CreditCardExpensesPage({required this.id, super.key});
 
@@ -94,42 +87,79 @@ class _CreditCardExpensesPageState extends State<CreditCardExpensesPage> {
 }
 
 class _CardExpenses extends StatelessWidget {
+  final CreditCardBillModel view;
+  final Future<void> Function() onRefresh;
+  final void Function(ExpenseModel expense) onOpen;
+
   const _CardExpenses({
     required this.view,
     required this.onRefresh,
     required this.onOpen,
   });
 
-  final CreditCardBillModel view;
-  final Future<void> Function() onRefresh;
-  final void Function(ExpenseModel expense) onOpen;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final paddingBottom = MediaQuery.paddingOf(context).bottom;
 
     return RefreshIndicator.adaptive(
       onRefresh: onRefresh,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: _InvoiceCard(
-              card: view.card,
-              month: view.month,
-              totalCents: view.totalCents,
-            ),
+            child: InvoiceCard(card: view.card, month: view.month),
           ),
-          SliverVisibility(
-            visible: view.expenses.isNotEmpty,
-            replacementSliver: SliverToBoxAdapter(),
-            sliver: SliverList.separated(
-              itemCount: view.expenses.length,
-              itemBuilder: (context, i) => ExpenseTile(
-                expense: view.expenses[i],
-                month: view.month,
-                onTap: () => onOpen(view.expenses[i]),
-              ),
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
+
+          SliverPadding(padding: .symmetric(vertical: 10)),
+          DecoratedSliver(
+            decoration: BoxDecoration(
+              color: theme.appColors.card,
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).appColors.cardShadow,
+                  spreadRadius: 0,
+                  blurRadius: 40,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+
+              borderRadius: .vertical(top: .circular(20)),
+            ),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                SliverVisibility(
+                  visible: view.expenses.isNotEmpty,
+                  replacementSliver: SliverPadding(
+                    padding: const .symmetric(horizontal: 24, vertical: 32),
+                    sliver: SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: ExpenseEmptyWidget(
+                        title:
+                            'Nenhum gasto deste cartão é cobrado em '
+                            '${MonthUtils.label(view.month)}. Trocar o mês no topo mostra '
+                            'as outras faturas.',
+                      ),
+                    ),
+                  ),
+                  sliver: SliverPadding(
+                    padding: .fromLTRB(10, 12, 10, 80 + paddingBottom),
+                    sliver: SliverList.separated(
+                      itemCount: view.expenses.length,
+                      itemBuilder: (context, i) => ExpenseTile(
+                        expense: view.expenses[i],
+                        month: view.month,
+                        onTap: () => onOpen(view.expenses[i]),
+                      ),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 8),
+                    ),
+                  ),
+                ),
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: SizedBox.shrink(),
+                ),
+              ],
             ),
           ),
         ],
@@ -138,119 +168,107 @@ class _CardExpenses extends StatelessWidget {
   }
 }
 
-// RefreshIndicator(
+class InvoiceCard extends StatelessWidget {
+  const InvoiceCard({super.key, required this.card, required this.month});
 
-//           if (view.expenses.isEmpty)
-//             Padding(
-//               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-//               child: Column(
-//                 children: [
-//                   Icon(
-//                     Icons.receipt_long_outlined,
-//                     size: 48,
-//                     color: theme.colorScheme.onSurfaceVariant,
-//                   ),
-//                   const SizedBox(height: 12),
-//                   Text(
-//                     'Nada nesta fatura',
-//                     textAlign: TextAlign.center,
-//                     style: theme.textTheme.titleMedium,
-//                   ),
-//                   const SizedBox(height: 4),
-//                   Text(
-//                     'Nenhum gasto deste cartão é cobrado em '
-//                     '${MonthUtils.label(view.month)}. Trocar o mês no topo mostra '
-//                     'as outras faturas.',
-//                     textAlign: TextAlign.center,
-//                     style: theme.textTheme.bodySmall?.copyWith(
-//                       color: theme.colorScheme.onSurfaceVariant,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             )
-//           else ...[
-//             Padding(
-//               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-//               child: Text('Nesta fatura', style: theme.textTheme.titleSmall),
-//             ),
-//             // Só o que é cobrado na competência, e não tudo que já passou pelo
-//             // cartão: o cabeçalho acima é a fatura de um mês, e listar embaixo
-//             // dele um avulso encerrado meses atrás contradiz o total exibido.
-//             for (final expense in view.expenses)
-//               ExpenseTile(
-//                 expense: expense,
-//                 month: view.month,
-//                 onTap: () => onOpen(expense),
-//               ),
-//           ],
-//         ],
-//       ),
-//     );
-
-/// O cabeçalho: quanto vem na fatura deste mês, quando ela vence, e quanto do
-/// limite isso ocupa.
-class _InvoiceCard extends StatelessWidget {
-  const _InvoiceCard({
-    required this.card,
-    required this.month,
-    required this.totalCents,
-  });
+  InvoiceCard.skeleton({super.key})
+    : card = CreditCardModel(
+        id: '',
+        name: '',
+        label: '',
+        lastDigits: null,
+        closingDay: 30,
+        dueDay: 10,
+        limitCents: null,
+        dueDate: null,
+        totalCents: null,
+      ),
+      month = '';
 
   final CreditCardModel card;
   final String month;
-  final int totalCents;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final limit = card.limitCents;
-    final due = card.dueDate;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Fatura de ${MonthUtils.label(month)}',
-              style: theme.textTheme.titleSmall,
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        spacing: 8,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Fatura de ${MonthUtils.label(month)}',
+            style: theme.textTheme.titleSmall,
+          ),
+
+          Text(
+            MoneyUtils.format(card.totalCents!),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: theme.colorScheme.error,
             ),
-            const SizedBox(height: 8),
-            Text(
-              MoneyUtils.format(totalCents),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              due == null
-                  ? 'Fecha dia ${card.closingDay} · vence dia ${card.dueDay}'
-                  : 'Fecha dia ${card.closingDay} · vence ${IsoDateUtils.label(due)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (limit != null) ...[
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                // Acima do limite a barra para em 100%: passar disso quebraria
-                // o desenho, e o número ao lado já conta a história inteira.
-                value: (totalCents / limit).clamp(0, 1).toDouble(),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${MoneyUtils.format(totalCents)} de ${MoneyUtils.format(limit)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+          ),
+
+          Visibility(
+            visible: card.limitCents != null,
+            child: Column(
+              spacing: 10,
+              children: [
+                Padding(
+                  padding: const .symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisAlignment: .spaceBetween,
+                    children: [
+                      Text(
+                        MoneyUtils.format(card.totalCents!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        MoneyUtils.format(card.limitCents!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
+
+                LinearProgressIndicator(
+                  // Acima do limite a barra para em 100%: passar disso quebraria
+                  // o desenho, e o número ao lado já conta a história inteira.
+                  value: (card.totalCents! / card.limitCents!)
+                      .clamp(0, 1)
+                      .toDouble(),
+                ),
+              ],
+            ),
+          ),
+
+          Divider(height: 20),
+          Padding(
+            padding: const .symmetric(horizontal: 10),
+            child: Row(
+              mainAxisAlignment: .spaceBetween,
+              children: [
+                Text(
+                  'Fecha dia ${card.closingDay}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  ' vence dia ${card.dueDay}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
