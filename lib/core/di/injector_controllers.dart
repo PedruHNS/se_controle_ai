@@ -116,13 +116,6 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
-  // Gastos repetem a divisão de ganhos: lista lazySingleton, formulário e
-  // detalhe factory.
-  //
-  // Os dois últimos dependem **também** do repositório de cartões, e não por
-  // acaso: o formulário precisa da lista para o seletor de cartão (é o que
-  // fecha o critério da Fase 3), e o detalhe busca o nome do cartão do gasto
-  // para não escrever só "No cartão".
   getIt.registerLazySingleton<ExpenseListController>(
     () => ExpenseListController(
       getIt<ExpenseRepository>(),
