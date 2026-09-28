@@ -4,14 +4,6 @@ App Flutter do controle de gastos. O backend é o `expense-tracker-api`, no
 diretório irmão, e as specs dele (`docs/specs/`) são o contrato do que o app
 consome.
 
-## Regras do projeto
-
-@.claude/rules/models.md
-
-@.claude/rules/repositories.md
-
-@.claude/rules/controllers.md
-
 ## Padrão de código
 
 A referência viva é a **feature de tags** (`lib/features/tags/`): controller com
