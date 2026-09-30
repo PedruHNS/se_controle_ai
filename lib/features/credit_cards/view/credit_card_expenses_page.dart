@@ -133,7 +133,7 @@ class _CardExpenses extends StatelessWidget {
                 ),
               ],
 
-              borderRadius: .vertical(top: .circular(20)),
+              borderRadius: .vertical(top: .circular(24)),
             ),
             sliver: SliverMainAxisGroup(
               slivers: [
@@ -146,13 +146,14 @@ class _CardExpenses extends StatelessWidget {
                 ),
 
                 SliverPadding(
-                  padding: .fromLTRB(10, 12, 10, 80 + paddingBottom),
+                  padding: .fromLTRB(10, 0, 10, 80 + paddingBottom),
                   sliver: SliverVisibility(
                     visible: !loading,
                     sliver: view.expenses.isEmpty
                         ? SliverPadding(
-                            padding: const .symmetric(horizontal: 24),
+                            padding: const .symmetric(horizontal: 10),
                             sliver: SliverFillRemaining(
+                              fillOverscroll: true,
                               hasScrollBody: false,
                               child: ExpenseEmptyWidget(
                                 title:
@@ -181,19 +182,6 @@ class _CardExpenses extends StatelessWidget {
                   ),
                 ),
 
-                // if (view.expenses.isEmpty)
-                //   SliverPadding(
-                //     padding: const .symmetric(horizontal: 24),
-                //     sliver: SliverFillRemaining(
-                //       hasScrollBody: false,
-                //       child: ExpenseEmptyWidget(
-                //         title:
-                //             'Nenhum gasto deste cartão é cobrado em '
-                //             '${MonthUtils.label(view.month)}. Trocar o mês no topo mostra '
-                //             'as outras faturas.',
-                //       ),
-                //     ),
-                //   ),
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: SizedBox.shrink(),
