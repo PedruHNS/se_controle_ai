@@ -6,19 +6,27 @@ import 'package:se_controle_ai/data/models/credit_card_model.dart';
 class InvoiceCardWidget extends StatelessWidget {
   const InvoiceCardWidget({super.key, required this.card, required this.month});
 
-  InvoiceCardWidget.skeleton({super.key})
-    : card = CreditCardModel(
+  /// O mesmo desenho com uma fatura de mentira dentro, para o `Skeletonizer`
+  /// medir — `Skeletonizer(child: InvoiceCardWidget.skeleton())`.
+  ///
+  /// Os valores são plausíveis de propósito: é a largura de cada texto que vira
+  /// a barra cinza, e zero ou string vazia dariam um esqueleto menor que o card
+  /// que vai chegar. O limite entra preenchido pelo mesmo motivo — é ele que
+  /// põe a barra de progresso na tela, e sem ele o esqueleto teria uma altura e
+  /// o card, outra.
+  const InvoiceCardWidget.skeleton({super.key})
+    : card = const CreditCardModel(
         id: '',
-        name: '',
-        label: '',
+        name: 'Cartão',
+        label: 'Cartão',
         lastDigits: null,
         closingDay: 30,
         dueDay: 10,
-        limitCents: null,
+        limitCents: 500000,
         dueDate: null,
-        totalCents: null,
+        totalCents: 128790,
       ),
-      month = '';
+      month = '2026-01';
 
   final CreditCardModel card;
   final String month;

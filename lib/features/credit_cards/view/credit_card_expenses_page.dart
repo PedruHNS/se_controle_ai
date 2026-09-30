@@ -3,6 +3,7 @@ import 'package:se_controle_ai/core/shared/widgets/month_selector_widget.dart';
 import 'package:se_controle_ai/features/credit_cards/widgets/expense_empty_widget.dart';
 import 'package:se_controle_ai/features/credit_cards/widgets/invoice_card_widget.dart';
 import 'package:signals/signals_flutter.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
@@ -60,7 +61,9 @@ class _CreditCardExpensesPageState extends State<CreditCardExpensesPage> {
           return StateTransition(
             stateKey: state.runtimeType,
             child: switch (state) {
-              Loading() => const Center(child: CircularProgressIndicator()),
+              Loading() => _CardExpenses.skeleton(
+                onRefresh: () => _controller.refresh(id: widget.id),
+              ),
               Failed(failure: final failure) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -86,28 +89,45 @@ class _CreditCardExpensesPageState extends State<CreditCardExpensesPage> {
   }
 }
 
+/// A fatura na tela: o cabeçalho do cartão, o seletor de mês e o que cai nela.
+///
+/// **É esta mesma classe que desenha o carregamento** — [_CardExpenses.skeleton]
+/// entra sem fatura nenhuma e põe o `Skeletonizer` por cima do cabeçalho e de
+/// seis linhas de mentira. Uma segunda árvore só para o esqueleto seria a
+/// garantia de que as duas divergiriam no primeiro ajuste de padding.
 class _CardExpenses extends StatelessWidget {
-  final CreditCardBillModel view;
+  final CreditCardBillModel? view;
+
   final Future<void> Function() onRefresh;
-  final void Function(ExpenseModel expense) onOpen;
+  final void Function(ExpenseModel expense)? onOpen;
 
   const _CardExpenses({
-    required this.view,
+    required CreditCardBillModel this.view,
     required this.onRefresh,
     required this.onOpen,
   });
+
+  const _CardExpenses.skeleton({required this.onRefresh})
+    : view = null,
+      onOpen = null;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final paddingBottom = MediaQuery.paddingOf(context).bottom;
 
+    // Cópia local: é ela que deixa o `view == null` promover o tipo daqui para
+    // baixo, inclusive dentro do `itemBuilder`.
+    final view = this.view;
+
     return RefreshIndicator.adaptive(
       onRefresh: onRefresh,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: InvoiceCardWidget(card: view.card, month: view.month),
+            child: view == null
+                ? const Skeletonizer(child: InvoiceCardWidget.skeleton())
+                : InvoiceCardWidget(card: view.card, month: view.month),
           ),
 
           DecoratedSliver(
@@ -134,9 +154,11 @@ class _CardExpenses extends StatelessWidget {
                     child: MonthSelectorWidget(),
                   ),
                 ),
-                SliverVisibility(
-                  visible: view.expenses.isNotEmpty,
-                  replacementSliver: SliverPadding(
+
+                // Enquanto carrega não existe fatura vazia: dizer que nada cai
+                // neste mês é resposta, e resposta ainda não chegou.
+                if (view != null && view.expenses.isEmpty)
+                  SliverPadding(
                     padding: const .symmetric(horizontal: 24, vertical: 32),
                     sliver: SliverFillRemaining(
                       hasScrollBody: false,
@@ -147,20 +169,29 @@ class _CardExpenses extends StatelessWidget {
                             'as outras faturas.',
                       ),
                     ),
-                  ),
-                  sliver: SliverPadding(
-                    padding: .fromLTRB(10, 12, 10, 80 + paddingBottom),
-                    sliver: SliverList.separated(
-                      itemCount: view.expenses.length,
-                      itemBuilder: (context, i) => ExpenseTile(
-                        expense: view.expenses[i],
-                        month: view.month,
-                        onTap: () => onOpen(view.expenses[i]),
+                  )
+                else
+                  Skeletonizer.sliver(
+                    enabled: view == null,
+                    child: SliverPadding(
+                      padding: .fromLTRB(10, 12, 10, 80 + paddingBottom),
+                      sliver: SliverList.separated(
+                        // Seis linhas de mentira enquanto carrega: o bastante
+                        // para o painel abrir cheio, em qualquer tamanho de
+                        // tela.
+                        itemCount: view?.expenses.length ?? 6,
+                        itemBuilder: (context, i) => view == null
+                            ? const ExpenseTile.skeleton()
+                            : ExpenseTile(
+                                expense: view.expenses[i],
+                                month: view.month,
+                                onTap: () => onOpen?.call(view.expenses[i]),
+                              ),
+                        separatorBuilder: (context, index) => const Divider(),
                       ),
-                      separatorBuilder: (context, index) => const Divider(),
                     ),
                   ),
-                ),
+
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: SizedBox.shrink(),
