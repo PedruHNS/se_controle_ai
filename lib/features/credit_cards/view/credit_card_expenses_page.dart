@@ -183,6 +183,7 @@ class _CardExpenses extends StatelessWidget {
                 ),
 
                 const SliverFillRemaining(
+                  fillOverscroll: true,
                   hasScrollBody: false,
                   child: SizedBox.shrink(),
                 ),

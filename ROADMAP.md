@@ -6,9 +6,9 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 09/09/2026.*
+*Atualizado em 30/09/2026.*
 
-Flutter 3.47.1 · Dart 3.13.1 · **550 testes verdes e 11 pulados, nenhum
+Flutter 3.47.1 · Dart 3.13.1 · **661 testes verdes e 11 pulados, nenhum
 vermelho** · `flutter analyze` com **1 aviso** (`_createTag` não referenciado —
 veja "O que falta").
 
@@ -141,6 +141,48 @@ relação ao mês em que o dinheiro sai da conta.
       Só esses: onde `vence > fecha` — Nubank, 20 e 27 — as duas nomeações
       sempre coincidiram. É um `UPDATE` nas vigências desses gastos, e ficou de
       fora por ser reescrita de dado real.
+
+## A tela do cartão, revista (23/09 → 30/09/2026)
+
+O item 3 da pauta de 10/09, que o dashboard tinha adiado. Sete commits, e o que
+mudou foi o **desenho** — o controller já tinha emagrecido em 05/09, quando as
+três buscas viraram uma.
+
+- [x] **Os gastos entraram num painel branco**, com o card da fatura por cima e
+      o seletor de mês fixo no alto do painel (`PinnedHeaderSliver`). O
+      cabeçalho "Nesta fatura" saiu junto: quem diz que a lista é da fatura é o
+      card de cima, e repetir fazia as duas metades parecerem rascunho uma da
+      outra.
+- [x] **O `ExpenseTile` foi redesenhado** — ícone da forma de pagamento pintado
+      com a cor da tag, período, dia da compra e o selo da parcela — e ganhou
+      `ExpenseTile.skeleton()`, com valores plausíveis dentro: é a largura de
+      cada texto que vira a barra cinza, e string vazia daria esqueleto do
+      tamanho errado.
+- [x] **A tela carrega em esqueleto**, e não mais com `CircularProgressIndicator`:
+      `InvoiceCardWidget.skeleton()` no card e duas linhas de
+      `ExpenseTile.skeleton()` na lista.
+- [x] **O esqueleto da lista era o aviso de fatura vazia esqueletizado** (30/09).
+      A `CreditCardBillModel.skeleton()` nasce sem gasto nenhum, então decidir
+      pelo `expenses.isEmpty` antes da resposta desenhava a bolinha e as barras
+      do "Nada nesta fatura" no lugar das linhas. São três estados, e não dois.
+- [x] **O aviso de fatura vazia ficou no meio do painel** (30/09). O
+      `SliverPadding` valia para os três ramos, e padding por fora de um
+      `SliverFillRemaining` não estreita a caixa — o filho já nasce com a altura
+      do que sobra da viewport. O aviso descia 6px e o painel ganhava 80 de
+      rolagem que não leva a lugar nenhum. O respiro foi para dentro, e o
+      `CustomScrollView` ganhou `AlwaysScrollableScrollPhysics`: sem a sobra, a
+      fatura vazia deixaria de se puxar para atualizar.
+- [x] **O duplo de teste do `CreditCardExpensesController` virou `lazySingleton`
+      com `dispose:`**, como em produção. Como `factory`, o `resetLazySingleton`
+      do `dispose` da página derrubava **os seis testes de tela** do arquivo,
+      com a mensagem que não diz o tipo — "There is no type Null registered as
+      LazySingleton". Saiu junto a asserção órfã que procurava o cabeçalho
+      "Nesta fatura", vermelha desde 28/09.
+- [ ] **Falta rever o `ExpenseTile`** (315 linhas) — é o que fecha a refatoração
+      de `credit_cards`. Ele revê e depois manda marcar a feature.
+
+A tela caiu de 254 para **196 linhas**, o controller está em **72**, e o arquivo
+de teste tem **13 casos**.
 
 ## O que falta
 
@@ -441,6 +483,14 @@ sumiriam de vista se ficassem penduradas numa tarefa concluída.
 
 ### Dívidas sem fase
 
+- [ ] **O `baseUrl` voltou a ser chumbado, e os `env/*.json` estão anulados de
+      novo.** `dio_factory.dart:29` fixa `https://secontroleai.com.br` com a
+      linha do `AppConfig` comentada logo abaixo. Entrou no commit de 23/09
+      (`966146e`), dez dias depois do `e2a8683`, que existiu **só para desfazer
+      isso** — e a dartdoc do arquivo ainda conta o episódio no passado.
+      Enquanto estiver assim, `--dart-define-from-file=env/dev.json` é lido e
+      ignorado: `flutter run` em casa fala com a **VPS de produção**. Se foi
+      para testar no aparelho, é descomentar a linha ao voltar.
 - [ ] **O botão "nova categoria" está comentado** no formulário de gasto
       (`expense_form_page.dart:176`), e é ele o único aviso do `analyze`
       (`_createTag`, declarado na 510):
@@ -496,9 +546,13 @@ A tela que hospeda as duas primeiras é a **Fase 13**, o perfil da conta.
   repositório fake e seguiram verdes com o `ApiClient` quebrado. Quem guarda essa
   fronteira é `api_client_test.dart`, com `HttpClientAdapter` trocado — método
   novo no client entra com caso novo no grupo `devolve o Response do Dio`.
-- **O `dispose` de produção não é exercitado.** No `test_injector` os controllers
-  de lista são `registerFactory`; em produção são `registerLazySingleton` com
-  `dispose:`. Divergência de propósito, mas o caminho real fica sem prova.
+- **O `dispose` de produção quase não é exercitado.** Sobraram dois:
+  `ExpenseListController` e `IncomeListController` são `registerFactory` no
+  `test_injector` e `registerLazySingleton` com `dispose:` em produção, então o
+  caminho real fica sem prova. Os outros cinco foram alinhados — home, tags,
+  dashboard, lista de cartões e fatura —, e não por gosto: a página que chama
+  `resetLazySingleton` no `dispose` **derruba o teste** se o registro for
+  `factory`. Foi o que aconteceu com a fatura do cartão, em 30/09.
 - **O `ProjectionChart` é verificado só por existir na árvore.** Comparar pixel
   exigiria golden test, que o projeto não usa em lugar nenhum.
 - **O rateio de parcelas não é testado aqui**, de propósito: está coberto no
@@ -524,8 +578,9 @@ disse o que incomoda: **perguntar antes de mexer**.
       e os diálogos de valor e de reagendamento. É o par que traduz centavos
       inteiros em texto formatado dentro do `reactive_forms`, então mexer neles
       alcança todo lugar onde se digita dinheiro.
-- [ ] **Rever o `creditCardExpenses`** — pedido dele em 10/09, adiado pelo
-      dashboard.
+- [x] ~~**Rever o `creditCardExpenses`**~~ — **feito entre 23/09 e 30/09/2026**,
+      em "A tela do cartão, revista" lá em cima. Sobrou o `ExpenseTile`, que ele
+      quer olhar antes de dar a feature por refatorada.
 - [ ] **A home recarrega as cinco rotas a cada volta de outra tela.** É a causa
       do 429 que levou ao teto de 1500; resolver isso permite reavaliar o
       número em vez de deixá-lo alto por inércia.
@@ -536,19 +591,19 @@ disse o que incomoda: **perguntar antes de mexer**.
 - [ ] **`signal read after disposed` na saída da home**, em
       `home_page.dart:267`, `:291` e `:315`. Hoje é aviso no console, não
       quebra a tela.
-- [ ] **O seletor de mês some durante o loading da lista de cartões**, porque
-      vive dentro do ramo `Loaded`. No dashboard isso já foi resolvido — lá ele
-      fica fora do `switch`, e é de lá que se copia.
-
-      **Verificar junto com a revisão do `CreditCardModel`** (pedido dele em
-      13/09/2026). As duas coisas moram na mesma feature, e quem for mexer nela
-      já vai estar com a tela aberta — separar as idas custa mais que fazer as
-      duas de uma vez.
+- [x] ~~**O seletor de mês some durante o loading da lista de cartões**~~ —
+      **resolvido em 13/09/2026**: saiu do ramo `Loaded` e hoje fica fora do
+      `SignalBuilder` (`credit_card_list_page.dart:63`), como no dashboard. A
+      revisão do `CreditCardModel`, que ia junto por ser da mesma feature, saiu
+      no mesmo dia.
 - [ ] **`ExpenseListController` nunca é liberado**, então o `effect` do mês
       segue vivo e buscando com a tela fechada.
-- [ ] **`requestId` e `silent` em seis controllers antigos** — `home`,
-      `expense_list`, `expense_detail`, `income_list`, `income_detail` e
-      `credit_card_expenses`. A regra nova proíbe os dois; alinhar ao mexer.
+- [ ] **`requestId` e `silent` em cinco controllers antigos** — `home`,
+      `expense_list`, `expense_detail`, `income_list` e `income_detail`. A regra
+      nova proíbe os dois; alinhar ao mexer. O `credit_card_expenses` saiu da
+      lista na revisão de setembro: hoje ele é o controller da feature mais
+      perto da regra — signal privado, `effect` no mês e o cleanup no `dispose`.
+      **`.claude/rules/controllers.md` ainda diz seis.**
 - [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models** — 13 e 7
       membros derivados, ~90 pontos de chamada. Detalhe em `REFATORACAO.md`.
 
@@ -582,10 +637,10 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 | `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
 | `home` | ⬜ pendente | `home_page.dart` **cresceu para 364** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
-| `credit_cards` | 🟡 parcial | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: 78 linhas. A tela dele tem 254 |
+| `credit_cards` | 🟡 **falta só o `ExpenseTile`** | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: **72 linhas**, e a tela dele de 254 para **196**, com o card da fatura (118) e o aviso de vazio (35) em `widgets/`. O que falta é **a revisão do `ExpenseTile` (315)**: ele revê e depois manda marcar a feature como ✅ |
 | `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
-| `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09) — a varredura de 13/09 está logo abaixo: 11 dos 22 models têm membro derivado, 33 no total, e 11 não têm `toString`. **Adiado por decisão dele**, alinhar só ao mexer. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
-| `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **853** e `test_injector.dart` de 207 para **314**. Dividir por feature e manter um arquivo que reexporta |
+| `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09) — a varredura de 13/09 está logo abaixo: **10 dos 22** models têm membro derivado, 27 no total, e 10 não têm `toString` — o `CreditCardModel` saiu da lista no dia seguinte à varredura. **Adiado por decisão dele**, alinhar só ao mexer. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
+| `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **862** e `test_injector.dart` de 207 para **358**. Dividir por feature e manter um arquivo que reexporta |
 | `notifications` | — | Só o estado vazio. Vira código de verdade com a Etapa 8 do backend; nada a refatorar antes |
 
 ### Models fora da regra (varredura de 13/09/2026)
@@ -598,13 +653,13 @@ Varredura dos 22 arquivos de `lib/data/models/` contra
 Entrou na lista porque a CAR-03 de 12/09 **piorou o `CreditCardModel` de
 propósito**: ele foi de 5 para 6 membros derivados, e os dois novos
 (`closingMonthFor` e `invoiceMonthFor`) são as duas contas da competência. Foi
-decisão consciente — o alinhamento fica para depois, junto com o resto.
+decisão consciente — e **o alinhamento saiu no dia seguinte**, em 13/09; ver o
+item 4 de "por onde começar".
 
 | Model | Membros derivados | Quais | `toString` |
 |---|---|---|---|
 | `expense_model` | 13 | `isFixed`, `isInstallment`, `onCreditCard`, `isClosed`, `isSingleMonth`, `endedBefore`, `amountCentsIn`, `installmentIn`, `installmentLabelIn`, `isActiveIn`, `latestAmountCents`, `currentVersion`, `hasAdjustments` | falta |
 | `income_model` | 7 | `isClosed`, `isSingleMonth`, `endedBefore`, `amountCentsIn`, `isActiveIn`, `currentVersion`, `hasAdjustments` | falta |
-| `credit_card_model` | 6 | `hasLimit`, `closesInPreviousMonth`, `closingMonthFor`, `invoiceMonthFor`, `openInvoiceMonth`, `chargeMonthFor` | falta |
 | `amount_version_model` | 1 | `isOpen` | falta |
 | `auth_user_model` | 1 | `label` | tem |
 | `credit_card_invoice_model` | 1 | `limitUsage` | falta |
@@ -613,6 +668,7 @@ decisão consciente — o alinhamento fica para depois, junto com o resto.
 | `monthly_summary_model` | 1 | `isNegative` | falta |
 | `summary_section_model` | 1 | `isEmpty` | falta |
 | `credit_card_bill_model` | 0 | — | falta |
+| `credit_card_model` | 0 | limpo em 13/09 — as seis contas viraram `CreditCardMonthsUtils` | tem |
 | `summary_line_item_model` | 0 | — | falta |
 
 **Já limpos, e é o padrão a copiar:** os nove models do dashboard e o
@@ -630,32 +686,17 @@ do `fromJson`, e por isso não conta — desserialização é permitida.
    `isNegative` (`monthly_balance` e `monthly_summary`) é a mesma conta
    duplicada em dois arquivos, e as duas telas que a usam pintam o valor de
    vermelho — candidato a util em `lib/core/utils/`, não a getter em cada model.
-4. **`CreditCardModel`.** A contagem de 13/09 desfez o que estava escrito aqui:
-   não são "muitos chamadores", e portanto **não é caso de extension**. Os
-   pontos de chamada reais, fora do próprio model e fora de teste, são **três,
-   num arquivo só** — `invoiceMonthFor` (2×) e `chargeMonthFor` (1×), todos no
-   `ExpenseFormController`. Isso cai no primeiro caso da regra, "quem usa,
-   quando é uma linha e serve a um lugar só", e o destino é o controller, ao
-   lado do `_dueDate` que já foi para lá com a CAR-03.
-
-   Os outros três — `closingMonthFor`, `closesInPreviousMonth` e
-   `openInvoiceMonth` — **não são chamados por ninguém de fora**: são passos
-   intermediários dos dois acima que ficaram públicos e ganharam teste próprio.
-   Torná-los privados custa reescrever 10 testes por `invoiceMonthFor` e
-   `chargeMonthFor`, o que é perder cobertura fina numa conta que acabou de
-   mudar — não fazer isso agora, tão perto da CAR-03.
-
-   **`hasLimit` é remoção pura:** zero usos em `lib/`, e quem mostra limite na
-   tela lê `limitCents` direto (`credit_card_expenses_page.dart:204`). Saem a
-   linha e os dois testes, e nada mais acontece.
-
-   Duas coisas para decidir na hora de mexer, e nenhuma tem resposta ainda:
-   **(a)** o `_dueHelper` de `credit_card_form_page.dart:146` refaz o
-   `dueDay > closingDay` na mão, e é o único lugar da tela que usaria o
-   `closesInPreviousMonth` — tirar a conta do model e deixar a tela com a
-   comparação solta resolve a regra e piora o outro lado; **(b)** verificar
-   junto o **seletor de mês que some no loading da lista de cartões**, que está
-   na fila do "para ver mais tarde" e é da mesma feature.
+4. ~~**`CreditCardModel`.**~~ **Feito em 13/09/2026**, e não como esta linha
+   previa. As seis contas não foram para o `ExpenseFormController`: viraram
+   `CreditCardMonthsUtils`, em `lib/core/utils/`. Quem decidiu foi a dúvida
+   **(a)** — o `_dueHelper` do formulário de cartão era um segundo chamador, e
+   com dois lugares a regra manda util, não "quem usa". Hoje o formulário
+   (`credit_card_form_page.dart:58`) e o `ExpenseFormController` chamam o mesmo
+   util, e os testes das contas seguiram com ele. O `hasLimit` foi apagado, sem
+   nenhum uso em `lib/` — o limite na tela lê `limitCents` direto, hoje no
+   `invoice_card_widget.dart`. A dúvida **(b)**, o seletor de mês da lista de
+   cartões, saiu no mesmo dia. O model está em **42 linhas**: atributos,
+   `fromJson` e `toString`.
 5. **`ExpenseModel` e `IncomeModel`, por último.** São ~90 pontos de chamada e
    a decisão de 11/09 continua valendo: **não sair refatorando em mutirão**,
    alinhar ao mexer por outro motivo.
