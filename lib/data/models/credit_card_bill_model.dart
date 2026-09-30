@@ -19,6 +19,22 @@ class CreditCardBillModel {
     required this.totalCents,
   });
 
+  CreditCardBillModel.skeleton()
+    : card = CreditCardModel(
+        id: '',
+        name: '',
+        label: '',
+        lastDigits: null,
+        closingDay: 0,
+        dueDay: 0,
+        limitCents: null,
+        dueDate: null,
+        totalCents: null,
+      ),
+      expenses = [],
+      month = '',
+      totalCents = 0;
+
   final CreditCardModel card;
   final List<ExpenseModel> expenses;
 

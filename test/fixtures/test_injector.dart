@@ -233,13 +233,19 @@ MockCreditCardRepository setupCreditCardTestInjector({
     )
     // A tela do cartão mostra os gastos dele, então precisa do repositório de
     // gastos registrado também — na prática, [setupExpenseTestInjector]. Como é
-    // factory, a ordem entre os dois não importa: quem resolve é o `getIt` na
-    // hora de construir.
-    ..registerFactory<CreditCardExpensesController>(
+    // lazy, a ordem entre os dois não importa: quem resolve é o `getIt` na hora
+    // de construir.
+    //
+    // `lazySingleton` com `dispose:` porque é assim que o app registra, e a
+    // `CreditCardExpensesPage` chama `resetLazySingleton` no seu `dispose` — em
+    // registro `factory` o get_it recusa, e todo teste que monta a tela morria
+    // ao desmontá-la.
+    ..registerLazySingleton<CreditCardExpensesController>(
       () => CreditCardExpensesController(
         repository: getIt<CreditCardRepository>(),
         selectedMonth: getIt<SelectedMonthService>(),
       ),
+      dispose: (controller) => controller.dispose(),
     );
 
   return repository;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -10,6 +12,7 @@ import 'package:se_controle_ai/data/models/credit_card_bill_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/view/credit_card_expenses_page.dart';
+import 'package:se_controle_ai/features/expenses/widgets/expense_tile.dart';
 
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
@@ -143,10 +146,12 @@ void main() {
       expect(find.textContaining('Fecha dia 10'), findsOneWidget);
     });
 
+    // Sem procurar o cabeçalho "Nesta fatura": ele saiu no redesenho de 28/09,
+    // quando os gastos passaram para o painel branco — quem diz que a lista é
+    // da fatura agora é o card de cima.
     testWidgets('lista o que é cobrado nesta fatura', (tester) async {
       await pump(tester);
 
-      expect(find.text('Nesta fatura'), findsOneWidget);
       expect(find.text('Aluguel'), findsOneWidget);
       expect(find.text('Youtube Music'), findsOneWidget);
     });
@@ -157,6 +162,28 @@ void main() {
       await pump(tester);
 
       expect(find.text('Nada nesta fatura'), findsOneWidget);
+    });
+
+    // Enquanto carrega, o esqueleto é o da lista — e não o aviso de fatura
+    // vazia esqueletizado. A fatura de mentira nasce sem gasto nenhum, então
+    // decidir pelo `expenses.isEmpty` antes da resposta desenhava a bolinha e
+    // as barras do "Nada nesta fatura" no lugar das linhas.
+    testWidgets('carregando, a lista é de linhas e não do aviso de vazio', (
+      tester,
+    ) async {
+      final resposta = Completer<void>();
+      stubCreditCardBill(cards, pendenteAte: resposta.future);
+
+      await tester.pumpWidget(
+        const MaterialApp(home: CreditCardExpensesPage(id: 'cartao-1')),
+      );
+      await tester.pump();
+
+      expect(find.byType(ExpenseTile), findsNWidgets(2));
+      expect(find.text('Nada nesta fatura'), findsNothing);
+
+      resposta.complete();
+      await tester.pumpAndSettle();
     });
 
     testWidgets('falha mostra o card de erro', (tester) async {
