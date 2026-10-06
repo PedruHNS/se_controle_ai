@@ -217,7 +217,7 @@ class _ExpenseList extends StatelessWidget {
           final expense = expenses[index];
           return ExpenseTile(
             expense: expense,
-            month: month,
+            monthSelected: month,
             onTap: () => onOpen(expense),
           );
         },

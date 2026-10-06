@@ -167,7 +167,7 @@ class _CardExpenses extends StatelessWidget {
                             itemCount: view.expenses.length,
                             itemBuilder: (context, i) => ExpenseTile(
                               expense: view.expenses[i],
-                              month: view.month,
+                              monthSelected: view.month,
                               onTap: () => onOpen?.call(view.expenses[i]),
                             ),
                             separatorBuilder: (context, index) =>
