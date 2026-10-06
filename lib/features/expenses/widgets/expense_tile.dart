@@ -8,13 +8,6 @@ import '../../../data/enums/payment_method.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/models/tag_model.dart';
 
-/// Uma linha da lista de gastos: descrição, categoria, período, dia da compra
-/// e o valor vigente.
-///
-/// **Sem fundo próprio.** A lista de gastos desenha sobre o fundo da tela, mas
-/// a fatura do cartão desenha dentro de um painel que já é `appColors.card`:
-/// um card com sombra aqui sumiria lá, card sobre card da mesma cor. O que
-/// separa uma linha da outra é o espaçamento de quem monta a lista.
 class ExpenseTile extends StatelessWidget {
   final ExpenseModel expense;
   final String monthSelected;
@@ -56,22 +49,13 @@ class ExpenseTile extends StatelessWidget {
     return Icons.payments_outlined;
   }
 
-  /// O selo do canto direito, e se ele é o de destaque.
-  ///
-  /// A ordem importa: a parcela do mês manda em cima de "Encerrado", porque
-  /// todo parcelado tem fim por natureza e dizer que acabou não informaria
-  /// nada.
-  (String texto, bool destaque)? get _badge {
+  String get _badge {
     final parcela = expense.installmentLabelIn(monthSelected);
-    if (parcela != null) return (parcela, true);
-    if (expense.endedBefore(monthSelected)) return ('Encerrado', false);
-    if (expense.isSingleMonth) return ('Mês único', false);
-    return null;
+    if (parcela != null) return parcela;
+    if (expense.endedBefore(monthSelected)) return 'Encerrado';
+    return 'Mês único';
   }
 
-  /// O valor no mês exibido. Um gasto encerrado ou que só começa no mês que vem
-  /// não tem valor **neste** mês — aí a lista mostra o da vigência mais
-  /// recente, que é o último valor que ele teve ou terá.
   int? get _amountCents =>
       expense.amountCentsIn(monthSelected) ?? expense.latestAmountCents;
 
@@ -100,7 +84,6 @@ class ExpenseTile extends StatelessWidget {
         children: [
           Text(
             expense.tag.name,
-
             maxLines: 1,
             overflow: .ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -150,9 +133,7 @@ class ExpenseTile extends StatelessWidget {
                   : theme.colorScheme.error,
             ),
           ),
-
-          if (badge case (final texto, final destaque)?)
-            _Selo(texto: texto, destaque: destaque),
+          _Badge(text: badge),
         ],
       ),
     );
@@ -180,15 +161,10 @@ class _IconCustom extends StatelessWidget {
   }
 }
 
-class _Selo extends StatelessWidget {
-  const _Selo({required this.texto, required this.destaque});
+class _Badge extends StatelessWidget {
+  final String text;
 
-  final String texto;
-
-  /// A parcela vem em destaque; "Encerrado" e "Mês único", em cinza. A parcela
-  /// muda o que a pessoa lê no valor ao lado — "são R$ 300, e faltam sete" —,
-  /// enquanto as outras duas são só contexto do que já está escrito no período.
-  final bool destaque;
+  const _Badge({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -198,17 +174,13 @@ class _Selo extends StatelessWidget {
     return Container(
       padding: const .symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: destaque
-            ? scheme.secondaryContainer
-            : scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest,
         borderRadius: .circular(6),
       ),
       child: Text(
-        texto,
+        text,
         style: theme.textTheme.labelSmall?.copyWith(
-          color: destaque
-              ? scheme.onSecondaryContainer
-              : scheme.onSurfaceVariant,
+          color: scheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
         ),
       ),
