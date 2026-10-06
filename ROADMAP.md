@@ -6,9 +6,9 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 30/09/2026.*
+*Atualizado em 06/10/2026.*
 
-Flutter 3.47.1 · Dart 3.13.1 · **661 testes verdes e 11 pulados, nenhum
+Flutter 3.47.1 · Dart 3.13.1 · **660 testes verdes e 11 pulados, nenhum
 vermelho** · `flutter analyze` com **1 aviso** (`_createTag` não referenciado —
 veja "O que falta").
 
@@ -142,9 +142,9 @@ relação ao mês em que o dinheiro sai da conta.
       sempre coincidiram. É um `UPDATE` nas vigências desses gastos, e ficou de
       fora por ser reescrita de dado real.
 
-## A tela do cartão, revista (23/09 → 30/09/2026)
+## A tela do cartão, revista (23/09 → 06/10/2026) — fechada
 
-O item 3 da pauta de 10/09, que o dashboard tinha adiado. Sete commits, e o que
+O item 3 da pauta de 10/09, que o dashboard tinha adiado. Nove commits, e o que
 mudou foi o **desenho** — o controller já tinha emagrecido em 05/09, quando as
 três buscas viraram uma.
 
@@ -178,11 +178,15 @@ três buscas viraram uma.
       com a mensagem que não diz o tipo — "There is no type Null registered as
       LazySingleton". Saiu junto a asserção órfã que procurava o cabeçalho
       "Nesta fatura", vermelha desde 28/09.
-- [ ] **Falta rever o `ExpenseTile`** (315 linhas) — é o que fecha a refatoração
-      de `credit_cards`. Ele revê e depois manda marcar a feature.
+- [x] **O `ExpenseTile` foi revisto por ele** (06/10) e caiu de 315 para **189
+      linhas**. A linha montada à mão (`Material` + `InkWell` + `Row`) voltou a
+      ser `ListTile`; o parâmetro `month` virou `monthSelected`; o período saiu
+      do subtítulo; o ícone usa a cor da tag direto, sem correção de contraste;
+      e o selo virou `_Badge`, sempre presente e sempre em cinza — a parcela
+      perdeu o destaque. Foi o que fechou a refatoração de `credit_cards`.
 
-A tela caiu de 254 para **196 linhas**, o controller está em **72**, e o arquivo
-de teste tem **13 casos**.
+A tela caiu de 254 para **197 linhas**, o controller está em **72**, e o arquivo
+de teste tem **12 casos**.
 
 ## O que falta
 
@@ -492,8 +496,8 @@ sumiriam de vista se ficassem penduradas numa tarefa concluída.
       ignorado: `flutter run` em casa fala com a **VPS de produção**. Se foi
       para testar no aparelho, é descomentar a linha ao voltar.
 - [ ] **O botão "nova categoria" está comentado** no formulário de gasto
-      (`expense_form_page.dart:176`), e é ele o único aviso do `analyze`
-      (`_createTag`, declarado na 510):
+      (`expense_form_page.dart:195`), e é ele o único aviso do `analyze`
+      (`_createTag`, declarado na 591):
       `_createTag` existe, tem teste de controller passando e **não tem como ser
       chamado pela tela**. Ou o botão volta, ou a função sai — hoje "criar tag
       sem sair do formulário" está no código e não no app.
@@ -578,9 +582,9 @@ disse o que incomoda: **perguntar antes de mexer**.
       e os diálogos de valor e de reagendamento. É o par que traduz centavos
       inteiros em texto formatado dentro do `reactive_forms`, então mexer neles
       alcança todo lugar onde se digita dinheiro.
-- [x] ~~**Rever o `creditCardExpenses`**~~ — **feito entre 23/09 e 30/09/2026**,
-      em "A tela do cartão, revista" lá em cima. Sobrou o `ExpenseTile`, que ele
-      quer olhar antes de dar a feature por refatorada.
+- [x] ~~**Rever o `creditCardExpenses`**~~ — **feito entre 23/09 e 06/10/2026**,
+      em "A tela do cartão, revista" lá em cima. O `ExpenseTile`, último pedaço,
+      ele reviu em 06/10, e `credit_cards` foi dada por refatorada.
 - [ ] **A home recarrega as cinco rotas a cada volta de outra tela.** É a causa
       do 429 que levou ao teto de 1500; resolver isso permite reavaliar o
       número em vez de deixá-lo alto por inércia.
@@ -637,7 +641,7 @@ cada item — e a lista de repetições que estão lá **de propósito** — fic
 | `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
 | `home` | ⬜ pendente | `home_page.dart` **cresceu para 364** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
 | `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
-| `credit_cards` | 🟡 **falta só o `ExpenseTile`** | **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (165). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: **72 linhas**, e a tela dele de 254 para **196**, com o card da fatura (118) e o aviso de vazio (35) em `widgets/`. O que falta é **a revisão do `ExpenseTile` (315)**: ele revê e depois manda marcar a feature como ✅ |
+| `credit_cards` | ✅ **refatorado** (06/10) | Nada. **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (187). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: **72 linhas**, e a tela dele de 254 para **197**, com o card da fatura (118) e o aviso de vazio (35) em `widgets/`. O `ExpenseTile`, revisto por ele em 06/10, caiu de 315 para **189** |
 | `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
 | `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09) — a varredura de 13/09 está logo abaixo: **10 dos 22** models têm membro derivado, 27 no total, e 10 não têm `toString` — o `CreditCardModel` saiu da lista no dia seguinte à varredura. **Adiado por decisão dele**, alinhar só ao mexer. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
 | `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **862** e `test_injector.dart` de 207 para **358**. Dividir por feature e manter um arquivo que reexporta |

@@ -116,20 +116,23 @@ A visão por feature, com status, está na seção **Refatoração** do
 - [ ] **`expense_detail_page.dart`** (419). A escolha de ações por tipo e o
       `_periodLine` são lógica de apresentação misturada com layout.
 - [ ] **Quatro diálogos na mesma pasta**, dois deles gêmeos dos de ganho.
-- [ ] **`_createTag` está órfão** (linha 503): o botão que o chamava está
-      comentado (linha 171). É o único aviso do `flutter analyze`. Decidir entre
+- [ ] **`_createTag` está órfão** (linha 591): o botão que o chamava está
+      comentado (linha 195). É o único aviso do `flutter analyze`. Decidir entre
       religar o botão e apagar a função — o controller e os testes de `createTag`
       continuam lá, então hoje a feature existe no código e não no app.
 
 ## `credit_cards`
 
-- [ ] **`credit_card_form_controller.dart`** (271). O diff do CAR-08 — comparar o
-      formulário com o cartão de abertura e montar os `Patch` — é a parte com
-      regra de verdade e está no meio do controller. Extraída, vira função pura
-      testável sem `FormGroup`.
-- [ ] **`CreditCardExpensesController` dispara três requisições** e monta um
-      record; a tela tem 262 linhas. Funciona e está comentado, mas é o único
-      controller do app com essa forma — avaliar se vira padrão ou se simplifica.
+**Refatorada em 06/10/2026**, quando ele fechou a revisão do `ExpenseTile`.
+
+- [x] ~~**`credit_card_form_controller.dart`** (271)~~ — **saiu em 04/09**: o
+      controller de formulário virou o lado de formulário do
+      `CreditCardController`, e o diff do CAR-08 saiu junto — a edição manda o
+      cartão inteiro, então não há mais `Patch` para montar.
+- [x] ~~**`CreditCardExpensesController` dispara três requisições**~~ — **uma
+      só desde 05/09**, com model no lugar do record. O controller tem 72
+      linhas e a tela 197, com o card da fatura e o aviso de vazio em
+      `widgets/`.
 
 ## `projection`
 
