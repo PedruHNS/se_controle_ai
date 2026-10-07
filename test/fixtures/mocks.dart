@@ -315,10 +315,14 @@ void stubIncomeList(
 void stubIncomeDetail(
   MockIncomeRepository mock, {
   Result<IncomeModel, Failure>? result,
+  Future<void>? pendenteAte,
 }) {
-  when(() => mock.getById(any(), month: any(named: 'month'))).thenAnswer(
-    (_) async => result ?? Success(IncomeModel.fromJson(salaryJson)),
-  );
+  when(() => mock.getById(any(), month: any(named: 'month'))).thenAnswer((
+    _,
+  ) async {
+    if (pendenteAte != null) await pendenteAte;
+    return result ?? Success(IncomeModel.fromJson(salaryJson));
+  });
 }
 
 /// Stub das quatro operações que devolvem 204. Um valor só para todas porque o

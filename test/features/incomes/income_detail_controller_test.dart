@@ -18,7 +18,7 @@ void main() {
 
   setUp(() async {
     repository = incomeRepositoryMock();
-    controller = IncomeDetailController(repository);
+    controller = IncomeDetailController(repository: repository);
     // O id vem da rota, então quem o entrega é a view. No teste, o `start`
     // ocupa esse papel.
     await controller.start('income-1');
@@ -39,7 +39,7 @@ void main() {
     test('construir não busca nada — sem id não há o que buscar', () {
       final fresh = MockIncomeRepository();
       stubIncomeDetail(fresh);
-      addTearDown(IncomeDetailController(fresh).dispose);
+      addTearDown(IncomeDetailController(repository: fresh).dispose);
 
       verifyNever(() => fresh.getById(any(), month: any(named: 'month')));
     });
@@ -57,6 +57,55 @@ void main() {
         verify(
           () => repository.correct('income-1', amountCents: 1000),
         ).called(1);
+      },
+    );
+  });
+
+  group('refresh', () {
+    test('passa por Loading e volta ao ganho', () async {
+      final segura = Completer<void>();
+      stubIncomeDetail(repository, pendenteAte: segura.future);
+
+      final pending = controller.refresh();
+
+      expect(controller.state.value, isA<Loading<IncomeModel>>());
+      segura.complete();
+      await pending;
+      expect(controller.state.value, isA<Loaded<IncomeModel>>());
+    });
+
+    // É o que o "tentar de novo" do cartão de falha chama.
+    test('depois de uma falha volta a mostrar o ganho', () async {
+      stubIncomeDetail(
+        repository,
+        result: Error(
+          Failure.fromException(const NetworkException(message: 'sem rede')),
+        ),
+      );
+      await controller.refresh();
+      expect(controller.state.value, isA<Failed<IncomeModel>>());
+
+      stubIncomeDetail(repository);
+      await controller.refresh();
+
+      expect(controller.state.value, isA<Loaded<IncomeModel>>());
+    });
+
+    test(
+      'resposta que chega depois do dispose é descartada, sem lançar',
+      () async {
+        // A página libera o controller ao sair da tela, e a busca pode ainda
+        // estar em voo. Escrever no signal liberado lançaria um erro que ninguém
+        // captura.
+        final segura = Completer<void>();
+        final lenta = incomeRepositoryMock();
+        stubIncomeDetail(lenta, pendenteAte: segura.future);
+        final saiu = IncomeDetailController(repository: lenta);
+
+        final pending = saiu.start('income-1');
+        saiu.dispose();
+        segura.complete();
+        await pending;
       },
     );
   });

@@ -1,8 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:se_controle_ai/data/models/amount_version_model.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 
 import '../../fixtures/income_fixture.dart';
 
+/// O contrato do `IncomeModel`: o que ele lê do JSON e como se mostra num log.
+///
+/// As perguntas que viviam aqui — quanto entra em um mês, qual vigência está
+/// aberta, se o ganho já acabou — saíram do model junto com os membros que as
+/// respondiam (`.claude/rules/models.md`). O valor de um mês e a vigência
+/// aberta estão no teste do `AmountVersionUtils`; o selo "Encerrado" e o
+/// "Mês único" estão nos testes de tela dos ganhos.
 void main() {
   group('IncomeModel.fromJson', () {
     test('lê o ganho e a vigência única', () {
@@ -32,82 +40,54 @@ void main() {
       // É o que garante que a lista mostra o valor de hoje, e não o de quando
       // o ganho foi cadastrado.
       expect(income.amountCents, 550000);
-      expect(income.currentVersion?.amountCents, 550000);
-      expect(income.currentVersion?.validFrom, '2026-11');
+      expect(income.history.last.amountCents, 550000);
+      expect(income.history.last.validFrom, '2026-11');
+      expect(income.history.last.validTo, isNull);
     });
 
-    test('ganho de mês único não tem vigência aberta', () {
+    test('ganho de mês único chega com fim marcado e sem vigência aberta', () {
       final income = IncomeModel.fromJson(bonusJson);
 
       expect(income.recurring, isFalse);
-      expect(income.isClosed, isTrue);
-      expect(income.currentVersion, isNull);
-      expect(income.history.single.isOpen, isFalse);
+      expect(income.endMonth, '2026-12');
       expect(income.history.single.validTo, '2026-12');
     });
+  });
 
-    test('hasAdjustments separa quem já foi reajustado de quem não foi', () {
-      expect(IncomeModel.fromJson(salaryJson).hasAdjustments, isFalse);
-      expect(IncomeModel.fromJson(adjustedSalaryJson).hasAdjustments, isTrue);
-    });
+  group('toString', () {
+    // Sem ele, um teste que falha imprime `Instance of 'IncomeModel'`.
+    test('mostra o ganho e o histórico inteiro', () {
+      final income = IncomeModel.fromJson(adjustedSalaryJson);
 
-    test('isClosed é endMonth preenchido, não recurring falso', () {
-      // Um ganho encerrado vira recurring: false (GAN-07), mas o que a tela usa
-      // para esconder as ações é o endMonth.
-      expect(IncomeModel.fromJson(salaryJson).isClosed, isFalse);
-      expect(IncomeModel.fromJson(bonusJson).isClosed, isTrue);
+      expect(
+        income.toString(),
+        'IncomeModel(id: b1a7c0de-0000-4000-8000-000000000001, '
+        'description: Salário, tag: null, recurring: true, '
+        'startMonth: 2026-01, endMonth: null, amountCents: 550000, '
+        'history: [AmountVersionModel(amountCents: 500000, '
+        'validFrom: 2026-01, validTo: 2026-10), '
+        'AmountVersionModel(amountCents: 550000, validFrom: 2026-11, '
+        'validTo: null)])',
+      );
     });
   });
 
-  group('quanto entra em um mês', () {
-    test('lê o valor da vigência que cobre o mês, não o mais recente', () {
-      final income = IncomeModel.fromJson(adjustedSalaryJson);
+  group('AmountVersionModel', () {
+    test('lê a vigência e mostra os três campos no toString', () {
+      final version = AmountVersionModel.fromJson(const {
+        'amountCents': 500000,
+        'validFrom': '2026-01',
+        'validTo': null,
+      });
 
-      // O `amountCents` do payload é 550000 — o da vigência aberta. Somar ele
-      // para maio daria um total diferente do que a home mostra para maio.
-      expect(income.amountCents, 550000);
-      expect(income.amountCentsIn('2026-05'), 500000);
-      expect(income.amountCentsIn('2026-11'), 550000);
-    });
-
-    test('mês fora do período não tem valor', () {
-      final income = IncomeModel.fromJson(adjustedSalaryJson);
-
-      expect(income.amountCentsIn('2025-12'), isNull);
-      expect(income.isActiveIn('2025-12'), isFalse);
-      expect(income.isActiveIn('2026-01'), isTrue);
-    });
-
-    test('avulso entra só no mês dele', () {
-      final income = IncomeModel.fromJson(
-        singleMonthIncomeJson(month: '2026-08'),
+      expect(version.amountCents, 500000);
+      expect(version.validFrom, '2026-01');
+      expect(version.validTo, isNull);
+      expect(
+        version.toString(),
+        'AmountVersionModel(amountCents: 500000, validFrom: 2026-01, '
+        'validTo: null)',
       );
-
-      expect(income.isActiveIn('2026-07'), isFalse);
-      expect(income.isActiveIn('2026-08'), isTrue);
-      expect(income.isActiveIn('2026-09'), isFalse);
-      expect(income.amountCentsIn('2026-08'), 80000);
-    });
-  });
-
-  group('acabou ou ainda entra', () {
-    test('avulso do mês corrente não está encerrado — ele está entrando', () {
-      final income = IncomeModel.fromJson(
-        singleMonthIncomeJson(month: '2026-08'),
-      );
-
-      // Tem fim marcado, mas o fim não passou.
-      expect(income.isClosed, isTrue);
-      expect(income.isSingleMonth, isTrue);
-      expect(income.endedBefore('2026-08'), isFalse);
-      expect(income.endedBefore('2026-09'), isTrue);
-    });
-
-    test('ganho em aberto nunca acabou', () {
-      final income = IncomeModel.fromJson(salaryJson);
-
-      expect(income.isSingleMonth, isFalse);
-      expect(income.endedBefore('2030-01'), isFalse);
     });
   });
 }

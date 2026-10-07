@@ -62,31 +62,24 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
-  // A lista segue a regra do HomeController: uma tela só, estado que vale a
-  // pena preservar entre idas e vindas, get_it libera.
-  getIt.registerLazySingleton<IncomeListController>(
-    () => IncomeListController(getIt<IncomeRepository>()),
+  getIt.registerLazySingleton<IncomeController>(
+    () => IncomeController(
+      repository: getIt<IncomeRepository>(),
+      tagRepository: getIt<TagRepository>(),
+      selectedMonth: getIt<SelectedMonthService>(),
+    ),
     dispose: (e) => e.dispose(),
   );
 
-  // Formulário e detalhe são o caso que a regra prevê como exceção: estado por
-  // instância, não por app. Um formulário reaberto precisa nascer limpo, e dois
-  // detalhes na pilha falam de ganhos diferentes. Por isso factory — e, como
-  // factory não aceita o `dispose:` do get_it, quem libera é o `dispose` da
-  // página.
+  // O detalhe é o caso que a regra prevê como exceção: estado por instância, não
+  // por app, porque dois detalhes na pilha falam de ganhos diferentes. Por isso
+  // factory — e, como factory não aceita o `dispose:` do get_it, quem libera é o
+  // `dispose` da página.
   //
-  // O detalhe recebe o id pelo `start`, e não pelo registro: id é dado de rota,
-  // e quem o conhece é a view.
-  getIt.registerFactory<IncomeFormController>(
-    () => IncomeFormController(
-      getIt<IncomeRepository>(),
-      getIt<TagRepository>(),
-      getIt<SelectedMonthService>(),
-    ),
-  );
-
+  // Ele recebe o id pelo `start`, e não pelo registro: id é dado de rota, e quem
+  // o conhece é a view.
   getIt.registerFactory<IncomeDetailController>(
-    () => IncomeDetailController(getIt<IncomeRepository>()),
+    () => IncomeDetailController(repository: getIt<IncomeRepository>()),
   );
 
   // Cartões têm **um** controller, como tags: a lista e o formulário no mesmo

@@ -34,43 +34,36 @@ void main() {
     );
   });
 
+  // O valor de um mês e o rótulo da parcela são contas, e estão no teste do
+  // `ExpenseUtils`. Aqui fica o que o model lê.
   group('model', () {
     final geladeira = ExpenseModel.fromJson(geladeiraJson);
 
     test('lê as dez parcelas', () {
       expect(geladeira.installments, hasLength(10));
-      expect(geladeira.installments.first.label, '1/10');
+      expect(geladeira.installments.first.number, 1);
+      expect(geladeira.installments.first.total, 10);
       expect(geladeira.installments.first.referenceMonth, '2026-01');
       expect(geladeira.history, isEmpty);
-    });
-
-    // O valor de um mês vem da parcela daquele mês, e não de vigência — é a
-    // outra metade do GFX-09, e quem chama não precisa saber de que tipo é.
-    test('o valor do mês sai da parcela', () {
-      expect(geladeira.amountCentsIn('2026-03'), 30000);
-      expect(geladeira.amountCentsIn('2026-11'), isNull);
-      expect(geladeira.installmentLabelIn('2026-03'), '3/10');
-      expect(geladeira.installmentLabelIn('2026-11'), isNull);
     });
 
     test('gasto fixo não tem parcela nenhuma', () {
       final aluguel = ExpenseModel.fromJson(aluguelJson);
 
       expect(aluguel.installments, isEmpty);
-      expect(aluguel.installmentLabelIn('2026-03'), isNull);
     });
 
     // GPR-08, GPR-10 e GPR-11 numa resposta só: as quatro primeiras ficaram com
     // o valor antigo, a numeração continuou em 5, e o "de N" das antigas virou
     // 12 — porque é a mesma compra, agora em doze vezes.
-    test('reparcelada, as antigas ficam e a numeração continua', () {
+    test('reparcelada, lê as doze parcelas e o novo total', () {
       final depois = ExpenseModel.fromJson(geladeiraReparceladaJson);
 
       expect(depois.installments, hasLength(12));
-      expect(depois.amountCentsIn('2026-04'), 30000);
-      expect(depois.amountCentsIn('2026-05'), 35000);
-      expect(depois.installmentLabelIn('2026-01'), '1/12');
-      expect(depois.installmentLabelIn('2026-05'), '5/12');
+      expect(
+        depois.installments.every((parcela) => parcela.total == 12),
+        isTrue,
+      );
       expect(depois.totalCents, 400000);
     });
   });

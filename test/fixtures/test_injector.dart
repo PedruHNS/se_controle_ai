@@ -14,9 +14,8 @@ import 'package:se_controle_ai/features/expenses/controller/expense_detail_contr
 import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
 import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
+import 'package:se_controle_ai/features/incomes/controller/income_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
-import 'package:se_controle_ai/features/incomes/controller/income_form_controller.dart';
-import 'package:se_controle_ai/features/incomes/controller/income_list_controller.dart';
 import 'package:se_controle_ai/core/theme/theme_controller.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 
@@ -165,11 +164,8 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   if (getIt.isRegistered<IncomeRepository>()) {
     getIt.unregister<IncomeRepository>();
   }
-  if (getIt.isRegistered<IncomeListController>()) {
-    getIt.unregister<IncomeListController>();
-  }
-  if (getIt.isRegistered<IncomeFormController>()) {
-    getIt.unregister<IncomeFormController>();
+  if (getIt.isRegistered<IncomeController>()) {
+    getIt.unregister<IncomeController>();
   }
   if (getIt.isRegistered<IncomeDetailController>()) {
     getIt.unregister<IncomeDetailController>();
@@ -177,18 +173,20 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
 
   getIt
     ..registerSingleton<IncomeRepository>(repository)
-    ..registerFactory<IncomeListController>(
-      () => IncomeListController(getIt<IncomeRepository>()),
-    )
-    ..registerFactory<IncomeFormController>(
-      () => IncomeFormController(
-        getIt<IncomeRepository>(),
-        getIt<TagRepository>(),
-        getIt<SelectedMonthService>(),
+    // `lazySingleton` com `dispose:`, e não `factory`: a `IncomeListPage` chama
+    // `resetLazySingleton` no seu `dispose`, e o get_it recusa isso em registro
+    // que não seja lazy. É também um controller só para a lista e o formulário —
+    // a página do formulário não o libera.
+    ..registerLazySingleton<IncomeController>(
+      () => IncomeController(
+        repository: getIt<IncomeRepository>(),
+        tagRepository: getIt<TagRepository>(),
+        selectedMonth: getIt<SelectedMonthService>(),
       ),
+      dispose: (controller) => controller.dispose(),
     )
     ..registerFactory<IncomeDetailController>(
-      () => IncomeDetailController(getIt<IncomeRepository>()),
+      () => IncomeDetailController(repository: getIt<IncomeRepository>()),
     );
 
   return repository;

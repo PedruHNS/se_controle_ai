@@ -67,6 +67,26 @@ void main() {
     );
   });
 
+  // O controller é um por app e a página não o libera, então o formulário
+  // sobrevive ao fechamento da tela. Quem o limpa é o `startForm`, no
+  // `initState`: sem isso o segundo cadastro abriria com o primeiro ainda
+  // preenchido.
+  testWidgets('reabrir o formulário o encontra limpo', (tester) async {
+    await pumpForm(tester);
+    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
+    await tester.pumpAndSettle();
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(fieldWithLabel('Descrição')).controller!.text,
+      isEmpty,
+    );
+  });
+
   testWidgets('salvar vazio mostra o que falta e não chama o backend', (
     tester,
   ) async {
