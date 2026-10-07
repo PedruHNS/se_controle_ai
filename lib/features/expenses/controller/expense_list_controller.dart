@@ -7,7 +7,7 @@ import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/expense_repository.dart';
 import 'package:se_controle_ai/data/enums/payment_method.dart';
 
-/// Lista de gastos. Mesmo molde do `IncomeListController`: signal privado,
+/// Lista de gastos. Mesmo molde do `IncomeController`: signal privado,
 /// getter `ReadonlySignal`, nenhum import de Flutter.
 ///
 /// A listagem é **sem `?month`** e **com `?activeFrom`**, e a diferença entre os
@@ -15,7 +15,7 @@ import 'package:se_controle_ai/data/enums/payment_method.dart';
 ///
 /// - sem `?month`, o backend devolve `amountCents: null` em todos (GFX-10 ao
 ///   contrário) e o valor exibido sai do `history` — ver
-///   `ExpenseModel.amountCentsIn`. É o que permite mostrar o gasto que ainda vai
+///   `ExpenseUtils.amountCentsIn`. É o que permite mostrar o gasto que ainda vai
 ///   começar, que num recorte por competência não existiria;
 /// - com `?activeFrom` no mês selecionado, some o que **acabou antes** dele
 ///   (GFX-11). O 99 food avulso de setembro não é assunto em outubro: ele já foi

@@ -4,6 +4,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
+import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
@@ -62,7 +63,9 @@ class _ExpenseAmountDialogState extends State<_ExpenseAmountDialog> {
     _amount: FormControl<int>(
       // Correção parte do valor atual, que é o que se quer ajustar. Reajuste
       // parte vazio: repetir o valor vigente seria recusado com 422.
-      value: _isAdjust ? null : widget.expense.currentVersion?.amountCents,
+      value: _isAdjust
+          ? null
+          : AmountVersionUtils.openVersion(widget.expense.history)?.amountCents,
       validators: [Validators.required, Validators.min(1)],
     ),
     _effectiveFrom: FormControl<String>(
@@ -80,7 +83,9 @@ class _ExpenseAmountDialogState extends State<_ExpenseAmountDialog> {
   /// atual (GFX-04, herdando GAN-03/GAN-05). Travar aqui evita mandar o que
   /// voltaria 422.
   String get _minMonth {
-    final from = widget.expense.currentVersion?.validFrom;
+    final from = AmountVersionUtils.openVersion(
+      widget.expense.history,
+    )?.validFrom;
     return from == null ? MonthUtils.current() : MonthUtils.next(from);
   }
 

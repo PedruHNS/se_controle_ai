@@ -166,12 +166,35 @@ void main() {
       expect(find.text('Recorrente por mês'), findsNothing);
     });
 
-    testWidgets('lista vazia explica o que fazer', (tester) async {
+    // O seletor continua na tela: sem ele, num mês sem ganho não haveria como
+    // ir para outro.
+    testWidgets('mês sem ganho explica o que fazer e mantém o seletor', (
+      tester,
+    ) async {
       stubIncomeList(repository, result: const Success([]));
       await pumpList(tester);
 
-      expect(find.text('Nenhum ganho cadastrado'), findsOneWidget);
-      expect(find.textContaining('Entra em'), findsNothing);
+      final month = MonthUtils.label(getIt<SelectedMonthService>().month.value);
+      expect(find.text('Nenhum ganho em $month'), findsOneWidget);
+      expect(find.byTooltip('Próximo mês'), findsOneWidget);
+    });
+
+    testWidgets('trocar o mês no seletor busca os ganhos do novo mês', (
+      tester,
+    ) async {
+      await pumpList(tester);
+      final proximo = MonthUtils.next(
+        getIt<SelectedMonthService>().month.value,
+      );
+
+      await tester.tap(find.byTooltip('Próximo mês'));
+      await tester.pumpAndSettle();
+
+      verify(() => repository.list(month: proximo)).called(1);
+      expect(
+        find.text('Entra em ${MonthUtils.label(proximo)}'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('erro de rede oferece tentar de novo', (tester) async {

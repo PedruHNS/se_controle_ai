@@ -7,6 +7,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
+import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_controller.dart';
@@ -98,10 +99,18 @@ void main() {
       expect(loadedIncomes(), hasLength(2));
     });
 
-    test('lista sem mês — é a tela de cadastro, não o recorte do resumo', () {
-      // Com `?month`, um ganho encerrado sumiria da lista e não teria como ser
-      // consultado nem apagado.
-      verify(() => repository.list(month: null)).called(1);
+    test('lista o mês selecionado na home', () {
+      verify(() => repository.list(month: month.month.value)).called(1);
+    });
+
+    test('trocar o mês busca a lista do novo mês', () async {
+      final proximo = MonthUtils.next(month.month.value);
+
+      month.select(proximo);
+      await pumpEventQueue();
+
+      verify(() => repository.list(month: proximo)).called(1);
+      expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
     });
 
     test('construir não busca as tags — quem as quer é o formulário', () {
@@ -497,6 +506,8 @@ void main() {
 
     setUp(() async {
       stubIncomeList(repository, result: Success(listaOrdenada()));
+      // O mês dos ganhos criados abaixo: a lista só aceita o que vige nele.
+      month.select('2026-08');
       await controller.refresh();
       clearInteractions(repository);
     });
@@ -507,7 +518,7 @@ void main() {
 
       await controller.submit();
 
-      verify(() => repository.getById('novo-id', month: null)).called(1);
+      verify(() => repository.getById('novo-id', month: '2026-08')).called(1);
       verifyNever(() => repository.list(month: any(named: 'month')));
     });
 
@@ -540,6 +551,19 @@ void main() {
       ]);
     });
 
+    test('ganho que não vige no mês exibido não entra na lista', () async {
+      stubIncomeDetail(repository, result: Success(criado(month: '2026-09')));
+      fill(description: 'Freela', amountCents: 80000);
+
+      final id = await controller.submit();
+
+      expect(id, 'novo-id');
+      expect(loadedIncomes().map((i) => i.description), [
+        'Aluguel recebido',
+        'Salário',
+      ]);
+    });
+
     test('falha no cadastro não mexe na lista', () async {
       stubIncomeOperations(repository, createResult: semRedeCriacao());
       fill(description: 'Freela', amountCents: 80000);
@@ -568,7 +592,7 @@ void main() {
 
         expect(id, 'novo-id');
         expect(controller.generalFailure.value, isNull);
-        verify(() => repository.list(month: null)).called(1);
+        verify(() => repository.list(month: '2026-08')).called(1);
       },
     );
 
@@ -583,7 +607,7 @@ void main() {
       await controller.submit();
 
       expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
-      verify(() => repository.list(month: null)).called(1);
+      verify(() => repository.list(month: '2026-08')).called(1);
     });
 
     // A busca do ganho criado leva um instante, e o botão liberado nesse

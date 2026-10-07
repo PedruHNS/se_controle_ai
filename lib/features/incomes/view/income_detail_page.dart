@@ -96,7 +96,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
                   padding: const EdgeInsets.all(16),
                   child: FailureCardWidget(
                     failure: failure,
-                    onRetry: _controller.load,
+                    onRetry: _controller.refresh,
                   ),
                 ),
               ),
@@ -154,6 +154,11 @@ class _IncomeDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Ter data de fim é o que decide se as operações de dinheiro ainda existem
+    // (GAN-08). Não é o mesmo que "não entra mais": o ganho de mês único nasce
+    // com `endMonth` e ainda entra no mês dele.
+    final closed = income.endMonth != null;
+
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -177,7 +182,7 @@ class _IncomeDetail extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    income.isClosed
+                    closed
                         ? 'Encerrado em ${MonthUtils.label(income.endMonth!)}'
                         : income.recurring
                         ? 'Recorrente desde ${MonthUtils.label(income.startMonth)}'
@@ -194,7 +199,7 @@ class _IncomeDetail extends StatelessWidget {
 
           // Ganho encerrado não aceita reajuste, correção nem encerramento
           // (GAN-08). Some com os botões em vez de deixar o usuário levar 422.
-          if (!income.isClosed) ...[
+          if (!closed) ...[
             _ActionCard(
               icon: Icons.trending_up,
               title: 'Reajustar',
@@ -230,7 +235,9 @@ class _IncomeDetail extends StatelessWidget {
             onTap: working ? null : onDelete,
           ),
 
-          if (income.hasAdjustments) ...[
+          // A linha do tempo só aparece quando há mais de uma vigência para
+          // comparar.
+          if (income.history.length > 1) ...[
             const SizedBox(height: 16),
             AmountHistoryCard(history: income.history),
           ],

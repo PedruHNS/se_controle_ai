@@ -14,30 +14,29 @@ import '../../../data/repositories/income_repository.dart';
 /// aparecer — inclusive o 422 de regra de negócio, que traz a mensagem pronta
 /// do backend ("reajuste retroativo", "mesmo valor já vigente").
 ///
+/// Cada uma, se der certo, **busca o ganho de novo**: o backend responde `204`
+/// sem corpo, e o histórico novo só se sabe refazendo a conta que ele faz.
+///
 /// **O id não entra pelo construtor.** Ele é dado da rota, então quem o conhece
 /// é a view: ela chama [start] no `initState` com o que veio em
-/// `pathParameters`. Assim o registro no get_it é um `registerFactory` comum,
-/// igual ao dos outros controllers, e construir o controller não depende de ter
-/// um argumento em mãos.
+/// `pathParameters`, como a tela do cartão faz. Assim o registro no get_it é um
+/// `registerFactory` comum, e construir o controller não depende de ter um
+/// argumento em mãos.
 class IncomeDetailController extends BaseController {
-  IncomeDetailController(this._repository);
-
   final IncomeRepository _repository;
 
-  /// Preenchido por [start]. Sem ele não há o que buscar, então [load],
-  /// [refresh] e as quatro operações só existem depois que a view abriu a tela.
+  IncomeDetailController({required this._repository});
+
+  /// Preenchido por [start]. Sem ele não há o que buscar, então [refresh] e as
+  /// quatro operações só existem depois que a view abriu a tela.
   late String _id;
 
   String get id => _id;
 
   final _state = signal<ViewState<IncomeModel>>(const Loading());
-  final _working = signal<bool>(false);
-
-  /// Cresce a cada requisição, para descartar resposta atrasada — ver [load].
-  /// Mesmo contador do `HomeController` e do `IncomeListController`.
-  int _requestId = 0;
-
   ReadonlySignal<ViewState<IncomeModel>> get state => _state;
+
+  final _working = signal<bool>(false);
 
   /// Alguma operação em andamento — a view desabilita os botões para não
   /// disparar duas vezes.
@@ -45,24 +44,28 @@ class IncomeDetailController extends BaseController {
 
   /// Recebe o id da rota e faz a primeira busca.
   ///
-  /// Diferente dos outros controllers, este **não** busca no `onInit`: ali o id
-  /// ainda não chegou. A view chama isto no `initState`.
+  /// Diferente da lista, este **não** busca no `onInit`: ali o id ainda não
+  /// chegou. A view chama isto no `initState`.
   Future<void> start(String id) {
     _id = id;
-    return load();
+    return _load();
   }
 
-  Future<void> load({bool silent = false}) async {
-    final requestId = ++_requestId;
+  @override
+  void dispose() {
+    super.dispose();
+    _state.dispose();
+    _working.dispose();
+  }
 
-    if (!silent) _state.value = const Loading();
+  Future<void> _load() async {
+    _state.value = const Loading();
 
     final result = await _repository.getById(id);
 
-    // Cada ação termina numa recarga silenciosa, então duas ações em sequência
-    // rápida deixam duas buscas em voo. Sem esta guarda, a que voltar por último
-    // manda — e não é necessariamente a mais nova.
-    if (requestId != _requestId) return;
+    // A página libera o controller ao sair, e a resposta pode chegar depois.
+    // Escrever num signal liberado lança.
+    if (_state.disposed) return;
 
     result.when(
       (success) => _state.value = Loaded(success),
@@ -70,7 +73,7 @@ class IncomeDetailController extends BaseController {
     );
   }
 
-  Future<void> refresh() => load(silent: true);
+  Future<void> refresh() => _load();
 
   /// Reajuste — o valor novo passa a valer de [effectiveFrom] em diante, e os
   /// meses anteriores ficam como estavam.
@@ -89,7 +92,7 @@ class IncomeDetailController extends BaseController {
     _working.value = false;
 
     return result.when((_) async {
-      await load(silent: true);
+      await _load();
       return null;
     }, (error) async => error);
   }
@@ -103,7 +106,7 @@ class IncomeDetailController extends BaseController {
     _working.value = false;
 
     return result.when((_) async {
-      await load(silent: true);
+      await _load();
       return null;
     }, (error) async => error);
   }
@@ -117,7 +120,7 @@ class IncomeDetailController extends BaseController {
     _working.value = false;
 
     return result.when((_) async {
-      await load(silent: true);
+      await _load();
       return null;
     }, (error) async => error);
   }

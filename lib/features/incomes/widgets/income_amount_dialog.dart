@@ -4,6 +4,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
+import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_detail_controller.dart';
@@ -76,7 +77,9 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
   /// Reajuste precisa valer de um mês **posterior** ao início da vigência
   /// atual (GAN-03/GAN-05). Travar aqui evita mandar o que voltaria 422.
   String get _minMonth {
-    final from = widget.income.currentVersion?.validFrom;
+    final from = AmountVersionUtils.openVersion(
+      widget.income.history,
+    )?.validFrom;
     return from == null ? MonthUtils.current() : MonthUtils.next(from);
   }
 

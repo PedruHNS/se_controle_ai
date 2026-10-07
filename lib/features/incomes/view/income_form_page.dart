@@ -5,7 +5,7 @@ import 'package:signals/signals_flutter.dart';
 import '../../../core/di/injector.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
-import '../controller/income_form_controller.dart';
+import '../controller/income_controller.dart';
 
 /// Cadastro de ganho: descrição, valor, competência inicial e recorrência.
 class IncomeFormPage extends StatefulWidget {
@@ -16,21 +16,15 @@ class IncomeFormPage extends StatefulWidget {
 }
 
 class _IncomeFormPageState extends State<IncomeFormPage> {
-  final _controller = getIt<IncomeFormController>();
+  final _controller = getIt<IncomeController>();
 
+  /// O controller é um por app, e quem o libera é a página da lista — esta não
+  /// chama `dispose` nele. Por isso o formulário é limpo aqui, ao abrir: sem
+  /// isso, o segundo cadastro abriria com o primeiro ainda preenchido.
   @override
   void initState() {
     super.initState();
-    // Sem await e sem estado de carregamento: a tag é opcional (TAG-07), então
-    // o formulário já é utilizável enquanto a lista não chega — o seletor
-    // aparece vazio e se preenche sozinho.
-    _controller.loadTags();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+    _controller.startForm();
   }
 
   Future<void> _submit() async {
@@ -63,13 +57,13 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
           padding: const EdgeInsets.all(16),
           children: [
             ReactiveTextField<String>(
-              formControlName: IncomeFormController.description,
+              formControlName: 'description',
               autofocus: true,
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.next,
               validationMessages: {
                 ValidationMessage.required: (_) => 'Informe a descrição.',
-                IncomeFormController.backendError: (error) => '$error',
+                'backend': (error) => '$error',
               },
               decoration: const InputDecoration(
                 labelText: 'Descrição',
@@ -80,7 +74,7 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
             const SizedBox(height: 16),
             SignalBuilder(
               builder: (context) => ReactiveDropdownField<String>(
-                formControlName: IncomeFormController.tagId,
+                formControlName: 'tagId',
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Categoria (opcional)',
@@ -93,19 +87,19 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
               ),
             ),
             const SizedBox(height: 16),
-            MoneyFieldWidget(formControlName: IncomeFormController.amountCents),
+            MoneyFieldWidget(formControlName: 'amountCents'),
             const SizedBox(height: 16),
             MonthFieldWidget(
-              formControlName: IncomeFormController.startMonth,
+              formControlName: 'startMonth',
               label: 'A partir de',
             ),
             const SizedBox(height: 8),
             ReactiveSwitchListTile(
-              formControlName: IncomeFormController.recurring,
+              formControlName: 'recurring',
               contentPadding: EdgeInsets.zero,
               title: const Text('Recorrente'),
               subtitle: ReactiveValueListenableBuilder<bool>(
-                formControlName: IncomeFormController.recurring,
+                formControlName: 'recurring',
                 builder: (context, control, child) => Text(
                   control.value ?? true
                       ? 'Segue todo mês até você encerrar.'

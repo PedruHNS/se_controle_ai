@@ -3,6 +3,7 @@ import 'package:reactive_forms/reactive_forms.dart';
 
 import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
+import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
@@ -51,7 +52,8 @@ class _ExpenseClosureDialogState extends State<_ExpenseClosureDialog> {
 
   /// O último mês não pode ser anterior ao início da vigência atual. Diferente
   /// do reajuste, aqui o próprio mês de início é permitido.
-  String? get _minMonth => widget.expense.currentVersion?.validFrom;
+  String? get _minMonth =>
+      AmountVersionUtils.openVersion(widget.expense.history)?.validFrom;
 
   String get _initialMonth {
     final from = _minMonth;

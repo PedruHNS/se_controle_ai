@@ -44,10 +44,11 @@ class AmountHistoryCard extends StatelessWidget {
           for (final version in history.reversed)
             ListTile(
               dense: true,
+              // `validTo` nulo é a vigência em aberto, a que vale hoje.
               leading: Icon(
-                version.isOpen ? Icons.play_arrow : Icons.check,
+                version.validTo == null ? Icons.play_arrow : Icons.check,
                 size: 16,
-                color: version.isOpen
+                color: version.validTo == null
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant,
               ),

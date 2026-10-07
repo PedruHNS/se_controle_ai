@@ -9,6 +9,7 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
+import '../../../core/utils/expense_utils.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
@@ -135,18 +136,18 @@ class _ExpenseList extends StatelessWidget {
   /// Quanto sai na competência exibida — o mesmo número que a home mostra
   /// para este mês.
   ///
-  /// Sai do `amountCentsIn` e não do `amountCents` porque este último vem nulo
-  /// na listagem sem `?month`. Somar o campo direto daria zero.
-  int get _monthTotalCents => expenses.fold(
-    0,
-    (total, expense) => total + (expense.amountCentsIn(month) ?? 0),
-  );
+  /// Sai do `ExpenseUtils.amountCentsIn` e não do `amountCents` porque este
+  /// último vem nulo na listagem sem `?month`. Somar o campo direto daria zero.
+  int get _monthTotalCents => expenses.fold(0, _addAmountIn);
 
   /// A parte que se repete: só os gastos sem fim marcado. A diferença para o
   /// total do mês é o que sai uma vez só — o presente, a consulta avulsa.
   int get _recurringTotalCents => expenses
       .where((expense) => expense.endMonth == null)
-      .fold(0, (total, expense) => total + (expense.amountCentsIn(month) ?? 0));
+      .fold(0, _addAmountIn);
+
+  int _addAmountIn(int total, ExpenseModel expense) =>
+      total + (ExpenseUtils.amountCentsIn(expense, month) ?? 0);
 
   @override
   Widget build(BuildContext context) {

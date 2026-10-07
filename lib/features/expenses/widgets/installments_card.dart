@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/expense_utils.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/installment_model.dart';
@@ -117,7 +118,7 @@ class _InstallmentTile extends StatelessWidget {
       dense: true,
       leading: Icon(icon, size: 16, color: color),
       title: Text(
-        parcel.label,
+        ExpenseUtils.installmentLabel(parcel),
         style: isCurrent
             ? theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)
             : null,

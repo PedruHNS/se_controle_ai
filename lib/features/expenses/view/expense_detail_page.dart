@@ -9,9 +9,12 @@ import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/shared/widgets/state_transition.dart';
+import '../../../core/utils/expense_utils.dart';
 import '../../../core/utils/iso_date_utils.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
+import '../../../data/enums/expense_type.dart';
+import '../../../data/enums/payment_method.dart';
 import '../../../data/models/expense_model.dart';
 import '../controller/expense_detail_controller.dart';
 import '../widgets/expense_amount_dialog.dart';
@@ -207,13 +210,21 @@ class _ExpenseDetail extends StatelessWidget {
   /// O valor que a tela mostra em destaque: o cobrado no mês exibido, ou o
   /// último quando o gasto já acabou ou ainda não começou.
   int? get _amountCents =>
-      expense.amountCentsIn(month) ?? expense.latestAmountCents;
+      ExpenseUtils.amountCentsIn(expense, month) ??
+      ExpenseUtils.latestAmountCents(expense);
+
+  bool get _isInstallment => expense.type == ExpenseType.installment;
+
+  /// Ter data de fim é o que decide se as operações de dinheiro ainda existem.
+  /// Não é o mesmo que "não é mais cobrado": o gasto avulso nasce com
+  /// `endMonth` e ainda é cobrado no mês dele.
+  bool get _isClosed => expense.endMonth != null;
 
   /// A linha de baixo do cabeçalho, que muda com o tipo: um parcelado se
   /// descreve pelo plano ("3/10 · total de R$ 3.000,00"), um fixo pelo período.
   String get _periodLine {
-    if (expense.isInstallment) {
-      final label = expense.installmentLabelIn(month);
+    if (_isInstallment) {
+      final label = ExpenseUtils.installmentLabelIn(expense, month);
       final total = expense.totalCents;
       return [
         if (label != null) 'Parcela $label',
@@ -223,7 +234,7 @@ class _ExpenseDetail extends StatelessWidget {
       ].join(' · ');
     }
 
-    if (expense.isClosed) {
+    if (_isClosed) {
       return 'Encerrado em ${MonthUtils.label(expense.endMonth!)}';
     }
     return expense.recurring
@@ -232,7 +243,7 @@ class _ExpenseDetail extends StatelessWidget {
   }
 
   String get _paymentLine {
-    if (!expense.onCreditCard) return 'No débito';
+    if (expense.paymentMethod != PaymentMethod.creditCard) return 'No débito';
     return cardLabel == null ? 'No cartão' : 'No cartão · $cardLabel';
   }
 
@@ -322,7 +333,7 @@ class _ExpenseDetail extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Parcelado tem as suas duas, e não aceita as de fixo (GPR-17).
-          if (expense.isInstallment) ...[
+          if (_isInstallment) ...[
             _ActionCard(
               icon: Icons.call_split,
               title: 'Reparcelar',
@@ -345,7 +356,7 @@ class _ExpenseDetail extends StatelessWidget {
 
           // Gasto fixo encerrado não aceita reajuste, correção nem
           // encerramento. Some com os botões em vez de deixar levar 422.
-          if (expense.isFixed && !expense.isClosed) ...[
+          if (expense.type == ExpenseType.fixed && !_isClosed) ...[
             _ActionCard(
               icon: Icons.trending_up,
               title: 'Reajustar',
@@ -383,7 +394,7 @@ class _ExpenseDetail extends StatelessWidget {
 
           // Cada tipo mostra o seu plano: a linha do tempo de vigências no
           // fixo, a de parcelas no parcelado.
-          if (expense.hasAdjustments) ...[
+          if (expense.history.length > 1) ...[
             const SizedBox(height: 16),
             AmountHistoryCard(history: expense.history),
           ],

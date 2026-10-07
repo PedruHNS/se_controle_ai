@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/expense_utils.dart';
 import '../../../core/utils/iso_date_utils.dart';
 import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/month_utils.dart';
 import '../../../core/utils/tag_color_utils.dart';
 import '../../../data/enums/expense_type.dart';
 import '../../../data/enums/payment_method.dart';
@@ -44,20 +46,33 @@ class ExpenseTile extends StatelessWidget {
       onTap = null;
 
   IconData get _icon {
-    if (expense.isInstallment) return Icons.view_week_outlined;
-    if (expense.onCreditCard) return Icons.credit_card;
+    if (expense.type == ExpenseType.installment) {
+      return Icons.view_week_outlined;
+    }
+    if (expense.paymentMethod == PaymentMethod.creditCard) {
+      return Icons.credit_card;
+    }
     return Icons.payments_outlined;
   }
 
+  /// Já acabou **antes** da competência exibida — aí sim "não é mais cobrado".
+  /// Não é o mesmo que ter `endMonth`: o presente de agosto tem fim marcado, e
+  /// em agosto ele ainda sai.
+  bool get _endedBefore {
+    final end = expense.endMonth;
+    return end != null && MonthUtils.isBefore(end, monthSelected);
+  }
+
   String get _badge {
-    final parcela = expense.installmentLabelIn(monthSelected);
+    final parcela = ExpenseUtils.installmentLabelIn(expense, monthSelected);
     if (parcela != null) return parcela;
-    if (expense.endedBefore(monthSelected)) return 'Encerrado';
+    if (_endedBefore) return 'Encerrado';
     return 'Mês único';
   }
 
   int? get _amountCents =>
-      expense.amountCentsIn(monthSelected) ?? expense.latestAmountCents;
+      ExpenseUtils.amountCentsIn(expense, monthSelected) ??
+      ExpenseUtils.latestAmountCents(expense);
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +80,7 @@ class ExpenseTile extends StatelessWidget {
     final amount = _amountCents;
     final badge = _badge;
 
-    final encerrado = expense.endedBefore(monthSelected);
+    final encerrado = _endedBefore;
 
     return ListTile(
       onTap: onTap,
