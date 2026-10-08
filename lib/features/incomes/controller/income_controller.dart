@@ -7,27 +7,17 @@ import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/base_controller.dart';
 import '../../../core/utils/text_order_utils.dart';
 import '../../../data/models/income_model.dart';
-import '../../../data/models/tag_model.dart';
 import '../../../data/repositories/income_repository.dart';
-import '../../../data/repositories/tag_repository.dart';
 import '../../../data/services/selected_month_service.dart';
 
 class IncomeController extends BaseController {
   final IncomeRepository _repository;
-  final TagRepository _tagRepository;
   final SelectedMonthService _selectedMonth;
 
-  IncomeController({
-    required this._repository,
-    required this._tagRepository,
-    required this._selectedMonth,
-  });
+  IncomeController({required this._repository, required this._selectedMonth});
 
-  // `late` porque o padrão de competência vem de [_selectedMonth]: inicializador
-  // de campo não enxerga `this`.
   late final form = FormGroup({
     'description': FormControl<String>(validators: [Validators.required]),
-    'tagId': FormControl<String>(),
     'amountCents': FormControl<int>(
       validators: [Validators.required, Validators.min(1)],
     ),
@@ -43,8 +33,6 @@ class IncomeController extends BaseController {
   final _state = signal<ViewState<List<IncomeModel>>>(const Loading());
   ReadonlySignal<ViewState<List<IncomeModel>>> get state => _state;
 
-  final _tags = signal<List<TagModel>>(const []);
-  ReadonlySignal<List<TagModel>> get tags => _tags;
   final _saving = signal<bool>(false);
   ReadonlySignal<bool> get saving => _saving;
   final _failure = signal<Failure?>(null);
@@ -55,7 +43,6 @@ class IncomeController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-
     _watchingMonth = effect(() {
       _selectedMonth.month.value;
       untracked(_load);
@@ -64,24 +51,17 @@ class IncomeController extends BaseController {
 
   @override
   void dispose() {
-    _watchingMonth?.call();
     super.dispose();
+    _watchingMonth?.call();
     _state.dispose();
     form.dispose();
-    _tags.dispose();
     _saving.dispose();
     _failure.dispose();
   }
 
-  /// Só o que vige no mês selecionado, com o valor daquele mês (GAN-10).
   Future<void> _load() async {
-    final month = _selectedMonth.month.value;
     _state.value = const Loading();
-    final result = await _repository.list(month: month);
-
-    // Trocar de mês rápido deixa buscas antigas no caminho: a que chega por
-    // último não pode sobrescrever a lista do mês que está na tela.
-    if (month != _selectedMonth.month.value) return;
+    final result = await _repository.list(month: _selectedMonth.month.value);
 
     result.when(
       (success) => _state.value = Loaded(success),
@@ -94,20 +74,14 @@ class IncomeController extends BaseController {
   FormControl<T> control<T>(String name) =>
       form.control(name) as FormControl<T>;
 
-  /// Deixa o formulário pronto para um cadastro novo e busca as tags do
-  /// seletor. A página chama ao abrir.
-  ///
-  /// Sem await e sem estado de carregamento: a tag é opcional (TAG-07), então o
-  /// formulário já é utilizável enquanto a lista não chega — o seletor aparece
-  /// vazio e se preenche sozinho.
+  /// Deixa o formulário pronto para um cadastro novo. A página chama ao abrir.
   ///
   /// O `reset` sem valores devolveria tudo a `null`, inclusive a competência e
   /// o switch, que têm padrão — por isso eles vão escritos aqui.
-  Future<void> startForm() async {
+  void startForm() {
     form.reset(
       value: {
         'description': null,
-        'tagId': null,
         'amountCents': null,
         'startMonth': _selectedMonth.month.value,
         'recurring': false,
@@ -115,21 +89,6 @@ class IncomeController extends BaseController {
     );
     _saving.value = false;
     _failure.value = null;
-
-    await _loadTags();
-  }
-
-  /// A falha é engolida de propósito: sendo a tag opcional (TAG-07), não poder
-  /// escolher rótulo não pode impedir o cadastro do ganho. O seletor fica
-  /// vazio, o resto do formulário funciona.
-  Future<void> _loadTags() async {
-    final result = await _tagRepository.list();
-
-    // A página libera o controller ao sair, e a lista pode chegar depois.
-    // Escrever num signal liberado lança.
-    if (_tags.disposed) return;
-
-    result.when((list) => _tags.value = list, (_) {});
   }
 
   /// Devolve o `id` criado, ou null se o formulário é inválido ou o backend
@@ -152,7 +111,6 @@ class IncomeController extends BaseController {
 
     final result = await _repository.create(
       description: control<String>('description').value!.trim(),
-      tagId: control<String>('tagId').value,
       amountCents: control<int>('amountCents').value!,
       startMonth: control<String>('startMonth').value!,
       recurring: control<bool>('recurring').value ?? false,

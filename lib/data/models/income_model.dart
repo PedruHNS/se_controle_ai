@@ -1,10 +1,8 @@
 import 'amount_version_model.dart';
-import 'tag_model.dart';
 
 class IncomeModel {
   final String id;
   final String description;
-  final TagModel? tag;
   final bool recurring;
   final String startMonth;
   final String? endMonth;
@@ -13,7 +11,6 @@ class IncomeModel {
   const IncomeModel({
     required this.id,
     required this.description,
-    required this.tag,
     required this.recurring,
     required this.startMonth,
     required this.endMonth,
@@ -24,9 +21,6 @@ class IncomeModel {
   factory IncomeModel.fromJson(Map<String, dynamic> json) => IncomeModel(
     id: json['id'] as String,
     description: json['description'] as String,
-    tag: json['tag'] == null
-        ? null
-        : TagModel.fromJson(json['tag'] as Map<String, dynamic>),
     recurring: json['recurring'] as bool,
     startMonth: json['startMonth'] as String,
     endMonth: json['endMonth'] as String?,
@@ -39,7 +33,7 @@ class IncomeModel {
 
   @override
   String toString() =>
-      'IncomeModel(id: $id, description: $description, tag: $tag, '
+      'IncomeModel(id: $id, description: $description, '
       'recurring: $recurring, startMonth: $startMonth, endMonth: $endMonth, '
       'amountCents: $amountCents, history: $history)';
 }

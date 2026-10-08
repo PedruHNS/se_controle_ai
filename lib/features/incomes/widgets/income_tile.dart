@@ -4,7 +4,6 @@ import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 
-/// Uma linha da lista de ganhos: descrição, valor vigente e o período.
 class IncomeTile extends StatelessWidget {
   final IncomeModel income;
   final String month;
@@ -16,6 +15,19 @@ class IncomeTile extends StatelessWidget {
     this.onTap,
     super.key,
   });
+
+  const IncomeTile.skeleton({super.key})
+    : income = const IncomeModel(
+        id: '',
+        description: 'Salário da empresa',
+        recurring: true,
+        startMonth: '2026-01',
+        endMonth: null,
+        amountCents: 450000,
+        history: [],
+      ),
+      month = '2026-01',
+      onTap = null;
 
   String? get _badge {
     final end = income.endMonth;

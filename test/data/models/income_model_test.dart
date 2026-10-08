@@ -62,7 +62,7 @@ void main() {
       expect(
         income.toString(),
         'IncomeModel(id: b1a7c0de-0000-4000-8000-000000000001, '
-        'description: Salário, tag: null, recurring: true, '
+        'description: Salário, recurring: true, '
         'startMonth: 2026-01, endMonth: null, amountCents: 550000, '
         'history: [AmountVersionModel(amountCents: 500000, '
         'validFrom: 2026-01, validTo: 2026-10), '

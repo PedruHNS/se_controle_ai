@@ -17,24 +17,15 @@ import '../../fixtures/mocks.dart';
 
 void main() {
   late MockIncomeRepository repository;
-  late MockTagRepository tags;
   late SelectedMonthService month;
   late IncomeController controller;
 
-  IncomeController build({
-    MockIncomeRepository? incomes,
-    MockTagRepository? tagList,
-  }) => IncomeController(
-    repository: incomes ?? repository,
-    tagRepository: tagList ?? tags,
-    selectedMonth: month,
-  );
+  IncomeController build({MockIncomeRepository? incomes}) =>
+      IncomeController(repository: incomes ?? repository, selectedMonth: month);
 
   setUp(() {
     month = SelectedMonthService();
     repository = incomeRepositoryMock();
-    tags = MockTagRepository();
-    stubTagList(tags);
     controller = build();
   });
 
@@ -111,10 +102,6 @@ void main() {
 
       verify(() => repository.list(month: proximo)).called(1);
       expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
-    });
-
-    test('construir não busca as tags — quem as quer é o formulário', () {
-      verifyNever(() => tags.list());
     });
 
     test('falha vira Failed, com a falha traduzida', () async {
@@ -196,34 +183,32 @@ void main() {
   // O controller é um por app, então o formulário não nasce limpo a cada
   // abertura: quem o limpa é o `startForm`.
   group('startForm', () {
-    test('limpa o que a abertura anterior deixou', () async {
+    test('limpa o que a abertura anterior deixou', () {
       fill(
         description: 'Salário',
         amountCents: 500000,
         startMonth: '2026-03',
         recurring: true,
       );
-      controller.control<String>('tagId').value = 'tag-1';
       controller.form.markAllAsTouched();
       expect(controller.form.touched, isTrue);
 
-      await controller.startForm();
+      controller.startForm();
 
       expect(controller.control<String>('description').value, isNull);
       expect(controller.control<int>('amountCents').value, isNull);
-      expect(controller.control<String>('tagId').value, isNull);
       expect(controller.control<bool>('recurring').value, isFalse);
       expect(controller.form.touched, isFalse);
       expect(controller.saving.value, isFalse);
     });
 
-    test('leva a competência para o mês selecionado agora', () async {
+    test('leva a competência para o mês selecionado agora', () {
       // O formulário é criado uma vez. Sem o reset, ele ficaria com o mês da
       // primeira abertura, mesmo que a pessoa tenha trocado de mês depois.
       controller.control<String>('startMonth');
       month.select('2026-12');
 
-      await controller.startForm();
+      controller.startForm();
 
       expect(controller.control<String>('startMonth').value, '2026-12');
     });
@@ -246,58 +231,12 @@ void main() {
       await controller.submit();
       expect(errorOf('amountCents'), isNotNull);
 
-      await controller.startForm();
+      controller.startForm();
 
       expect(errorOf('amountCents'), isNull);
       expect(controller.generalFailure.value, isNull);
     });
 
-    test('busca as tags do seletor', () async {
-      await controller.startForm();
-
-      verify(() => tags.list()).called(1);
-      expect(controller.tags.value, isNotEmpty);
-    });
-
-    test(
-      'falha na busca deixa o seletor vazio e não trava o formulário',
-      () async {
-        // A tag é opcional (TAG-07): não poder escolher rótulo não impede o
-        // cadastro, e a falha não vira recado nenhum.
-        final semTags = MockTagRepository();
-        stubTagList(
-          semTags,
-          result: Error(
-            Failure.fromException(const NetworkException(message: 'sem rede')),
-          ),
-        );
-        final other = build(tagList: semTags);
-        addTearDown(other.dispose);
-
-        await other.startForm();
-
-        expect(other.tags.value, isEmpty);
-        expect(other.generalFailure.value, isNull);
-      },
-    );
-
-    test('lista que chega depois do dispose é descartada, sem lançar', () async {
-      // A página libera o controller ao sair da tela, e a busca pode ainda
-      // estar em voo. Escrever no signal liberado lançaria um erro que ninguém
-      // captura.
-      final segura = Completer<void>();
-      final lentas = MockTagRepository();
-      stubTagList(lentas, pendenteAte: segura.future);
-      final saiu = build(tagList: lentas);
-      // A busca da lista, do `onInit`, termina antes: é só a das tags que está
-      // sob teste.
-      await pumpEventQueue();
-
-      final pending = saiu.startForm();
-      saiu.dispose();
-      segura.complete();
-      await pending;
-    });
   });
 
   group('validação declarada no FormGroup', () {

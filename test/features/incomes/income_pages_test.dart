@@ -74,14 +74,6 @@ void main() {
         ),
         findsOneWidget,
       );
-      // E a parte que se repete fica explícita, para os dois não se confundirem.
-      expect(
-        find.descendant(
-          of: find.widgetWithText(ListTile, 'Recorrente por mês'),
-          matching: find.text(r'R$ 5.000,00'),
-        ),
-        findsOneWidget,
-      );
     });
 
     testWidgets('ganho que acabou em mês passado é marcado como encerrado', (
@@ -154,16 +146,6 @@ void main() {
         ),
         findsOneWidget,
       );
-    });
-
-    testWidgets('sem avulso no mês, o total aparece sozinho', (tester) async {
-      stubIncomeList(
-        repository,
-        result: Success([IncomeModel.fromJson(salaryJson)]),
-      );
-      await pumpList(tester);
-
-      expect(find.text('Recorrente por mês'), findsNothing);
     });
 
     // O seletor continua na tela: sem ele, num mês sem ganho não haveria como

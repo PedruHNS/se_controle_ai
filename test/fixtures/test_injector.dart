@@ -108,11 +108,12 @@ MockSummaryRepository setupTestInjector() {
   return repository;
 }
 
-/// Registra o repositório de tags, com a lista já stubada.
+/// Registra o repositório de tags, com a lista já stubada, e o
+/// `NavigationService` dublê.
 ///
 /// Vale para gastos e para ganhos: o formulário de gasto não abre sem tags
-/// (TAG-06 as torna obrigatórias) e o de ganho as busca para o seletor
-/// opcional. Separado dos outros para poder ser chamado pelos dois.
+/// (TAG-06 as torna obrigatórias), e a lista de ganhos precisa do dublê de
+/// navegação. Separado dos outros para poder ser chamado pelos dois.
 MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
   final repository = mock ?? MockTagRepository();
   stubTagList(repository);
@@ -157,6 +158,7 @@ MockTagRepository setupTagTestInjector({MockTagRepository? mock}) {
 /// O mesmo para as telas de ganhos.
 MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   final repository = mock ?? incomeRepositoryMock();
+  // Pelo `NavigationService` dublê, não pelas tags: ganho não tem tag (TAG-07).
   setupTagTestInjector();
 
   if (!getIt.isRegistered<SelectedMonthService>()) setupSelectedMonth();
@@ -180,7 +182,6 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
     ..registerLazySingleton<IncomeController>(
       () => IncomeController(
         repository: getIt<IncomeRepository>(),
-        tagRepository: getIt<TagRepository>(),
         selectedMonth: getIt<SelectedMonthService>(),
       ),
       dispose: (controller) => controller.dispose(),

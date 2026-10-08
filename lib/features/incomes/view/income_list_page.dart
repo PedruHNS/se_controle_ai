@@ -4,18 +4,19 @@ import 'package:se_controle_ai/core/shared/widgets/month_selector_widget.dart';
 import 'package:se_controle_ai/core/theme/app_theme.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals_flutter.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/di/injector.dart';
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
-import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_controller.dart';
+import '../widgets/income_empty_widget.dart';
 import '../widgets/income_tile.dart';
 
 /// Lista de ganhos — a porta de entrada do CRUD.
@@ -50,15 +51,32 @@ class _IncomeListPageState extends State<IncomeListPage> {
       body: CustomScrollView(
         slivers: [
           SignalBuilder(
-            builder: (context) => _IncomeList(
-              state: _controller.state.value,
-              month: _selectedMonth.month.value,
-              onRetry: _controller.refresh,
-              onOpen: (income) => _nav.pushNamed(
-                AppRoutes.incomeDetail,
-                pathParameters: {RouteParams.id: income.id},
-              ),
-            ),
+            builder: (context) {
+              final state = _controller.state.value;
+              return switch (state) {
+                Loading() => _IncomeList.skeleton(),
+                Loaded(:final data) => _IncomeList(
+                  incomes: data,
+                  month: _selectedMonth.month.value,
+                  onOpen: (income) => _nav.pushNamed(
+                    AppRoutes.incomeDetail,
+                    pathParameters: {RouteParams.id: income.id},
+                  ),
+                ),
+                Failed(:final failure) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const .all(16),
+                      child: FailureCardWidget(
+                        failure: failure,
+                        onRetry: _controller.refresh,
+                      ),
+                    ),
+                  ),
+                ),
+              };
+            },
           ),
         ],
       ),
@@ -66,32 +84,26 @@ class _IncomeListPageState extends State<IncomeListPage> {
   }
 }
 
-/// O cabeçalho e o card com o seletor de mês ficam na tela em qualquer estado:
-/// só o miolo do card troca. Se o seletor sumisse no carregamento, cada troca
-/// de mês piscaria a tela inteira — e num mês sem ganho não haveria como sair.
 class _IncomeList extends StatelessWidget {
-  final ViewState<List<IncomeModel>> state;
+  final List<IncomeModel> incomes;
   final String month;
+  final bool loading;
 
-  final Future<void> Function() onRetry;
-  final void Function(IncomeModel income) onOpen;
+  final void Function(IncomeModel income)? onOpen;
 
   const _IncomeList({
-    required this.state,
+    required this.incomes,
     required this.month,
-    required this.onRetry,
     required this.onOpen,
-  });
+  }) : loading = false;
 
-  List<IncomeModel> get incomes => switch (state) {
-    Loaded(data: final incomes) => incomes,
-    _ => const [],
-  };
+  const _IncomeList.skeleton()
+    : incomes = const [],
+      onOpen = null,
+      month = '',
+      loading = true;
 
   int get _monthTotalCents => incomes.fold(0, _addAmountIn);
-
-  int get _recurringTotalCents =>
-      incomes.where((income) => income.endMonth == null).fold(0, _addAmountIn);
 
   int _addAmountIn(int total, IncomeModel income) =>
       total + (AmountVersionUtils.amountCentsIn(income.history, month) ?? 0);
@@ -102,21 +114,27 @@ class _IncomeList extends StatelessWidget {
 
     return SliverMainAxisGroup(
       slivers: [
-        SliverToBoxAdapter(
-          child: ListTile(
-            title: Text(
-              'Entra em ${MonthUtils.label(month)}',
-              style: theme.textTheme.titleSmall,
-            ),
-            // Sem total enquanto carrega: R$ 0,00 ali seria mentira.
-            trailing: state is Loaded
-                ? Text(
+        SliverPadding(
+          padding: .all(24),
+          sliver: SliverToBoxAdapter(
+            child: Skeletonizer(
+              enabled: loading,
+              child: Row(
+                mainAxisAlignment: .spaceBetween,
+                children: [
+                  Text(
+                    'Entra em ${MonthUtils.label(month)}',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  Text(
                     MoneyUtils.format(_monthTotalCents),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
-                  )
-                : null,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
         DecoratedSliver(
@@ -142,106 +160,46 @@ class _IncomeList extends StatelessWidget {
                   child: MonthSelectorWidget(),
                 ),
               ),
-              switch (state) {
-                Loading() => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: .all(24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
+              SliverVisibility(
+                visible: !loading,
+                replacementSliver: SliverList.separated(
+                  itemCount: 3,
+                  itemBuilder: (_, _) =>
+                      const Skeletonizer(child: IncomeTile.skeleton()),
+                  separatorBuilder: (_, _) => const Divider(),
                 ),
-                Failed(failure: final failure) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const .all(16),
-                    child: FailureCardWidget(
-                      failure: failure,
-                      onRetry: onRetry,
-                    ),
-                  ),
-                ),
-                Loaded(data: final incomes) when incomes.isEmpty =>
-                  SliverFillRemaining(
-                    hasScrollBody: true,
-                    child: EmptyStateWidget(
-                      icon: Icons.trending_up,
-                      title: 'Nenhum ganho em ${MonthUtils.label(month)}',
-                      message:
-                          'Cadastre em "Novo ganho" ou veja outro mês no seletor.',
-                    ),
-                  ),
-                Loaded(data: final incomes) => SliverList.separated(
-                  itemCount: incomes.length,
-                  separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final income = incomes[index];
-                    return IncomeTile(
-                      income: income,
-                      month: month,
-                      onTap: () => onOpen(income),
-                    );
-                  },
-                ),
-              },
+                sliver: incomes.isEmpty
+                    ? SliverPadding(
+                        padding: const .symmetric(horizontal: 24),
+                        sliver: SliverFillRemaining(
+                          fillOverscroll: true,
+                          hasScrollBody: false,
+                          child: IncomeEmptyWidget(month: month),
+                        ),
+                      )
+                    : SliverList.separated(
+                        itemCount: incomes.length,
+                        separatorBuilder: (context, index) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final income = incomes[index];
+                          return IncomeTile(
+                            income: income,
+                            month: month,
+                            onTap: () => onOpen?.call(income),
+                          );
+                        },
+                      ),
+              ),
+
+              SliverFillRemaining(
+                fillOverscroll: true,
+                hasScrollBody: false,
+                child: SizedBox.shrink(),
+              ),
             ],
           ),
         ),
       ],
     );
-
-    // return ListView.separated(
-    //   physics: const AlwaysScrollableScrollPhysics(),
-    //   // Espaço no fim para o FAB não cobrir o último item.
-    //   padding: const EdgeInsets.only(bottom: 88),
-    //   itemCount: incomes.length,
-    //   separatorBuilder: (context, index) => const Divider(height: 1),
-    //   itemBuilder: (context, index) {
-    //     if (index == incomes.length) {
-    //       final monthTotal = _monthTotalCents;
-    //       final recurring = _recurringTotalCents;
-
-    //       return Column(
-    //         children: [
-    //           ListTile(
-    //             title: Text(
-    //               'Entra em ${MonthUtils.label(month)}',
-    //               style: theme.textTheme.titleSmall,
-    //             ),
-    //             trailing: Text(
-    //               MoneyUtils.format(monthTotal),
-    //               style: theme.textTheme.titleMedium?.copyWith(
-    //                 color: theme.colorScheme.primary,
-    //               ),
-    //             ),
-    //           ),
-
-    //           // if (recurring != monthTotal)
-    //           //   ListTile(
-    //           //     dense: true,
-    //           //     title: Text(
-    //           //       'Recorrente por mês',
-    //           //       style: theme.textTheme.bodySmall?.copyWith(
-    //           //         color: theme.colorScheme.onSurfaceVariant,
-    //           //       ),
-    //           //     ),
-    //           //     trailing: Text(
-    //           //       MoneyUtils.format(recurring),
-    //           //       style: theme.textTheme.bodySmall?.copyWith(
-    //           //         color: theme.colorScheme.onSurfaceVariant,
-    //           //       ),
-    //           //     ),
-    //           //   ),
-    //         ],
-    //       );
-    //     }
-    //     // return null;
-
-    //     // final income = incomes[index];
-    //     // return IncomeTile(
-    //     //   income: income,
-    //     //   month: month,
-    //     //   onTap: () => onOpen(income),
-    //     // );
-    //   },
-    // );
   }
 }

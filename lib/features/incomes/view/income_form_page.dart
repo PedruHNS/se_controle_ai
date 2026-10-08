@@ -72,21 +72,6 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
               ),
             ),
             const SizedBox(height: 16),
-            SignalBuilder(
-              builder: (context) => ReactiveDropdownField<String>(
-                formControlName: 'tagId',
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Categoria (opcional)',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  for (final tag in _controller.tags.value)
-                    DropdownMenuItem(value: tag.id, child: Text(tag.name)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
             MoneyFieldWidget(formControlName: 'amountCents'),
             const SizedBox(height: 16),
             MonthFieldWidget(

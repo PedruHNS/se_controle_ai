@@ -56,33 +56,22 @@ void main() {
   setUpAll(() => registerFallbackValue(RequestOptions()));
 
   group('list', () {
-    // Sem a limpeza do `ApiClient`, o Dio mandaria `?month` pelado, e o backend
-    // devolveria 400 em vez de listar tudo — a tela de cadastro depende de a
-    // listagem vir sem recorte (GAN-10).
-    test('sem mês, a query não leva o `month`', () async {
+    // A lista é sempre a de uma competência (GAN-10): só o que vige nela, com o
+    // valor de lá.
+    test('busca /incomes com a competência', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
         (_) async => _json(incomeListJson, 200),
       );
 
-      final result = await repository.list();
+      final result = await repository.list(month: '2026-09');
 
       final request = _ultimaRequisicao(adapter);
       expect(request.method, 'GET');
       expect(request.path, '/incomes');
-      expect(request.queryParameters.containsKey('month'), isFalse);
+      expect(request.queryParameters['month'], '2026-09');
 
       expect(result.isSuccess(), isTrue);
       expect(result.tryGetSuccess(), hasLength(2));
-    });
-
-    test('com mês, leva a competência', () async {
-      final (repository: repository, adapter: adapter) = _repoQueResponde(
-        (_) async => _json(incomeListJson, 200),
-      );
-
-      await repository.list(month: '2026-09');
-
-      expect(_ultimaRequisicao(adapter).queryParameters['month'], '2026-09');
     });
   });
 
@@ -130,7 +119,6 @@ void main() {
       final request = _ultimaRequisicao(adapter);
       expect(request.method, 'POST');
       expect(request.path, '/incomes');
-      // Sem `tagId`: a chave nem existe, em vez de ir como nula (TAG-07).
       expect(request.data, {
         'description': 'Salário',
         'amountCents': 500000,
@@ -141,7 +129,7 @@ void main() {
       expect(result.tryGetSuccess(), 'novo-id');
     });
 
-    test('a tag entra no corpo só quando existe', () async {
+    test('ganho de mês único vai com `recurring: false`', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
         (_) async => _json({'id': 'novo-id'}, 201),
       );
@@ -150,12 +138,10 @@ void main() {
         description: 'Freela',
         amountCents: 80000,
         startMonth: '2026-08',
-        tagId: 'tag-1',
         recurring: false,
       );
 
       final data = _ultimaRequisicao(adapter).data as Map<String, dynamic>;
-      expect(data['tagId'], 'tag-1');
       expect(data['recurring'], isFalse);
     });
   });
@@ -321,7 +307,7 @@ void main() {
         ),
       );
 
-      final result = await repository.list();
+      final result = await repository.list(month: '2026-09');
 
       expect(result.tryGetError(), isA<NetworkFailure>());
     });
@@ -333,7 +319,7 @@ void main() {
         (_) async => _json({'items': <Object>[]}, 200),
       );
 
-      final result = await repository.list();
+      final result = await repository.list(month: '2026-09');
 
       expect(result.tryGetError(), isA<SerializationFailure>());
     });

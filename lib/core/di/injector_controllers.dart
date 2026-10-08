@@ -65,7 +65,6 @@ void _registerControllers() {
   getIt.registerLazySingleton<IncomeController>(
     () => IncomeController(
       repository: getIt<IncomeRepository>(),
-      tagRepository: getIt<TagRepository>(),
       selectedMonth: getIt<SelectedMonthService>(),
     ),
     dispose: (e) => e.dispose(),
