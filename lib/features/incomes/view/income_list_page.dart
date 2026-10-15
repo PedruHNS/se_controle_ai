@@ -48,37 +48,40 @@ class _IncomeListPageState extends State<IncomeListPage> {
         icon: const Icon(Icons.add),
         label: const Text('Novo ganho'),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SignalBuilder(
-            builder: (context) {
-              final state = _controller.state.value;
-              return switch (state) {
-                Loading() => _IncomeList.skeleton(),
-                Loaded(:final data) => _IncomeList(
-                  incomes: data,
-                  month: _selectedMonth.month.value,
-                  onOpen: (income) => _nav.pushNamed(
-                    AppRoutes.incomeDetail,
-                    pathParameters: {RouteParams.id: income.id},
+      body: RefreshIndicator.adaptive(
+        onRefresh: () => _controller.refresh(),
+        child: CustomScrollView(
+          slivers: [
+            SignalBuilder(
+              builder: (context) {
+                final state = _controller.state.value;
+                return switch (state) {
+                  Loading() => _IncomeList.skeleton(),
+                  Loaded(:final data) => _IncomeList(
+                    incomes: data,
+                    month: _selectedMonth.month.value,
+                    onOpen: (income) => _nav.pushNamed(
+                      AppRoutes.incomeDetail,
+                      pathParameters: {RouteParams.id: income.id},
+                    ),
                   ),
-                ),
-                Failed(:final failure) => SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Padding(
-                      padding: const .all(16),
-                      child: FailureCardWidget(
-                        failure: failure,
-                        onRetry: _controller.refresh,
+                  Failed(:final failure) => SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: const .all(16),
+                        child: FailureCardWidget(
+                          failure: failure,
+                          onRetry: _controller.refresh,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              };
-            },
-          ),
-        ],
+                };
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
