@@ -66,10 +66,7 @@ void main() {
       // 5.000 do salário + 800 da venda — o mesmo número que a home mostra.
       expect(
         find.descendant(
-          of: find.widgetWithText(
-            Row,
-            'Entra em ${MonthUtils.label(month)}',
-          ),
+          of: find.widgetWithText(Row, 'Entra em ${MonthUtils.label(month)}'),
           matching: find.text(r'R$ 5.800,00'),
         ),
         findsOneWidget,
@@ -124,10 +121,7 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.widgetWithText(
-            Row,
-            'Entra em ${MonthUtils.label(atual)}',
-          ),
+          of: find.widgetWithText(Row, 'Entra em ${MonthUtils.label(atual)}'),
           matching: find.text(r'R$ 5.000,00'),
         ),
         findsOneWidget,
@@ -138,10 +132,7 @@ void main() {
 
       expect(
         find.descendant(
-          of: find.widgetWithText(
-            Row,
-            'Entra em ${MonthUtils.label(proximo)}',
-          ),
+          of: find.widgetWithText(Row, 'Entra em ${MonthUtils.label(proximo)}'),
           matching: find.text(r'R$ 5.800,00'),
         ),
         findsOneWidget,
