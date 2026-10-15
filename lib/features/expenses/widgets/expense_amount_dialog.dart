@@ -80,8 +80,8 @@ class _ExpenseAmountDialogState extends State<_ExpenseAmountDialog> {
   bool get _isAdjust => widget.mode == ExpenseAmountMode.adjust;
 
   /// Reajuste precisa valer de um mês **posterior** ao início da vigência
-  /// atual (GFX-04, herdando GAN-03/GAN-05). Travar aqui evita mandar o que
-  /// voltaria 422.
+  /// atual (GFX-04, herdando GAN-03/GAN-05). O diálogo abre nele; abaixo
+  /// disso o backend recusa com 422.
   String get _minMonth {
     final from = AmountVersionUtils.openVersion(
       widget.expense.history,
@@ -188,7 +188,6 @@ class _ExpenseAmountDialogState extends State<_ExpenseAmountDialog> {
               MonthFieldWidget(
                 formControlName: _effectiveFrom,
                 label: 'A partir de',
-                minMonth: _minMonth,
               ),
             ],
             if (_generalError != null) ...[

@@ -75,7 +75,8 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
   bool get _isAdjust => widget.mode == IncomeAmountMode.adjust;
 
   /// Reajuste precisa valer de um mês **posterior** ao início da vigência
-  /// atual (GAN-03/GAN-05). Travar aqui evita mandar o que voltaria 422.
+  /// atual (GAN-03/GAN-05). O diálogo abre nele; abaixo disso o backend
+  /// recusa com 422.
   String get _minMonth {
     final from = AmountVersionUtils.openVersion(
       widget.income.history,
@@ -182,7 +183,6 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
               MonthFieldWidget(
                 formControlName: _effectiveFrom,
                 label: 'A partir de',
-                minMonth: _minMonth,
               ),
             ],
             if (_generalError != null) ...[

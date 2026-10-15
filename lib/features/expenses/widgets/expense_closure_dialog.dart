@@ -133,7 +133,6 @@ class _ExpenseClosureDialogState extends State<_ExpenseClosureDialog> {
             MonthFieldWidget(
               formControlName: _lastMonth,
               label: 'Último mês pago',
-              minMonth: _minMonth,
             ),
             if (_generalError != null) ...[
               const SizedBox(height: 12),

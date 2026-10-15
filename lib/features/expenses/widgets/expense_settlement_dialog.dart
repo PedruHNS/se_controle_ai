@@ -126,7 +126,6 @@ class _SettlementDialogState extends State<_SettlementDialog> {
             MonthFieldWidget(
               formControlName: _fromMonth,
               label: 'Quitar a partir de',
-              minMonth: _minMonth,
             ),
             ReactiveValueListenableBuilder<String>(
               formControlName: _fromMonth,

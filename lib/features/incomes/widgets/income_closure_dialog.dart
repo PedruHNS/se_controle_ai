@@ -129,7 +129,6 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
             MonthFieldWidget(
               formControlName: _lastMonth,
               label: 'Último mês recebido',
-              minMonth: _minMonth,
             ),
             if (_generalError != null) ...[
               const SizedBox(height: 12),

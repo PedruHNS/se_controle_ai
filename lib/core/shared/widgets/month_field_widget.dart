@@ -1,43 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 
+import '../../../data/services/selected_month_service.dart';
+import '../../di/injector.dart';
 import '../../utils/month_utils.dart';
 
-/// Seletor de competência `YYYY-MM` por setas, ligado a um `FormControl<String>`.
-///
-/// Digitar mês livre convida a `2026-13`, a `13/2026` e ao 400 do backend. Com
-/// setas o valor é sempre válido por construção, e as setas já param nos
-/// limites que o backend aceita (2000–2100) — o mesmo comportamento da home.
-///
-/// É um `ReactiveFormField` e não um `TextField` disfarçado: o control continua
-/// guardando a competência, e o widget é só a forma de mexer nela.
 class MonthFieldWidget extends StatelessWidget {
-  const MonthFieldWidget({
-    required this.formControlName,
-    required this.label,
-    this.helperText,
-    this.minMonth,
-    super.key,
-  });
-
   final String formControlName;
   final String label;
   final String? helperText;
 
-  /// Piso adicional ao do backend. O reajuste, por exemplo, não pode valer de
-  /// um mês anterior ao início da vigência atual (GAN-05) — travar a seta aqui
-  /// evita mandar uma requisição que voltaria 422.
-  final String? minMonth;
-
-  bool _canGoPrevious(String month) {
-    if (!MonthUtils.hasPrevious(month)) return false;
-    final floor = minMonth;
-    return floor == null || MonthUtils.isAfter(month, floor);
-  }
+  const MonthFieldWidget({
+    required this.formControlName,
+    required this.label,
+    this.helperText,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final supportingStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
     return ReactiveFormField<String, String>(
       formControlName: formControlName,
@@ -46,40 +32,67 @@ class MonthFieldWidget extends StatelessWidget {
         'backend': (error) => '$error',
       },
       builder: (field) {
-        final month = field.value ?? MonthUtils.current();
+        final month = field.value ?? getIt<SelectedMonthService>().month.value;
+        final errorText = field.errorText;
 
-        return InputDecorator(
-          decoration: InputDecoration(
-            labelText: label,
-            errorText: field.errorText,
-            helperText: helperText,
-            border: const OutlineInputBorder(),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: 'Mês anterior',
-                icon: const Icon(Icons.chevron_left),
-                onPressed: _canGoPrevious(month)
-                    ? () => field.didChange(MonthUtils.previous(month))
-                    : null,
+        return Column(
+          crossAxisAlignment: .start,
+          spacing: 5,
+          children: [
+            Padding(
+              padding: const .only(left: 8),
+              child: Text(label, style: supportingStyle),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                border: .fromBorderSide(
+                  BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
+                borderRadius: .circular(8),
               ),
-              Expanded(
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Mês anterior',
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: MonthUtils.hasPrevious(month)
+                        ? () => field.didChange(MonthUtils.previous(month))
+                        : null,
+                  ),
+                  Expanded(
+                    child: Text(
+                      MonthUtils.label(month),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Próximo mês',
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: MonthUtils.hasNext(month)
+                        ? () => field.didChange(MonthUtils.next(month))
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+
+            Visibility(
+              visible: errorText != null || helperText != null,
+              child: Padding(
+                padding: const .only(left: 8),
                 child: Text(
-                  MonthUtils.label(month),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium,
+                  errorText ?? helperText ?? '',
+                  style: errorText != null
+                      ? supportingStyle?.copyWith(
+                          color: theme.colorScheme.error,
+                        )
+                      : supportingStyle,
                 ),
               ),
-              IconButton(
-                tooltip: 'Próximo mês',
-                icon: const Icon(Icons.chevron_right),
-                onPressed: MonthUtils.hasNext(month)
-                    ? () => field.didChange(MonthUtils.next(month))
-                    : null,
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
