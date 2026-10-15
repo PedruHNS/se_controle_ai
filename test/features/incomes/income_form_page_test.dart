@@ -7,9 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/config/globals.dart';
+import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month_utils.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/incomes/view/income_form_page.dart';
 
 import '../../fixtures/mocks.dart';
@@ -17,15 +19,21 @@ import '../../fixtures/test_injector.dart';
 
 void main() {
   late MockIncomeRepository repository;
+  late MockNavigationService nav;
 
   setUp(() {
     repository = setupIncomeTestInjector();
+    // O dublê é um só para a suíte inteira: sem limpar, o `pop` de um teste
+    // contaria no seguinte.
+    nav = getIt<NavigationService>() as MockNavigationService;
+    clearInteractions(nav);
   });
 
-  /// Empilha o formulário sobre uma tela qualquer: ele fecha com `pop` no
-  /// sucesso, e sem rota embaixo o pop não teria para onde voltar. O
-  /// `navigatorKey` é o do app porque a falha geral sai em toast, e o toast
-  /// procura o contexto por ele.
+  /// Empilha o formulário sobre uma tela qualquer, para o `pageBack` ter para
+  /// onde voltar. Quem fecha a tela no sucesso é o controller, pelo
+  /// `NavigationService` dublê — então ela continua montada, e o teste confere
+  /// o `pop`. O `navigatorKey` é o do app porque a falha sai em toast, e o
+  /// toast procura o contexto por ele.
   Future<void> pumpForm(WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -142,7 +150,7 @@ void main() {
         recurring: false,
       ),
     ).called(1);
-    expect(find.byType(IncomeFormPage), findsNothing);
+    verify(() => nav.pop()).called(1);
   });
 
   testWidgets('centavo digitado chega inteiro', (tester) async {
@@ -239,10 +247,10 @@ void main() {
     segura.complete();
     await tester.pumpAndSettle();
 
-    expect(find.byType(IncomeFormPage), findsNothing);
+    verify(() => nav.pop()).called(1);
   });
 
-  /// O toast sai 300ms depois de a tela fechar e some sozinho em 3s. Sem
+  /// O toast sai 300ms depois da falha e some sozinho em 3s. Sem
   /// esperar por ele, o teste acaba com o timer do Flushbar ainda pendente.
   Future<void> waitToast(WidgetTester tester) async {
     await tester.pump(const Duration(seconds: 3));
@@ -258,9 +266,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // A tela fecha com ou sem sucesso, como o diálogo de tag, e a falha chega
-  // por toast já sobre a tela de baixo.
-  testWidgets('falha de rede fecha a tela e avisa por toast', (tester) async {
+  // Só o sucesso fecha a tela: na falha ela fica com o que foi digitado, e o
+  // aviso chega por toast sobre ela.
+  testWidgets('falha de rede mantém a tela e avisa por toast', (tester) async {
     stubIncomeOperations(
       repository,
       createResult: Error(
@@ -271,7 +279,8 @@ void main() {
 
     await saveFailing(tester);
 
-    expect(find.byType(IncomeFormPage), findsNothing);
+    expect(find.byType(IncomeFormPage), findsOneWidget);
+    verifyNever(() => nav.pop());
     expect(find.byType(Flushbar), findsOneWidget);
     expect(
       find.text('Sem conexão com o servidor. Verifique sua internet.'),
@@ -299,7 +308,8 @@ void main() {
 
     await saveFailing(tester);
 
-    expect(find.byType(IncomeFormPage), findsNothing);
+    expect(find.byType(IncomeFormPage), findsOneWidget);
+    verifyNever(() => nav.pop());
     expect(find.byType(Flushbar), findsOneWidget);
     expect(find.text('Dados inválidos'), findsOneWidget);
 

@@ -22,14 +22,19 @@ void main() {
 
   late MockIncomeRepository repository;
   late SelectedMonthService month;
+  late MockNavigationService nav;
   late IncomeController controller;
 
-  IncomeController build({MockIncomeRepository? incomes}) =>
-      IncomeController(repository: incomes ?? repository, selectedMonth: month);
+  IncomeController build({MockIncomeRepository? incomes}) => IncomeController(
+    repository: incomes ?? repository,
+    selectedMonth: month,
+    navigationService: nav,
+  );
 
   setUp(() {
     month = SelectedMonthService();
     repository = incomeRepositoryMock();
+    nav = navigationServiceMock();
     controller = build();
   });
 
@@ -248,6 +253,25 @@ void main() {
         ).called(1);
       },
     );
+
+    // Quem fecha o formulário é o controller, e só no sucesso: na falha a tela
+    // fica com o que foi digitado.
+    test('cadastro que deu certo fecha o formulário', () async {
+      fill(description: 'Salário', amountCents: 500000);
+
+      await controller.submit();
+
+      verify(() => nav.pop()).called(1);
+    });
+
+    test('cadastro que falhou deixa o formulário aberto', () async {
+      stubIncomeOperations(repository, createResult: semRedeCriacao());
+      fill(description: 'Salário', amountCents: 500000);
+
+      await controller.submit();
+
+      verifyNever(() => nav.pop());
+    });
 
     // É o `saving` que gira o botão do formulário — a lista fica no ar.
     test('saving liga durante o envio e desliga no fim', () async {

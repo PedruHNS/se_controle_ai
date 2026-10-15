@@ -183,6 +183,7 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       () => IncomeController(
         repository: getIt<IncomeRepository>(),
         selectedMonth: getIt<SelectedMonthService>(),
+        navigationService: getIt<NavigationService>(),
       ),
       dispose: (controller) => controller.dispose(),
     )

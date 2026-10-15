@@ -66,6 +66,7 @@ void _registerControllers() {
     () => IncomeController(
       repository: getIt<IncomeRepository>(),
       selectedMonth: getIt<SelectedMonthService>(),
+      navigationService: getIt<NavigationService>(),
     ),
     dispose: (e) => e.dispose(),
   );

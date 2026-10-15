@@ -1,5 +1,6 @@
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals.dart';
 
 import '../../../core/shared/view_state.dart';
@@ -11,8 +12,13 @@ import '../../../data/services/selected_month_service.dart';
 class IncomeController extends BaseController with MessageMixin {
   final IncomeRepository _repository;
   final SelectedMonthService _selectedMonth;
+  final NavigationService _navigationService;
 
-  IncomeController({required this._repository, required this._selectedMonth});
+  IncomeController({
+    required this._repository,
+    required this._selectedMonth,
+    required this._navigationService,
+  });
 
   late final form = FormGroup({
     'description': FormControl<String>(validators: [Validators.required]),
@@ -98,6 +104,8 @@ class IncomeController extends BaseController with MessageMixin {
           [income, ...current.data]
             ..sort((a, b) => a.description.compareTo(b.description)),
         );
+
+        _navigationService.pop();
       },
       (failure) => Future.delayed(
         const Duration(milliseconds: 300),

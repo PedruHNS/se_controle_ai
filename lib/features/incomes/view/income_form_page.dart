@@ -27,9 +27,6 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
 
   Future<void> _submit() async {
     await _controller.submit();
-
-    if (!mounted) return;
-    Navigator.of(context).pop();
   }
 
   @override
