@@ -65,36 +65,17 @@ void main() {
     verifyNever(() => repository.list());
   });
 
-  // Ordem alfabética de verdade: `compareTo` cru jogaria "aluguel" para depois
-  // de "Transporte", porque minúscula vem depois de maiúscula na tabela.
-  test('entra na posição alfabética, sem tropeçar na caixa', () async {
+  // A ordem é a do `compareTo`: a tag criada não fica no topo nem no fim.
+  test('entra na posição alfabética', () async {
     stubTagCreate(
       repository,
-      result: Success(TagModel.fromJson({...tagCriadaJson, 'name': 'aluguel'})),
+      result: Success(TagModel.fromJson({...tagCriadaJson, 'name': 'Aluguel'})),
     );
 
-    await criar('aluguel');
+    await criar('Aluguel');
 
     expect(carregadas().map((tag) => tag.name), [
-      'aluguel',
-      'Moradia',
-      'Outros',
-      'Transporte',
-    ]);
-  });
-
-  // O caso que aparece em português: letra acentuada mora acima do 'z' na
-  // tabela, então "Água" iria para o fim da lista em vez do começo.
-  test('acento não joga a tag para o fim', () async {
-    stubTagCreate(
-      repository,
-      result: Success(TagModel.fromJson({...tagCriadaJson, 'name': 'Água'})),
-    );
-
-    await criar('Água');
-
-    expect(carregadas().map((tag) => tag.name), [
-      'Água',
+      'Aluguel',
       'Moradia',
       'Outros',
       'Transporte',

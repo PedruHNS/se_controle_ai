@@ -13,6 +13,8 @@
 /// para casos que este não cobre — ß, dígrafos, ordenação de números dentro do
 /// texto. Para rótulos curtos em português, dobrar o acento e a caixa resolve o
 /// que se vê, sem dependência nova.
+///
+@Deprecated('vou retirar depois essa ordenção não utilize, use o compareTo')
 abstract final class TextOrderUtils {
   /// Comparador para `sort`, ignorando caixa e acento.
   ///
