@@ -45,6 +45,21 @@ const Map<String, dynamic> bonusJson = {
 
 const List<Map<String, dynamic>> incomeListJson = [salaryJson, bonusJson];
 
+/// O que o `POST /incomes` devolve (GAN-11): o ganho inteiro, no formato do
+/// `GET /incomes/:id` — o exemplo da spec, com o `id` que os testes de
+/// cadastro esperam de volta.
+const Map<String, dynamic> createdIncomeJson = {
+  'id': 'novo-id',
+  'description': 'Salário',
+  'recurring': true,
+  'startMonth': '2026-01',
+  'endMonth': null,
+  'amountCents': 500000,
+  'history': [
+    {'amountCents': 500000, 'validFrom': '2026-01', 'validTo': null},
+  ],
+};
+
 /// Ganho avulso em [month]: venda, presente, freela. O backend fecha a vigência
 /// na hora, então `endMonth` já vem preenchido — é o caso que fazia a lista
 /// marcar como "Encerrado" algo que ainda ia entrar.

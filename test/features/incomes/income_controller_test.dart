@@ -16,6 +16,10 @@ import '../../fixtures/income_fixture.dart';
 import '../../fixtures/mocks.dart';
 
 void main() {
+  // A falha geral avisa por toast, e o toast procura o contexto do
+  // `navigatorKey` global — o que só existe com binding inicializado.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockIncomeRepository repository;
   late SelectedMonthService month;
   late IncomeController controller;
@@ -38,17 +42,6 @@ void main() {
   List<IncomeModel> loadedIncomes() =>
       (controller.state.value as Loaded<List<IncomeModel>>).data;
 
-  /// `create` com os quatro nomeados — a asserção diz exatamente o que devia
-  /// ter sido enviado, que é o ponto de usar mock aqui.
-  void verifyNoCreate() => verifyNever(
-    () => repository.create(
-      description: any(named: 'description'),
-      amountCents: any(named: 'amountCents'),
-      startMonth: any(named: 'startMonth'),
-      recurring: any(named: 'recurring'),
-    ),
-  );
-
   /// Preenche o formulário como a tela faria.
   void fill({
     String? description,
@@ -57,17 +50,15 @@ void main() {
     bool? recurring,
   }) {
     if (description != null) {
-      controller.control<String>('description').value = description;
+      controller.form.control('description').value = description;
     }
     if (amountCents != null) {
-      controller.control<int>('amountCents').value = amountCents;
+      controller.form.control('amountCents').value = amountCents;
     }
     if (startMonth != null) {
-      controller.control<String>('startMonth').value = startMonth;
+      controller.form.control('startMonth').value = startMonth;
     }
-    if (recurring != null) {
-      controller.control<bool>('recurring').value = recurring;
-    }
+    if (recurring != null) controller.setIsRecurring = recurring;
   }
 
   /// A mensagem do backend que caiu no campo, seja qual for a chave. O nome da
@@ -145,14 +136,13 @@ void main() {
   group('estado inicial do formulário', () {
     test('competência começa no mês em que o app abre e sem recorrência', () {
       expect(
-        controller.control<String>('startMonth').value,
+        controller.form.control('startMonth').value,
         SelectedMonthService.initial(),
       );
       // Desligada por padrão, como no formulário de gasto: recorrência é
       // escolha explícita, não o que acontece quando ninguém toca no switch.
-      expect(controller.control<bool>('recurring').value, isFalse);
+      expect(controller.isRecurring.value, isFalse);
       expect(controller.saving.value, isFalse);
-      expect(controller.generalFailure.value, isNull);
     });
 
     // O mês vem da AppBar, não do relógio — mesmo motivo do form de gastos.
@@ -160,7 +150,7 @@ void main() {
       month.select('2026-12');
       controller = build();
 
-      expect(controller.control<String>('startMonth').value, '2026-12');
+      expect(controller.form.control('startMonth').value, '2026-12');
     });
 
     test('formulário nasce inválido — descrição e valor são obrigatórios', () {
@@ -195,92 +185,43 @@ void main() {
 
       controller.startForm();
 
-      expect(controller.control<String>('description').value, isNull);
-      expect(controller.control<int>('amountCents').value, isNull);
-      expect(controller.control<bool>('recurring').value, isFalse);
+      expect(controller.form.control('description').value, isNull);
+      expect(controller.form.control('amountCents').value, isNull);
+      expect(controller.isRecurring.value, isFalse);
       expect(controller.form.touched, isFalse);
-      expect(controller.saving.value, isFalse);
     });
 
     test('leva a competência para o mês selecionado agora', () {
       // O formulário é criado uma vez. Sem o reset, ele ficaria com o mês da
       // primeira abertura, mesmo que a pessoa tenha trocado de mês depois.
-      controller.control<String>('startMonth');
+      controller.form.control('startMonth');
       month.select('2026-12');
 
       controller.startForm();
 
-      expect(controller.control<String>('startMonth').value, '2026-12');
+      expect(controller.form.control('startMonth').value, '2026-12');
     });
-
-    test('some com o erro que a abertura anterior deixou', () async {
-      stubIncomeOperations(
-        repository,
-        createResult: Error(
-          Failure.fromException(
-            const BadRequestException(
-              message: 'Dados inválidos',
-              issues: [
-                FieldIssue(path: 'amountCents', message: 'Alto demais.'),
-              ],
-            ),
-          ),
-        ),
-      );
-      fill(description: 'Salário', amountCents: 999999999);
-      await controller.submit();
-      expect(errorOf('amountCents'), isNotNull);
-
-      controller.startForm();
-
-      expect(errorOf('amountCents'), isNull);
-      expect(controller.generalFailure.value, isNull);
-    });
-
   });
 
+  // O `submit` não confere o formulário: quem barra o inválido é o Salvar,
+  // desabilitado enquanto o form não fecha — e isso o teste da página prova.
+  // Aqui fica o que o FormGroup declara.
   group('validação declarada no FormGroup', () {
-    test('formulário inválido não chega no repositório', () async {
-      final id = await controller.submit();
-
-      expect(id, isNull);
-      verifyNoCreate();
-    });
-
-    test(
-      'submit inválido marca tudo como tocado, para o erro aparecer',
-      () async {
-        // Sem isto, campo nunca tocado fica inválido e silencioso: a pessoa
-        // aperta Salvar e nada acontece, sem explicação.
-        expect(controller.form.control('description').touched, isFalse);
-
-        await controller.submit();
-
-        expect(controller.form.control('description').touched, isTrue);
-        expect(controller.form.control('amountCents').touched, isTrue);
-      },
-    );
-
-    test('valor zero é recusado pelo min, sem ida ao servidor', () async {
+    test('valor zero é recusado pelo min', () {
       fill(description: 'Salário', amountCents: 0);
 
-      final id = await controller.submit();
-
-      expect(id, isNull);
+      expect(controller.form.invalid, isTrue);
       expect(
         controller.form.control('amountCents').hasError(ValidationMessage.min),
         isTrue,
       );
-      verifyNoCreate();
     });
 
-    test('descrição só de espaço não passa do required', () async {
+    test('descrição só de espaço não passa do required', () {
       fill(description: '   ', amountCents: 5000);
 
       // O required do reactive_forms já recusa string em branco.
       expect(controller.form.invalid, isTrue);
-      await controller.submit();
-      verifyNoCreate();
     });
   });
 
@@ -295,9 +236,8 @@ void main() {
           recurring: false,
         );
 
-        final id = await controller.submit();
+        await controller.submit();
 
-        expect(id, 'novo-id');
         verify(
           () => repository.create(
             description: '13º salário',
@@ -309,7 +249,33 @@ void main() {
       },
     );
 
-    test('400 do backend desce para o campo que o zod apontou', () async {
+    // É o `saving` que gira o botão do formulário — a lista fica no ar.
+    test('saving liga durante o envio e desliga no fim', () async {
+      final segura = Completer<void>();
+      stubIncomeOperations(repository, pendenteAte: segura.future);
+      fill(description: 'Salário', amountCents: 500000);
+
+      final pending = controller.submit();
+
+      expect(controller.saving.value, isTrue);
+      expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
+      segura.complete();
+      await pending;
+      expect(controller.saving.value, isFalse);
+    });
+
+    test('saving desliga também quando o cadastro falha', () async {
+      stubIncomeOperations(repository, createResult: semRedeCriacao());
+      fill(description: 'Salário', amountCents: 500000);
+
+      await controller.submit();
+
+      expect(controller.saving.value, isFalse);
+    });
+
+    // Toda falha sai por toast — quem o vê é o teste da página. O 400 não
+    // pendura mais a mensagem no campo que o zod apontou.
+    test('400 do backend não desce para o campo', () async {
       stubIncomeOperations(
         repository,
         createResult: Error(
@@ -325,95 +291,9 @@ void main() {
       );
       fill(description: 'Salário', amountCents: 500000);
 
-      final id = await controller.submit();
-
-      expect(id, isNull);
-      expect(errorOf('startMonth'), 'Mês fora da faixa.');
-      expect(controller.form.control('startMonth').touched, isTrue);
-      // Erro de campo não vira snackbar: ele já está embaixo do campo.
-      expect(controller.generalFailure.value, isNull);
-    });
-
-    test('erro do backend some quando a pessoa corrige o campo', () async {
-      stubIncomeOperations(
-        repository,
-        createResult: Error(
-          Failure.fromException(
-            const BadRequestException(
-              message: 'Dados inválidos',
-              issues: [
-                FieldIssue(
-                  path: 'amountCents',
-                  message: 'Acima do teto do backend.',
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      fill(description: 'Salário', amountCents: 999999999);
       await controller.submit();
 
-      expect(errorOf('amountCents'), isNotNull);
-
-      // A validação roda de novo na mudança de valor e substitui os erros —
-      // é o que evita a mensagem velha grudada num campo já corrigido.
-      fill(amountCents: 500000);
-
-      expect(errorOf('amountCents'), isNull);
-      expect(controller.form.valid, isTrue);
-    });
-
-    test(
-      '400 cujo path não é campo do formulário sobe como falha geral',
-      () async {
-        stubIncomeOperations(
-          repository,
-          createResult: Error(
-            Failure.fromException(
-              const BadRequestException(
-                message: 'Corpo inválido',
-                issues: [FieldIssue(path: 'body', message: 'JSON malformado.')],
-              ),
-            ),
-          ),
-        );
-        fill(description: 'Salário', amountCents: 500000);
-
-        await controller.submit();
-
-        // Sem isto a tela recusaria sem dizer nada: nenhum campo mostraria erro.
-        expect(controller.generalFailure.value, isA<ValidationFailure>());
-      },
-    );
-
-    test('falha sem campo vira erro geral', () async {
-      stubIncomeOperations(
-        repository,
-        createResult: Error(
-          Failure.fromException(const NetworkException(message: 'sem rede')),
-        ),
-      );
-      fill(description: 'Salário', amountCents: 500000);
-
-      final id = await controller.submit();
-
-      expect(id, isNull);
-      expect(controller.generalFailure.value, isA<NetworkFailure>());
-      expect(errorOf('description'), isNull);
-    });
-
-    test('saving liga durante o envio e desliga no fim', () async {
-      final segura = Completer<void>();
-      stubIncomeOperations(repository, pendenteAte: segura.future);
-      fill(description: 'Salário', amountCents: 500000);
-
-      final pending = controller.submit();
-
-      expect(controller.saving.value, isTrue);
-      segura.complete();
-      await pending;
-      expect(controller.saving.value, isFalse);
+      expect(errorOf('startMonth'), isNull);
     });
   });
 
@@ -451,18 +331,27 @@ void main() {
       clearInteractions(repository);
     });
 
-    test('busca só o ganho criado, e não a lista inteira', () async {
-      stubIncomeDetail(repository, result: Success(criado()));
-      fill(description: 'Freela', amountCents: 80000);
+    // O `201` já traz o ganho inteiro (GAN-11): nem a lista nem o ganho são
+    // buscados de volta.
+    test(
+      'entra com o que o cadastro devolveu, sem voltar ao servidor',
+      () async {
+        stubIncomeOperations(repository, createResult: Success(criado()));
+        fill(description: 'Freela', amountCents: 80000);
 
-      await controller.submit();
+        await controller.submit();
 
-      verify(() => repository.getById('novo-id', month: '2026-08')).called(1);
-      verifyNever(() => repository.list(month: any(named: 'month')));
-    });
+        expect(loadedIncomes().map((i) => i.id), contains('novo-id'));
+        verifyNever(
+          () => repository.getById(any(), month: any(named: 'month')),
+        );
+        verifyNever(() => repository.list(month: any(named: 'month')));
+      },
+    );
 
-    test('cai onde a próxima busca o poria: por descrição', () async {
-      stubIncomeDetail(repository, result: Success(criado()));
+    // Na mesma ordem do backend: o ganho criado não fica no topo nem no fim.
+    test('o ganho criado entra na ordem alfabética', () async {
+      stubIncomeOperations(repository, createResult: Success(criado()));
       fill(description: 'Freela', amountCents: 80000);
 
       await controller.submit();
@@ -474,35 +363,6 @@ void main() {
       ]);
     });
 
-    test('mesma descrição: o que começou antes vem primeiro', () async {
-      stubIncomeDetail(
-        repository,
-        result: Success(criado(description: 'Salário', month: '2026-08')),
-      );
-      fill(description: 'Salário', amountCents: 80000);
-
-      await controller.submit();
-
-      expect(loadedIncomes().map((i) => i.startMonth), [
-        '2026-03',
-        '2026-01',
-        '2026-08',
-      ]);
-    });
-
-    test('ganho que não vige no mês exibido não entra na lista', () async {
-      stubIncomeDetail(repository, result: Success(criado(month: '2026-09')));
-      fill(description: 'Freela', amountCents: 80000);
-
-      final id = await controller.submit();
-
-      expect(id, 'novo-id');
-      expect(loadedIncomes().map((i) => i.description), [
-        'Aluguel recebido',
-        'Salário',
-      ]);
-    });
-
     test('falha no cadastro não mexe na lista', () async {
       stubIncomeOperations(repository, createResult: semRedeCriacao());
       fill(description: 'Freela', amountCents: 80000);
@@ -510,72 +370,26 @@ void main() {
       await controller.submit();
 
       expect(loadedIncomes(), hasLength(2));
-      verifyNever(() => repository.getById(any(), month: any(named: 'month')));
     });
 
-    // O ganho já existe no backend. Não poder buscá-lo não faz o cadastro
-    // falhar — senão a pessoa tentaria de novo e cadastraria duas vezes.
-    test(
-      'falha ao buscar o ganho criado busca a lista, e o cadastro vale',
-      () async {
-        stubIncomeDetail(
-          repository,
-          result: Error(
-            Failure.fromException(const NetworkException(message: 'sem rede')),
-          ),
-        );
-        stubIncomeList(repository, result: Success(listaOrdenada()));
-        fill(description: 'Freela', amountCents: 80000);
-
-        final id = await controller.submit();
-
-        expect(id, 'novo-id');
-        expect(controller.generalFailure.value, isNull);
-        verify(() => repository.list(month: '2026-08')).called(1);
-      },
-    );
-
-    test('lista que não está na tela é buscada de novo', () async {
+    // Sem lista na tela não há onde encaixar o ganho, e só o `refresh` busca
+    // de novo.
+    test('lista que não está na tela fica como estava', () async {
       stubIncomeList(repository, result: semRede());
       await controller.refresh();
-      expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
       clearInteractions(repository);
 
-      stubIncomeList(repository);
+      stubIncomeOperations(repository, createResult: Success(criado()));
       fill(description: 'Freela', amountCents: 80000);
       await controller.submit();
 
-      expect(controller.state.value, isA<Loaded<List<IncomeModel>>>());
-      verify(() => repository.list(month: '2026-08')).called(1);
-    });
-
-    // A busca do ganho criado leva um instante, e o botão liberado nesse
-    // intervalo deixaria cadastrar duas vezes.
-    test('saving só desliga depois de o ganho entrar na lista', () async {
-      final segura = Completer<void>();
-      stubIncomeDetail(
-        repository,
-        result: Success(criado()),
-        pendenteAte: segura.future,
-      );
-      fill(description: 'Freela', amountCents: 80000);
-
-      final pending = controller.submit();
-      await pumpEventQueue();
-
-      expect(controller.saving.value, isTrue);
-      expect(loadedIncomes(), hasLength(2));
-
-      segura.complete();
-      await pending;
-
-      expect(controller.saving.value, isFalse);
-      expect(loadedIncomes(), hasLength(3));
+      expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
+      verifyNever(() => repository.list(month: any(named: 'month')));
     });
   });
 }
 
 /// O cadastro que o backend recusa por rede — para os testes que querem a lista
 /// intacta depois de um `create` que falhou.
-Result<String, Failure> semRedeCriacao() =>
+Result<IncomeModel, Failure> semRedeCriacao() =>
     Error(Failure.fromException(const NetworkException(message: 'sem rede')));

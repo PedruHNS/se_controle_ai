@@ -67,7 +67,7 @@ void main() {
       expect(
         find.descendant(
           of: find.widgetWithText(
-            ListTile,
+            Row,
             'Entra em ${MonthUtils.label(month)}',
           ),
           matching: find.text(r'R$ 5.800,00'),
@@ -97,7 +97,7 @@ void main() {
       expect(
         find.descendant(
           of: find.widgetWithText(
-            ListTile,
+            Row,
             'Entra em ${MonthUtils.label(SelectedMonthService.initial())}',
           ),
           matching: find.text(r'R$ 5.000,00'),
@@ -125,7 +125,7 @@ void main() {
       expect(
         find.descendant(
           of: find.widgetWithText(
-            ListTile,
+            Row,
             'Entra em ${MonthUtils.label(atual)}',
           ),
           matching: find.text(r'R$ 5.000,00'),
@@ -139,7 +139,7 @@ void main() {
       expect(
         find.descendant(
           of: find.widgetWithText(
-            ListTile,
+            Row,
             'Entra em ${MonthUtils.label(proximo)}',
           ),
           matching: find.text(r'R$ 5.800,00'),

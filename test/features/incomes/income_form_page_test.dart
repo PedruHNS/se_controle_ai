@@ -1,8 +1,12 @@
+import 'dart:async';
+
+import 'package:another_flushbar/flushbar.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/config/globals.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month_utils.dart';
@@ -19,10 +23,13 @@ void main() {
   });
 
   /// Empilha o formulário sobre uma tela qualquer: ele fecha com `pop` no
-  /// sucesso, e sem rota embaixo o pop não teria para onde voltar.
+  /// sucesso, e sem rota embaixo o pop não teria para onde voltar. O
+  /// `navigatorKey` é o do app porque a falha geral sai em toast, e o toast
+  /// procura o contexto por ele.
   Future<void> pumpForm(WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        navigatorKey: Globals.navigatorKey,
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(
@@ -53,6 +60,17 @@ void main() {
   Finder fieldWithLabel(String label) =>
       find.ancestor(of: find.text(label), matching: find.byType(TextField));
 
+  bool recurringOn(WidgetTester tester) =>
+      tester.widget<Switch>(find.byType(Switch)).value;
+
+  /// O Salvar só liga num frame em que o form já está válido, e o `enterText`
+  /// não redesenha a tela — por isso o `pump` vem antes do toque.
+  Future<void> save(WidgetTester tester) async {
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('abre no mês selecionado, sem recorrência', (tester) async {
     await pumpForm(tester);
 
@@ -60,11 +78,7 @@ void main() {
       find.text(MonthUtils.label(SelectedMonthService.initial())),
       findsOneWidget,
     );
-    // O switch nasce desligado, então a explicação é a do lançamento único.
-    expect(
-      find.text('Entra só nesta competência — 13º, freela, bônus.'),
-      findsOneWidget,
-    );
+    expect(recurringOn(tester), isFalse);
   });
 
   // O controller é um por app e a página não o libera, então o formulário
@@ -73,7 +87,8 @@ void main() {
   // preenchido.
   testWidgets('reabrir o formulário o encontra limpo', (tester) async {
     await pumpForm(tester);
-    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
+    await tester.enterText(fieldWithLabel('Título'), 'Salário');
+    await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
     await tester.pageBack();
@@ -82,34 +97,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.widget<TextField>(fieldWithLabel('Descrição')).controller!.text,
+      tester.widget<TextField>(fieldWithLabel('Título')).controller!.text,
       isEmpty,
     );
+    // O switch é um signal, fora do form: o `reset` não o alcança.
+    expect(recurringOn(tester), isFalse);
   });
 
-  testWidgets('salvar vazio mostra o que falta e não chama o backend', (
+  // Quem barra o formulário incompleto é o botão: o `submit` não confere.
+  testWidgets('Salvar fica desabilitado até o formulário fechar', (
     tester,
   ) async {
     await pumpForm(tester);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
+    FilledButton salvar() =>
+        tester.widget(find.widgetWithText(FilledButton, 'Salvar'));
 
-    // O markAllAsTouched do submit é o que faz as mensagens aparecerem; sem
-    // ele o botão pareceria não fazer nada.
-    expect(find.text('Informe a descrição.'), findsOneWidget);
-    expect(find.text('Informe o valor.'), findsOneWidget);
+    expect(salvar().onPressed, isNull);
+
+    await tester.enterText(fieldWithLabel('Título'), 'Salário');
+    await tester.pump();
+    expect(salvar().onPressed, isNull);
+
+    await tester.enterText(fieldWithLabel('Valor'), '5000');
+    await tester.pump();
+    expect(salvar().onPressed, isNotNull);
+
     verifyNoCreate();
-    expect(find.byType(IncomeFormPage), findsOneWidget);
   });
 
   testWidgets('preenchido, manda centavos e fecha a tela', (tester) async {
     await pumpForm(tester);
 
-    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
+    await tester.enterText(fieldWithLabel('Título'), 'Salário');
     await tester.enterText(fieldWithLabel('Valor'), '5000');
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
+    await save(tester);
 
     // 5000 digitado são cinco mil reais: o accessor entrega 500000 centavos.
     verify(
@@ -126,10 +148,9 @@ void main() {
   testWidgets('centavo digitado chega inteiro', (tester) async {
     await pumpForm(tester);
 
-    await tester.enterText(fieldWithLabel('Descrição'), 'Freela');
+    await tester.enterText(fieldWithLabel('Título'), 'Freela');
     await tester.enterText(fieldWithLabel('Valor'), '1.234,56');
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
+    await save(tester);
 
     verify(
       () => repository.create(
@@ -141,20 +162,19 @@ void main() {
     ).called(1);
   });
 
-  testWidgets('ligar recorrente troca a explicação e o que é enviado', (
+  testWidgets('ligar recorrente liga o switch e muda o que é enviado', (
     tester,
   ) async {
     await pumpForm(tester);
 
-    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
+    await tester.enterText(fieldWithLabel('Título'), 'Salário');
     await tester.enterText(fieldWithLabel('Valor'), '5000');
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
-    expect(find.text('Segue todo mês até você encerrar.'), findsOneWidget);
+    expect(recurringOn(tester), isTrue);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
+    await save(tester);
 
     verify(
       () => repository.create(
@@ -169,7 +189,7 @@ void main() {
   testWidgets('seta avança a competência enviada', (tester) async {
     await pumpForm(tester);
 
-    await tester.enterText(fieldWithLabel('Descrição'), 'Aluguel recebido');
+    await tester.enterText(fieldWithLabel('Título'), 'Aluguel recebido');
     await tester.enterText(fieldWithLabel('Valor'), '1200');
     await tester.tap(find.byTooltip('Próximo mês'));
     await tester.pumpAndSettle();
@@ -181,8 +201,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
+    await save(tester);
 
     verify(
       () => repository.create(
@@ -194,9 +213,75 @@ void main() {
     ).called(1);
   });
 
-  testWidgets('400 do backend aparece embaixo do campo, e a tela fica aberta', (
-    tester,
-  ) async {
+  // É o `saving` do controller que gira o botão — e ele desabilitado é o que
+  // impede o segundo toque de cadastrar duas vezes.
+  testWidgets('Salvar gira enquanto o cadastro não volta', (tester) async {
+    final segura = Completer<void>();
+    stubIncomeOperations(repository, pendenteAte: segura.future);
+    await pumpForm(tester);
+
+    await tester.enterText(fieldWithLabel('Título'), 'Salário');
+    await tester.enterText(fieldWithLabel('Valor'), '5000');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pump();
+
+    final button = find.byType(FilledButton);
+    expect(
+      find.descendant(
+        of: button,
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.widget<FilledButton>(button).onPressed, isNull);
+
+    segura.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(IncomeFormPage), findsNothing);
+  });
+
+  /// O toast sai 300ms depois de a tela fechar e some sozinho em 3s. Sem
+  /// esperar por ele, o teste acaba com o timer do Flushbar ainda pendente.
+  Future<void> waitToast(WidgetTester tester) async {
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+  }
+
+  /// Salva o formulário preenchido e dá ao toast de falha o tempo de entrar.
+  Future<void> saveFailing(WidgetTester tester) async {
+    await tester.enterText(fieldWithLabel('Título'), 'Salário');
+    await tester.enterText(fieldWithLabel('Valor'), '5000');
+    await save(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+  }
+
+  // A tela fecha com ou sem sucesso, como o diálogo de tag, e a falha chega
+  // por toast já sobre a tela de baixo.
+  testWidgets('falha de rede fecha a tela e avisa por toast', (tester) async {
+    stubIncomeOperations(
+      repository,
+      createResult: Error(
+        Failure.fromException(const NetworkException(message: 'sem rede')),
+      ),
+    );
+    await pumpForm(tester);
+
+    await saveFailing(tester);
+
+    expect(find.byType(IncomeFormPage), findsNothing);
+    expect(find.byType(Flushbar), findsOneWidget);
+    expect(
+      find.text('Sem conexão com o servidor. Verifique sua internet.'),
+      findsOneWidget,
+    );
+
+    await waitToast(tester);
+  });
+
+  testWidgets('400 do backend também vira toast', (tester) async {
     stubIncomeOperations(
       repository,
       createResult: Error(
@@ -212,35 +297,12 @@ void main() {
     );
     await pumpForm(tester);
 
-    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
-    await tester.enterText(fieldWithLabel('Valor'), '5000');
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
+    await saveFailing(tester);
 
-    expect(find.text('Mês fora da faixa.'), findsOneWidget);
-    expect(find.byType(IncomeFormPage), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
-  });
+    expect(find.byType(IncomeFormPage), findsNothing);
+    expect(find.byType(Flushbar), findsOneWidget);
+    expect(find.text('Dados inválidos'), findsOneWidget);
 
-  testWidgets('falha de rede vira snackbar, não erro de campo', (tester) async {
-    stubIncomeOperations(
-      repository,
-      createResult: Error(
-        Failure.fromException(const NetworkException(message: 'sem rede')),
-      ),
-    );
-    await pumpForm(tester);
-
-    await tester.enterText(fieldWithLabel('Descrição'), 'Salário');
-    await tester.enterText(fieldWithLabel('Valor'), '5000');
-    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SnackBar), findsOneWidget);
-    expect(
-      find.text('Sem conexão com o servidor. Verifique sua internet.'),
-      findsOneWidget,
-    );
-    expect(find.byType(IncomeFormPage), findsOneWidget);
+    await waitToast(tester);
   });
 }

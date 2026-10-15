@@ -105,15 +105,16 @@ void main() {
   });
 
   group('create', () {
-    test('manda o corpo do contrato e devolve o id do 201', () async {
+    test('manda o corpo do contrato e devolve o ganho do 201', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
-        (_) async => _json({'id': 'novo-id'}, 201),
+        (_) async => _json(createdIncomeJson, 201),
       );
 
       final result = await repository.create(
         description: 'Salário',
         amountCents: 500000,
         startMonth: '2026-01',
+        recurring: true,
       );
 
       final request = _ultimaRequisicao(adapter);
@@ -126,12 +127,16 @@ void main() {
         'recurring': true,
       });
 
-      expect(result.tryGetSuccess(), 'novo-id');
+      // GAN-11: o 201 traz o ganho inteiro, no formato do `GET /incomes/:id`.
+      final income = result.tryGetSuccess()!;
+      expect(income.id, 'novo-id');
+      expect(income.description, 'Salário');
+      expect(income.history, hasLength(1));
     });
 
     test('ganho de mês único vai com `recurring: false`', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
-        (_) async => _json({'id': 'novo-id'}, 201),
+        (_) async => _json(createdIncomeJson, 201),
       );
 
       await repository.create(

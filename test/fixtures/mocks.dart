@@ -331,9 +331,15 @@ void stubIncomeDetail(
 void stubIncomeOperations(
   MockIncomeRepository mock, {
   Result<bool, Failure> result = const Success(true),
-  Result<String, Failure> createResult = const Success('novo-id'),
+  // Nullable com o padrão resolvido no corpo: desde que o `create` devolve o
+  // ganho (GAN-11), o padrão sai de um `fromJson` — que não é const, e
+  // parâmetro opcional exige const.
+  Result<IncomeModel, Failure>? createResult,
   Future<void>? pendenteAte,
 }) {
+  final criado =
+      createResult ?? Success(IncomeModel.fromJson(createdIncomeJson));
+
   Future<T> answer<T>(T value) async {
     if (pendenteAte != null) await pendenteAte;
     return value;
@@ -346,7 +352,7 @@ void stubIncomeOperations(
       startMonth: any(named: 'startMonth'),
       recurring: any(named: 'recurring'),
     ),
-  ).thenAnswer((_) => answer(createResult));
+  ).thenAnswer((_) => answer(criado));
 
   when(
     () => mock.adjust(
@@ -373,7 +379,7 @@ MockIncomeRepository incomeRepositoryMock({
   Result<List<IncomeModel>, Failure>? list,
   Result<IncomeModel, Failure>? detail,
   Result<bool, Failure> operations = const Success(true),
-  Result<String, Failure> create = const Success('novo-id'),
+  Result<IncomeModel, Failure>? create,
   Future<void>? pendenteAte,
 }) {
   final mock = MockIncomeRepository();

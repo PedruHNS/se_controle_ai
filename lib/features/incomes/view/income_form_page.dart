@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:se_controle_ai/core/shared/widgets/text_field_custom_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
@@ -18,9 +19,6 @@ class IncomeFormPage extends StatefulWidget {
 class _IncomeFormPageState extends State<IncomeFormPage> {
   final _controller = getIt<IncomeController>();
 
-  /// O controller é um por app, e quem o libera é a página da lista — esta não
-  /// chama `dispose` nele. Por isso o formulário é limpo aqui, ao abrir: sem
-  /// isso, o segundo cadastro abriria com o primeiro ainda preenchido.
   @override
   void initState() {
     super.initState();
@@ -28,27 +26,16 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
   }
 
   Future<void> _submit() async {
-    final id = await _controller.submit();
+    await _controller.submit();
 
     if (!mounted) return;
-
-    final failure = _controller.generalFailure.value;
-    if (failure != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failure.message)));
-      return;
-    }
-
-    // Formulário inválido ou erro de campo: a mensagem já está embaixo do
-    // campo, e a tela continua aberta para a correção.
-    if (id == null) return;
-
-    Navigator.of(context).pop(id);
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Novo ganho'), centerTitle: true),
       body: ReactiveForm(
@@ -56,21 +43,17 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            ReactiveTextField<String>(
+            TextFieldCustomWidget(
               formControlName: 'description',
+              labelText: 'Título',
+              hintText: 'Ex:. salário',
               autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.next,
               validationMessages: {
                 ValidationMessage.required: (_) => 'Informe a descrição.',
                 'backend': (error) => '$error',
               },
-              decoration: const InputDecoration(
-                labelText: 'Descrição',
-                hintText: 'Salário, freela, aluguel recebido',
-                border: OutlineInputBorder(),
-              ),
             ),
+
             const SizedBox(height: 16),
             MoneyFieldWidget(formControlName: 'amountCents'),
             const SizedBox(height: 16),
@@ -79,17 +62,25 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
               label: 'A partir de',
             ),
             const SizedBox(height: 8),
-            ReactiveSwitchListTile(
-              formControlName: 'recurring',
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Recorrente'),
-              subtitle: ReactiveValueListenableBuilder<bool>(
-                formControlName: 'recurring',
-                builder: (context, control, child) => Text(
-                  control.value ?? true
-                      ? 'Segue todo mês até você encerrar.'
-                      : 'Entra só nesta competência — 13º, freela, bônus.',
-                ),
+
+            SignalBuilder(
+              builder: (context) => Row(
+                mainAxisAlignment: .spaceBetween,
+                children: [
+                  Padding(
+                    padding: const .only(left: 8),
+                    child: Text(
+                      'Recorrente',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Switch(
+                    value: _controller.isRecurring.value,
+                    onChanged: (value) => _controller.setIsRecurring = value,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -97,15 +88,19 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
               builder: (context) {
                 final saving = _controller.saving.value;
 
-                return FilledButton(
-                  onPressed: saving ? null : _submit,
-                  child: saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Salvar'),
+                return ReactiveFormConsumer(
+                  builder: (context, form, child) {
+                    return FilledButton(
+                      onPressed: form.valid && !saving ? _submit : null,
+                      child: saving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Salvar'),
+                    );
+                  },
                 );
               },
             ),

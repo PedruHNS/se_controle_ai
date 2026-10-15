@@ -9,7 +9,7 @@ import '../models/income_model.dart';
 abstract interface class IncomeRepository {
   Future<Result<List<IncomeModel>, Failure>> list({required String month});
   Future<Result<IncomeModel, Failure>> getById(String id, {String? month});
-  Future<Result<String, Failure>> create({
+  Future<Result<IncomeModel, Failure>> create({
     required String description,
     required int amountCents,
     required String startMonth,
@@ -65,7 +65,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
   }
 
   @override
-  Future<Result<String, Failure>> create({
+  Future<Result<IncomeModel, Failure>> create({
     required String description,
     required int amountCents,
     required String startMonth,
@@ -81,7 +81,7 @@ class IncomeRepositoryImpl implements IncomeRepository {
           'recurring': recurring,
         },
       );
-      return Success(Decode.object(response.data)['id'] as String);
+      return Success(IncomeModel.fromJson(Decode.object(response.data)));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
