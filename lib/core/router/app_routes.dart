@@ -42,7 +42,7 @@ abstract final class AppRoutes {
   static const incomeForm = 'income-form';
   static const incomeFormPath = 'form';
   static const incomeDetail = 'income-detail';
-  static const incomeDetailPath = ':id';
+  static const incomeDetailPath = 'detail';
 
   // Cartões — Fase 3
   static const creditCards = 'credit-cards';

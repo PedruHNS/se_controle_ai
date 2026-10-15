@@ -121,8 +121,6 @@ final GoRouter appRouter = GoRouter(
       name: AppRoutes.incomes,
       builder: (context, state) => const IncomeListPage(),
       routes: [
-        // `form` **antes** de `:id`: o go_router casa na ordem, e invertido a
-        // rota de formulário viraria um detalhe com id "form".
         GoRoute(
           path: AppRoutes.incomeFormPath,
           name: AppRoutes.incomeForm,
