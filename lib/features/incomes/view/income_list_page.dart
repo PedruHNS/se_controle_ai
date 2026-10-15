@@ -19,7 +19,6 @@ import '../controller/income_controller.dart';
 import '../widgets/income_empty_widget.dart';
 import '../widgets/income_tile.dart';
 
-/// Lista de ganhos — a porta de entrada do CRUD.
 class IncomeListPage extends StatefulWidget {
   const IncomeListPage({super.key});
 
