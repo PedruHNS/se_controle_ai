@@ -15,9 +15,8 @@ import '../widgets/income_closure_dialog.dart';
 
 /// Um ganho: valor vigente, histórico e as quatro operações.
 class IncomeDetailPage extends StatefulWidget {
-  const IncomeDetailPage({required this.id, super.key});
-
-  final String id;
+  final IncomeModel income;
+  const IncomeDetailPage({required this.income, super.key});
 
   @override
   State<IncomeDetailPage> createState() => _IncomeDetailPageState();
@@ -29,9 +28,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
   @override
   void initState() {
     super.initState();
-    // O id é dado da rota, então é a view que o entrega ao controller. Aqui e
-    // não no `build`: `initState` roda uma vez, `build` roda a cada frame.
-    _controller.start(widget.id);
+    _controller.start(widget.income);
   }
 
   @override

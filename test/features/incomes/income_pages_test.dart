@@ -27,9 +27,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> pumpDetail(WidgetTester tester) async {
+  /// Abre o detalhe com o ganho que a lista entregaria pelo `extra` da rota —
+  /// o salário, a não ser que o teste passe outro.
+  Future<void> pumpDetail(WidgetTester tester, {IncomeModel? income}) async {
     await tester.pumpWidget(
-      const MaterialApp(home: IncomeDetailPage(id: 'income-1')),
+      MaterialApp(
+        home: IncomeDetailPage(
+          income:
+              income ?? IncomeModel.fromJson({...salaryJson, 'id': 'income-1'}),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
   }
@@ -193,6 +200,15 @@ void main() {
   });
 
   group('detalhe', () {
+    testWidgets('abre com o ganho da lista, sem buscar de novo', (
+      tester,
+    ) async {
+      await pumpDetail(tester);
+
+      expect(find.text('Salário'), findsOneWidget);
+      verifyNever(() => repository.getById(any(), month: any(named: 'month')));
+    });
+
     testWidgets('ganho aberto oferece as quatro ações', (tester) async {
       await pumpDetail(tester);
 
@@ -203,11 +219,7 @@ void main() {
     });
 
     testWidgets('ganho encerrado só oferece excluir', (tester) async {
-      stubIncomeDetail(
-        repository,
-        result: Success(IncomeModel.fromJson(bonusJson)),
-      );
-      await pumpDetail(tester);
+      await pumpDetail(tester, income: IncomeModel.fromJson(bonusJson));
 
       // GAN-08: reajustar, corrigir ou encerrar um ganho encerrado dá 422.
       expect(find.text('Reajustar'), findsNothing);
@@ -225,11 +237,10 @@ void main() {
     testWidgets(
       'histórico lista as vigências, da mais nova para a mais antiga',
       (tester) async {
-        stubIncomeDetail(
-          repository,
-          result: Success(IncomeModel.fromJson(adjustedSalaryJson)),
+        await pumpDetail(
+          tester,
+          income: IncomeModel.fromJson(adjustedSalaryJson),
         );
-        await pumpDetail(tester);
 
         expect(find.text('Histórico de valores'), findsOneWidget);
         expect(find.text('Janeiro 2026 a outubro 2026'), findsOneWidget);

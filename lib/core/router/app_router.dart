@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:se_controle_ai/data/models/income_model.dart';
 
 import '../../data/models/credit_card_model.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -130,8 +131,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: AppRoutes.incomeDetailPath, // ':id', relativo — sem '/'
           name: AppRoutes.incomeDetail,
-          builder: (context, state) =>
-              IncomeDetailPage(id: state.pathParameters[RouteParams.id]!),
+          builder: (context, state) {
+            final income = state.extra as IncomeModel;
+            return IncomeDetailPage(income: income);
+          },
         ),
       ],
     ),

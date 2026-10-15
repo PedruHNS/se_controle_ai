@@ -12,23 +12,28 @@ import 'package:se_controle_ai/features/incomes/controller/income_detail_control
 import '../../fixtures/income_fixture.dart';
 import '../../fixtures/mocks.dart';
 
+/// O ganho que a lista entrega ao detalhe pelo `extra` da rota.
+final salario = IncomeModel.fromJson({...salaryJson, 'id': 'income-1'});
+
 void main() {
   late MockIncomeRepository repository;
   late IncomeDetailController controller;
 
-  setUp(() async {
+  setUp(() {
     repository = incomeRepositoryMock();
     controller = IncomeDetailController(repository: repository);
-    // O id vem da rota, então quem o entrega é a view. No teste, o `start`
+    // O ganho vem da rota, então quem o entrega é a view. No teste, o `start`
     // ocupa esse papel.
-    await controller.start('income-1');
+    controller.start(salario);
   });
 
   tearDown(() => controller.dispose());
 
   group('start', () {
-    test('busca o ganho com o id que a view passou', () {
-      verify(() => repository.getById('income-1', month: null)).called(1);
+    // A lista já trouxe o ganho com o histórico: abrir o detalhe não volta ao
+    // servidor.
+    test('mostra o ganho que veio da lista, sem buscar de novo', () {
+      verifyNever(() => repository.getById(any(), month: any(named: 'month')));
       expect(controller.state.value, isA<Loaded<IncomeModel>>());
       expect(
         (controller.state.value as Loaded<IncomeModel>).data.description,
@@ -102,7 +107,8 @@ void main() {
         stubIncomeDetail(lenta, pendenteAte: segura.future);
         final saiu = IncomeDetailController(repository: lenta);
 
-        final pending = saiu.start('income-1');
+        saiu.start(salario);
+        final pending = saiu.refresh();
         saiu.dispose();
         segura.complete();
         await pending;

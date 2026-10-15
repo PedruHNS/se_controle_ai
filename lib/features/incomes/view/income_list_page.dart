@@ -59,10 +59,8 @@ class _IncomeListPageState extends State<IncomeListPage> {
                   Loaded(:final data) => _IncomeList(
                     incomes: data,
                     month: _selectedMonth.month.value,
-                    onOpen: (income) => _nav.pushNamed(
-                      AppRoutes.incomeDetail,
-                      pathParameters: {RouteParams.id: income.id},
-                    ),
+                    onOpen: (income) =>
+                        _nav.pushNamed(AppRoutes.incomeDetail, extra: income),
                   ),
                   Failed(:final failure) => SliverFillRemaining(
                     hasScrollBody: false,

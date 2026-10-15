@@ -17,11 +17,10 @@ import '../../../data/repositories/income_repository.dart';
 /// Cada uma, se der certo, **busca o ganho de novo**: o backend responde `204`
 /// sem corpo, e o histórico novo só se sabe refazendo a conta que ele faz.
 ///
-/// **O id não entra pelo construtor.** Ele é dado da rota, então quem o conhece
-/// é a view: ela chama [start] no `initState` com o que veio em
-/// `pathParameters`, como a tela do cartão faz. Assim o registro no get_it é um
-/// `registerFactory` comum, e construir o controller não depende de ter um
-/// argumento em mãos.
+/// **O ganho não entra pelo construtor.** Ele chega pelo `extra` da rota, então
+/// quem o conhece é a view: ela chama [start] no `initState` com o ganho que a
+/// lista já tinha. Assim o registro no get_it é um `registerFactory` comum, e
+/// construir o controller não depende de ter um argumento em mãos.
 class IncomeDetailController extends BaseController {
   final IncomeRepository _repository;
 
@@ -42,13 +41,11 @@ class IncomeDetailController extends BaseController {
   /// disparar duas vezes.
   ReadonlySignal<bool> get working => _working;
 
-  /// Recebe o id da rota e faz a primeira busca.
-  ///
-  /// Diferente da lista, este **não** busca no `onInit`: ali o id ainda não
-  /// chegou. A view chama isto no `initState`.
-  Future<void> start(String id) {
-    _id = id;
-    return _load();
+  /// Mostra o ganho que veio da lista, sem buscar de novo — ele já traz o
+  /// histórico. O id dele é o que [refresh] e as operações usam.
+  void start(IncomeModel income) {
+    _id = income.id;
+    _state.value = Loaded(income);
   }
 
   @override
