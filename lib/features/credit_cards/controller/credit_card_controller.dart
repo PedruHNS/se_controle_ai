@@ -3,6 +3,7 @@ import 'package:se_controle_ai/core/shared/mixin/message_mixin.dart';
 import 'package:se_controle_ai/data/services/navigation_service.dart';
 
 import 'package:signals/signals.dart';
+
 import '../../../data/services/selected_month_service.dart';
 import '../../../core/shared/view_state.dart';
 import '../../../core/utils/base_controller.dart';
@@ -68,7 +69,7 @@ class CreditCardController extends BaseController with MessageMixin {
     _dueDay.value = 10;
   }
 
-  void loadCardCredit(final CreditCardModel creditCard) {
+  void loadCardCredit(CreditCardModel creditCard) {
     form.control('name').value = creditCard.name;
     form.control('lastDigits').value = creditCard.lastDigits;
     _closingDay.value = creditCard.closingDay;
