@@ -18,6 +18,9 @@
 /// Só existe para os campos que o backend aceita limpar. `name`, `closingDay` e
 /// `dueDay` não são anuláveis (CAR-01/CAR-02), então neles um `null` só pode
 /// querer dizer "não mexi" e o tipo simples basta.
+///
+///
+@Deprecated('retire do código o metodo patch ele n deve ser usado.')
 sealed class Patch<T extends Object> {
   const Patch();
 
