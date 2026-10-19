@@ -71,22 +71,6 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
-  // O detalhe é o caso que a regra prevê como exceção: estado por instância, não
-  // por app, porque dois detalhes na pilha falam de ganhos diferentes. Por isso
-  // factory — e, como factory não aceita o `dispose:` do get_it, quem libera é o
-  // `dispose` da página.
-  //
-  // Ele recebe o ganho pelo `start`, e não pelo registro: o ganho chega pelo
-  // `extra` da rota, e quem o conhece é a view.
-  getIt.registerFactory<IncomeDetailController>(
-    () => IncomeDetailController(
-      repository: getIt<IncomeRepository>(),
-      nav: getIt<NavigationService>(),
-      selectedMonth: getIt<SelectedMonthService>(),
-      incomeController: getIt<IncomeController>(),
-    ),
-  );
-
   // Cartões têm **um** controller, como tags: a lista e o formulário no mesmo
   // objeto, que é o que permite o cadastro entrar na lista sem recarregá-la.
   //

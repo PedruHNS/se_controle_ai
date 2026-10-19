@@ -411,7 +411,11 @@ void main() {
 
   // Reajuste, correção e encerramento saem do detalhe com o ganho como ficou
   // (GAN-12), e é a lista que o recebe.
-  group('replace', () {
+  group('operações do detalhe', () {
+    /// O ganho que a lista entrega ao detalhe pelo `extra` da rota.
+    IncomeModel salario() =>
+        loadedIncomes().firstWhere((i) => i.description == 'Salário');
+
     IncomeModel comoFicou(IncomeModel antes, {int? amountCents}) =>
         IncomeModel.fromJson({
           ...salaryJson,
@@ -420,32 +424,245 @@ void main() {
           'amountCents': amountCents,
         });
 
-    test('o ganho toma o lugar do antigo, na mesma posição', () {
-      final antes = loadedIncomes();
+    setUp(() => clearInteractions(repository));
 
-      controller.replace(comoFicou(antes.last, amountCents: 123));
+    test('vão para o ganho do id recebido', () async {
+      await controller.correctingValueIncome(salario().id, amountCents: 1000);
 
-      expect(loadedIncomes().map((i) => i.id), antes.map((i) => i.id));
-      expect(loadedIncomes().last.amountCents, 123);
+      verify(
+        () => repository.correct(
+          salario().id,
+          amountCents: 1000,
+          month: any(named: 'month'),
+        ),
+      ).called(1);
     });
 
-    // GAN-12: `amountCents` nulo diz que ele deixou de vigorar no mês exibido.
-    test('ganho que deixou de vigorar no mês sai da lista', () {
-      final encerrado = loadedIncomes().first;
+    // O valor devolvido vem no mês da lista, para entrar nela sem conta no app.
+    test('mandam o mês selecionado na home', () async {
+      final id = salario().id;
+      // Trocar o mês recarrega a lista, e a operação só sai com ela na tela.
+      month.select('2026-12');
+      await pumpEventQueue();
 
-      controller.replace(comoFicou(encerrado));
+      await controller.terminateRecurringIncome(id, lastMonth: '2026-12');
 
-      expect(loadedIncomes().map((i) => i.id), isNot(contains(encerrado.id)));
-      expect(loadedIncomes(), hasLength(1));
+      verify(
+        () => repository.close(id, lastMonth: '2026-12', month: '2026-12'),
+      ).called(1);
     });
 
-    test('lista que não está na tela fica como estava', () async {
+    group('reajuste e correção são chamadas diferentes', () {
+      // O que as distingue é o que foi enviado. Por isso a asserção é sobre a
+      // chamada, não sobre o retorno.
+      test('reajuste manda o mês de vigência', () async {
+        await controller.adjustValueIncome(
+          salario().id,
+          amountCents: 550000,
+          effectiveFromMonth: '2026-11',
+        );
+
+        verify(
+          () => repository.adjust(
+            any(),
+            amountCents: 550000,
+            effectiveFromMonth: '2026-11',
+            month: any(named: 'month'),
+          ),
+        ).called(1);
+        verifyNever(
+          () => repository.correct(
+            any(),
+            amountCents: any(named: 'amountCents'),
+            month: any(named: 'month'),
+          ),
+        );
+      });
+
+      test('correção manda só o valor — não tem mês de vigência', () async {
+        await controller.correctingValueIncome(
+          salario().id,
+          amountCents: 480000,
+        );
+
+        verify(
+          () => repository.correct(
+            any(),
+            amountCents: 480000,
+            month: any(named: 'month'),
+          ),
+        ).called(1);
+        verifyNever(
+          () => repository.adjust(
+            any(),
+            amountCents: any(named: 'amountCents'),
+            effectiveFromMonth: any(named: 'effectiveFromMonth'),
+            month: any(named: 'month'),
+          ),
+        );
+      });
+    });
+
+    test('encerramento manda o último mês recebido', () async {
+      await controller.terminateRecurringIncome(
+        salario().id,
+        lastMonth: '2026-12',
+      );
+
+      verify(
+        () => repository.close(
+          any(),
+          lastMonth: '2026-12',
+          month: any(named: 'month'),
+        ),
+      ).called(1);
+    });
+
+    group('que deu certo', () {
+      test('o ganho devolvido toma o lugar do antigo na lista', () async {
+        final reajustado = IncomeModel.fromJson({
+          ...adjustedSalaryJson,
+          'id': salario().id,
+        });
+        stubIncomeOperations(repository, updateResult: Success(reajustado));
+
+        await controller.adjustValueIncome(
+          salario().id,
+          amountCents: 550000,
+          effectiveFromMonth: '2026-11',
+        );
+
+        expect(loadedIncomes(), hasLength(2));
+        expect(salario().amountCents, 550000);
+        expect(salario().history, hasLength(2));
+      });
+
+      test('o ganho fica na mesma posição', () async {
+        final antes = loadedIncomes();
+        stubIncomeOperations(
+          repository,
+          updateResult: Success(comoFicou(antes.last, amountCents: 123)),
+        );
+
+        await controller.correctingValueIncome(antes.last.id, amountCents: 123);
+
+        expect(loadedIncomes().map((i) => i.id), antes.map((i) => i.id));
+        expect(loadedIncomes().last.amountCents, 123);
+      });
+
+      // GAN-12: `amountCents` nulo diz que ele deixou de vigorar no mês exibido.
+      // Ele fica na lista assim mesmo, até a próxima busca o deixar de fora.
+      test(
+        'ganho que deixou de vigorar no mês fica na lista, sem valor',
+        () async {
+          final antes = loadedIncomes();
+          final encerrado = antes.first;
+          stubIncomeOperations(
+            repository,
+            updateResult: Success(comoFicou(encerrado)),
+          );
+
+          await controller.terminateRecurringIncome(
+            encerrado.id,
+            lastMonth: '2026-01',
+          );
+
+          expect(loadedIncomes().map((i) => i.id), antes.map((i) => i.id));
+          expect(loadedIncomes().first.amountCents, isNull);
+        },
+      );
+
+      test('nem a lista nem o ganho são buscados de novo', () async {
+        await controller.correctingValueIncome(salario().id, amountCents: 1000);
+
+        verifyNever(() => repository.list(month: any(named: 'month')));
+      });
+
+      test('fecha o diálogo e a tela do detalhe', () async {
+        await controller.terminateRecurringIncome(
+          salario().id,
+          lastMonth: '2026-12',
+        );
+
+        verify(() => nav.pop()).called(2);
+      });
+    });
+
+    // Sem lista na tela não há onde pôr o ganho: nada vai ao servidor, e nada
+    // fecha.
+    test('lista que não está na tela não manda a operação', () async {
       stubIncomeList(repository, result: semRede());
       await controller.refresh();
+      clearInteractions(repository);
 
-      controller.replace(IncomeModel.fromJson(salaryJson));
+      await controller.correctingValueIncome('income-1', amountCents: 1000);
 
-      expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
+      verifyNever(
+        () => repository.correct(
+          any(),
+          amountCents: any(named: 'amountCents'),
+          month: any(named: 'month'),
+        ),
+      );
+      verifyNever(() => nav.pop());
+      expect(controller.saving.value, isFalse);
+    });
+
+    // 422 é o retorno de reajuste retroativo, valor repetido e ganho já
+    // encerrado — a mensagem vem pronta do backend, e sai por toast, que quem
+    // vê é o teste da página.
+    test(
+      'recusa do backend deixa o diálogo aberto e a lista como estava',
+      () async {
+        stubIncomeOperations(
+          repository,
+          result: Error(
+            Failure.fromException(
+              const UnprocessableEntityException(
+                message: 'Reajuste precisa valer de um mês posterior.',
+              ),
+            ),
+          ),
+        );
+        final antes = loadedIncomes();
+
+        await controller.adjustValueIncome(
+          salario().id,
+          amountCents: 550000,
+          effectiveFromMonth: '2026-01',
+        );
+
+        verifyNever(() => nav.pop());
+        expect(loadedIncomes(), same(antes));
+      },
+    );
+
+    test('saving liga durante a operação e desliga no fim', () async {
+      final segura = Completer<void>();
+      stubIncomeOperations(repository, pendenteAte: segura.future);
+
+      final pending = controller.correctingValueIncome(
+        salario().id,
+        amountCents: 1000,
+      );
+
+      expect(controller.saving.value, isTrue);
+      segura.complete();
+      await pending;
+      expect(controller.saving.value, isFalse);
+    });
+
+    test('saving desliga também quando a operação falha', () async {
+      stubIncomeOperations(
+        repository,
+        result: Error(
+          Failure.fromException(const NetworkException(message: 'sem rede')),
+        ),
+      );
+
+      await controller.correctingValueIncome(salario().id, amountCents: 1000);
+
+      expect(controller.saving.value, isFalse);
     });
   });
 

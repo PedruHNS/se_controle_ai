@@ -7,7 +7,7 @@ import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
-import '../controller/income_detail_controller.dart';
+import '../controller/income_controller.dart';
 
 /// As duas operações de dinheiro do ganho.
 ///
@@ -26,7 +26,7 @@ enum IncomeAmountMode {
 /// aberto, e o recado sai por toast.
 Future<void> showIncomeAmountDialog(
   BuildContext context, {
-  required IncomeDetailController controller,
+  required IncomeController controller,
   required IncomeModel income,
   required IncomeAmountMode mode,
 }) {
@@ -44,7 +44,7 @@ class _IncomeAmountDialog extends StatefulWidget {
     required this.mode,
   });
 
-  final IncomeDetailController controller;
+  final IncomeController controller;
   final IncomeModel income;
   final IncomeAmountMode mode;
 
@@ -103,12 +103,13 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
     final cents = _form.control(_amount).value as int;
 
     if (_isAdjust) {
-      await widget.controller.adjust(
+      await widget.controller.adjustValueIncome(
+        widget.income.id,
         amountCents: cents,
-        effectiveFrom: _form.control(_effectiveFrom).value as String,
+        effectiveFromMonth: _form.control(_effectiveFrom).value as String,
       );
     } else {
-      await widget.controller.correct(amountCents: cents);
+      await widget.controller.correctingValueIncome(widget.income.id, amountCents: cents);
     }
   }
 
@@ -153,7 +154,7 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
       actions: [
         SignalBuilder(
           builder: (context) => TextButton(
-            onPressed: widget.controller.working.value
+            onPressed: widget.controller.saving.value
                 ? null
                 : () => Navigator.of(context).pop(),
             child: const Text('Cancelar'),
@@ -161,7 +162,7 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
         ),
         SignalBuilder(
           builder: (context) => FilledButton(
-            onPressed: widget.controller.working.value ? null : _send,
+            onPressed: widget.controller.saving.value ? null : _send,
             child: Text(_isAdjust ? 'Reajustar' : 'Corrigir'),
           ),
         ),

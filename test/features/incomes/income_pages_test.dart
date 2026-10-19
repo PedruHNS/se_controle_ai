@@ -273,7 +273,7 @@ void main() {
         () => repository.adjust(
           'income-1',
           amountCents: 550000,
-          effectiveFrom: MonthUtils.current(),
+          effectiveFromMonth: MonthUtils.current(),
           month: any(named: 'month'),
         ),
       ).called(1);
@@ -308,7 +308,7 @@ void main() {
         () => repository.adjust(
           any(),
           amountCents: any(named: 'amountCents'),
-          effectiveFrom: any(named: 'effectiveFrom'),
+          effectiveFromMonth: any(named: 'effectiveFromMonth'),
           month: any(named: 'month'),
         ),
       );

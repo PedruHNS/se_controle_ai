@@ -15,7 +15,6 @@ import 'package:se_controle_ai/features/expenses/controller/expense_form_control
 import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_controller.dart';
-import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 import 'package:se_controle_ai/core/theme/theme_controller.dart';
 import 'package:se_controle_ai/features/tags/controller/tag_list_controller.dart';
 
@@ -169,16 +168,13 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
   if (getIt.isRegistered<IncomeController>()) {
     getIt.unregister<IncomeController>();
   }
-  if (getIt.isRegistered<IncomeDetailController>()) {
-    getIt.unregister<IncomeDetailController>();
-  }
 
   getIt
     ..registerSingleton<IncomeRepository>(repository)
     // `lazySingleton` com `dispose:`, e não `factory`: a `IncomeListPage` chama
     // `resetLazySingleton` no seu `dispose`, e o get_it recusa isso em registro
-    // que não seja lazy. É também um controller só para a lista e o formulário —
-    // a página do formulário não o libera.
+    // que não seja lazy. É também um controller só para a lista, o formulário e
+    // o detalhe — nem a página do formulário nem a do detalhe o liberam.
     ..registerLazySingleton<IncomeController>(
       () => IncomeController(
         repository: getIt<IncomeRepository>(),
@@ -186,14 +182,6 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
         navigationService: getIt<NavigationService>(),
       ),
       dispose: (controller) => controller.dispose(),
-    )
-    ..registerFactory<IncomeDetailController>(
-      () => IncomeDetailController(
-        repository: getIt<IncomeRepository>(),
-        nav: getIt<NavigationService>(),
-        selectedMonth: getIt<SelectedMonthService>(),
-        incomeController: getIt<IncomeController>(),
-      ),
     );
 
   return repository;

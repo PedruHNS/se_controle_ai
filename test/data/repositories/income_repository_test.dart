@@ -135,7 +135,7 @@ void main() {
         final result = await repository.adjust(
           'abc',
           amountCents: 550000,
-          effectiveFrom: '2026-11',
+          effectiveFromMonth: '2026-11',
           month: '2026-12',
         );
 
@@ -243,7 +243,7 @@ void main() {
       final result = await repository.adjust(
         'abc',
         amountCents: 550000,
-        effectiveFrom: '2026-01',
+        effectiveFromMonth: '2026-01',
         month: '2026-01',
       );
 
@@ -263,7 +263,7 @@ void main() {
       final result = await repository.adjust(
         'abc',
         amountCents: 550000,
-        effectiveFrom: '2026-11',
+        effectiveFromMonth: '2026-11',
         month: '2026-11',
       );
 

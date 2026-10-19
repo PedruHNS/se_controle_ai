@@ -116,24 +116,98 @@ class IncomeController extends BaseController with MessageMixin {
     _saving.value = false;
   }
 
-  /// Chamado do detalhe com o ganho como ficou depois de reajuste, correção ou
-  /// encerramento: ele toma o lugar do antigo, sem buscar tudo de novo. Com
-  /// `amountCents` nulo ele deixou de vigorar no mês exibido, e sai da lista.
-  void replace(IncomeModel income) {
+  Future<void> adjustValueIncome(
+    String id, {
+    required int amountCents,
+    required String effectiveFromMonth,
+  }) async {
     final current = _state.value;
     if (current is! Loaded<List<IncomeModel>>) return;
 
-    _state.value = Loaded([
-      for (final item in current.data)
-        if (item.id != income.id)
-          item
-        else if (income.amountCents != null)
-          income,
-    ]);
+    _saving.value = true;
+
+    final result = await _repository.adjust(
+      id,
+      amountCents: amountCents,
+      effectiveFromMonth: effectiveFromMonth,
+      month: _selectedMonth.month.value,
+    );
+
+    _saving.value = false;
+
+    result.when((income) {
+      _state.value = Loaded(
+        current.data
+            .map((item) => item.id == income.id ? income : item)
+            .toList(),
+      );
+
+      _navigationService
+        ..pop()
+        ..pop();
+    }, (err) => toastError(err.message));
   }
 
-  /// Chamado do detalhe: o ganho sai da lista sem buscar tudo de novo, e o
-  /// `pop` tira a tela do detalhe. Na falha a tela fica, com o recado por toast.
+  Future<void> correctingValueIncome(
+    String id, {
+    required int amountCents,
+  }) async {
+    final current = _state.value;
+    if (current is! Loaded<List<IncomeModel>>) return;
+
+    _saving.value = true;
+
+    final result = await _repository.correct(
+      id,
+      amountCents: amountCents,
+      month: _selectedMonth.month.value,
+    );
+
+    _saving.value = false;
+
+    result.when((income) {
+      _state.value = Loaded(
+        current.data
+            .map((item) => item.id == income.id ? income : item)
+            .toList(),
+      );
+
+      _navigationService
+        ..pop()
+        ..pop();
+    }, (err) => toastError(err.message));
+  }
+
+  Future<void> terminateRecurringIncome(
+    String id, {
+    required String lastMonth,
+  }) async {
+    final current = _state.value;
+    if (current is! Loaded<List<IncomeModel>>) return;
+
+    _saving.value = true;
+
+    final result = await _repository.close(
+      id,
+      lastMonth: lastMonth,
+      month: _selectedMonth.month.value,
+    );
+
+    _saving.value = false;
+
+    result.when((income) {
+      _state.value = Loaded(
+        current.data
+            .map((item) => item.id == income.id ? income : item)
+            .toList(),
+      );
+
+      _navigationService
+        ..pop()
+        ..pop();
+    }, (err) => toastError(err.message));
+  }
+
   Future<void> delete(String id) async {
     final result = await _repository.delete(id);
 

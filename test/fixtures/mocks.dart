@@ -353,7 +353,7 @@ void stubIncomeOperations(
     () => mock.adjust(
       any(),
       amountCents: any(named: 'amountCents'),
-      effectiveFrom: any(named: 'effectiveFrom'),
+      effectiveFromMonth: any(named: 'effectiveFromMonth'),
       month: any(named: 'month'),
     ),
   ).thenAnswer((_) => answer(atualizado));

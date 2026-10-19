@@ -7,7 +7,6 @@ import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_controller.dart';
-import '../controller/income_detail_controller.dart';
 import '../widgets/income_amount_dialog.dart';
 import '../widgets/income_closure_dialog.dart';
 
@@ -21,22 +20,8 @@ class IncomeDetailPage extends StatefulWidget {
 }
 
 class _IncomeDetailPageState extends State<IncomeDetailPage> {
-  final _controller = getIt<IncomeDetailController>();
-
-  /// O da lista, que é quem exclui: o ganho sai dela sem buscar de novo.
-  final _incomeController = getIt<IncomeController>();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.start(widget.income);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  // O da lista: quem o libera é ela, ao sair.
+  final _controller = getIt<IncomeController>();
 
   Future<void> _confirmDelete(IncomeModel income) async {
     final confirmed = await showDialog<bool>(
@@ -63,7 +48,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
 
     if (confirmed != true) return;
 
-    await _incomeController.delete(income.id);
+    await _controller.delete(income.id);
   }
 
   @override
@@ -75,7 +60,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
       body: SignalBuilder(
         builder: (context) => _IncomeDetail(
           income: widget.income,
-          working: _controller.working.value,
+          working: _controller.saving.value,
           onAdjust: () => showIncomeAmountDialog(
             context,
             controller: _controller,

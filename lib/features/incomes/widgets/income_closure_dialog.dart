@@ -6,7 +6,7 @@ import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
-import '../controller/income_detail_controller.dart';
+import '../controller/income_controller.dart';
 
 /// Encerramento: o ganho existiu e parou. Diferente de excluir, que apaga o
 /// histórico como se nunca tivesse existido (GAN-07 vs. GAN-09).
@@ -15,7 +15,7 @@ import '../controller/income_detail_controller.dart';
 /// o recado sai por toast.
 Future<void> showIncomeClosureDialog(
   BuildContext context, {
-  required IncomeDetailController controller,
+  required IncomeController controller,
   required IncomeModel income,
 }) {
   return showDialog<void>(
@@ -28,7 +28,7 @@ Future<void> showIncomeClosureDialog(
 class _IncomeClosureDialog extends StatefulWidget {
   const _IncomeClosureDialog({required this.controller, required this.income});
 
-  final IncomeDetailController controller;
+  final IncomeController controller;
   final IncomeModel income;
 
   @override
@@ -70,7 +70,8 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
       return;
     }
 
-    await widget.controller.close(
+    await widget.controller.terminateRecurringIncome(
+      widget.income.id,
       lastMonth: _form.control(_lastMonth).value as String,
     );
   }
@@ -105,7 +106,7 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
       actions: [
         SignalBuilder(
           builder: (context) => TextButton(
-            onPressed: widget.controller.working.value
+            onPressed: widget.controller.saving.value
                 ? null
                 : () => Navigator.of(context).pop(),
             child: const Text('Cancelar'),
@@ -113,7 +114,7 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
         ),
         SignalBuilder(
           builder: (context) => FilledButton(
-            onPressed: widget.controller.working.value ? null : _send,
+            onPressed: widget.controller.saving.value ? null : _send,
             child: const Text('Encerrar'),
           ),
         ),

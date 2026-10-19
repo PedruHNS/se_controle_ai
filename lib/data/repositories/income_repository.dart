@@ -17,7 +17,7 @@ abstract interface class IncomeRepository {
   Future<Result<IncomeModel, Failure>> adjust(
     String id, {
     required int amountCents,
-    required String effectiveFrom,
+    required String effectiveFromMonth,
     required String month,
   });
   Future<Result<IncomeModel, Failure>> correct(
@@ -85,13 +85,13 @@ class IncomeRepositoryImpl implements IncomeRepository {
   Future<Result<IncomeModel, Failure>> adjust(
     String id, {
     required int amountCents,
-    required String effectiveFrom,
+    required String effectiveFromMonth,
     required String month,
   }) async {
     try {
       final response = await _api.post(
         '/incomes/$id/adjustments',
-        data: {'amountCents': amountCents, 'effectiveFrom': effectiveFrom},
+        data: {'amountCents': amountCents, 'effectiveFrom': effectiveFromMonth},
         queryParameters: {'month': month},
       );
       return Success(IncomeModel.fromJson(Decode.object(response.data)));
