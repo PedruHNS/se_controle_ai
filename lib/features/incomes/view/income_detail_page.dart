@@ -3,12 +3,11 @@ import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
-import '../../../core/utils/money_utils.dart';
-import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_controller.dart';
 import '../widgets/income_amount_dialog.dart';
 import '../widgets/income_closure_dialog.dart';
+import '../widgets/income_detail_card_widget.dart';
 
 /// Um ganho: valor vigente, histórico e as quatro operações.
 class IncomeDetailPage extends StatefulWidget {
@@ -58,140 +57,86 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
       // O ganho é o que veio da lista: a tela não busca nem muda nada nele, e
       // quem mostra o resultado de uma operação é a lista, ao voltar.
       body: SignalBuilder(
-        builder: (context) => _IncomeDetail(
-          income: widget.income,
-          working: _controller.saving.value,
-          onAdjust: () => showIncomeAmountDialog(
-            context,
-            controller: _controller,
-            income: widget.income,
-            mode: IncomeAmountMode.adjust,
-          ),
-          onCorrect: () => showIncomeAmountDialog(
-            context,
-            controller: _controller,
-            income: widget.income,
-            mode: IncomeAmountMode.correct,
-          ),
-          onClose: () => showIncomeClosureDialog(
-            context,
-            controller: _controller,
-            income: widget.income,
-          ),
-          onDelete: () => _confirmDelete(widget.income),
-        ),
-      ),
-    );
-  }
-}
+        builder: (context) {
+          final income = widget.income;
+          final working = _controller.saving.value;
 
-class _IncomeDetail extends StatelessWidget {
-  const _IncomeDetail({
-    required this.income,
-    required this.working,
-    required this.onAdjust,
-    required this.onCorrect,
-    required this.onClose,
-    required this.onDelete,
-  });
+          return ListView(
+            padding: .symmetric(horizontal: 12, vertical: 24),
+            children: [
+              IncomeDetailCardWidget(income: income),
 
-  final IncomeModel income;
-  final bool working;
-  final VoidCallback onAdjust;
-  final VoidCallback onCorrect;
-  final VoidCallback onClose;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Ter data de fim é o que decide se as operações de dinheiro ainda existem
-    // (GAN-08). Não é o mesmo que "não entra mais": o ganho de mês único nasce
-    // com `endMonth` e ainda entra no mês dele.
-    final closed = income.endMonth != null;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(income.description, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(
-                  MoneyUtils.format(income.amountCents ?? 0),
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: theme.colorScheme.primary,
+              Padding(
+                padding: const .symmetric(vertical: 8),
+                child: Visibility(
+                  visible: income.endMonth == null,
+                  child: Column(
+                    spacing: 8,
+                    children: [
+                      _ActionCard(
+                        icon: Icons.trending_up,
+                        title: 'Reajustar',
+                        subtitle:
+                            'Recebi um aumento a partir de um mês. O passado '
+                            'fica como está.',
+                        onTap: working
+                            ? null
+                            : () => showIncomeAmountDialog(
+                                context,
+                                controller: _controller,
+                                income: income,
+                                mode: IncomeAmountMode.adjust,
+                              ),
+                      ),
+                      _ActionCard(
+                        icon: Icons.edit_outlined,
+                        title: 'Corrigir valor',
+                        subtitle:
+                            'O valor estava errado. Vale também para os meses '
+                            'que já passaram.',
+                        onTap: working
+                            ? null
+                            : () => showIncomeAmountDialog(
+                                context,
+                                controller: _controller,
+                                income: income,
+                                mode: IncomeAmountMode.correct,
+                              ),
+                      ),
+                      _ActionCard(
+                        icon: Icons.event_busy_outlined,
+                        title: 'Encerrar',
+                        subtitle: 'Parei de receber. O histórico continua.',
+                        onTap: working
+                            ? null
+                            : () => showIncomeClosureDialog(
+                                context,
+                                controller: _controller,
+                                income: income,
+                              ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
+              _ActionCard(
+                icon: Icons.delete_outline,
+                title: 'Excluir',
+                subtitle: 'Cadastrei errado. Apaga o ganho e todo o histórico.',
+                destructive: true,
+                onTap: working ? null : () => _confirmDelete(income),
+              ),
+
+              // A linha do tempo só aparece quando há mais de uma vigência
+              // para comparar.
+              if (income.history.length > 1) ...[
                 const SizedBox(height: 8),
-                Text(
-                  closed
-                      ? 'Encerrado em ${MonthUtils.label(income.endMonth!)}'
-                      : income.recurring
-                      ? 'Recorrente desde ${MonthUtils.label(income.startMonth)}'
-                      : 'Mês único — ${MonthUtils.label(income.startMonth)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                AmountHistoryCard(history: income.history),
               ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Ganho encerrado não aceita reajuste, correção nem encerramento
-        // (GAN-08). Some com os botões em vez de deixar o usuário levar 422.
-        if (!closed) ...[
-          _ActionCard(
-            icon: Icons.trending_up,
-            title: 'Reajustar',
-            subtitle:
-                'Recebi um aumento a partir de um mês. O passado fica '
-                'como está.',
-            onTap: working ? null : onAdjust,
-          ),
-          const SizedBox(height: 8),
-          _ActionCard(
-            icon: Icons.edit_outlined,
-            title: 'Corrigir valor',
-            subtitle:
-                'O valor estava errado. Vale também para os meses que '
-                'já passaram.',
-            onTap: working ? null : onCorrect,
-          ),
-          const SizedBox(height: 8),
-          _ActionCard(
-            icon: Icons.event_busy_outlined,
-            title: 'Encerrar',
-            subtitle: 'Parei de receber. O histórico continua.',
-            onTap: working ? null : onClose,
-          ),
-          const SizedBox(height: 8),
-        ],
-
-        _ActionCard(
-          icon: Icons.delete_outline,
-          title: 'Excluir',
-          subtitle: 'Cadastrei errado. Apaga o ganho e todo o histórico.',
-          destructive: true,
-          onTap: working ? null : onDelete,
-        ),
-
-        // A linha do tempo só aparece quando há mais de uma vigência para
-        // comparar.
-        if (income.history.length > 1) ...[
-          const SizedBox(height: 16),
-          AmountHistoryCard(history: income.history),
-        ],
-        const SizedBox(height: 24),
-      ],
+            ],
+          );
+        },
+      ),
     );
   }
 }
