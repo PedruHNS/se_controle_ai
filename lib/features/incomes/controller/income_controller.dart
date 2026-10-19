@@ -115,4 +115,37 @@ class IncomeController extends BaseController with MessageMixin {
 
     _saving.value = false;
   }
+
+  /// Chamado do detalhe com o ganho como ficou depois de reajuste, correção ou
+  /// encerramento: ele toma o lugar do antigo, sem buscar tudo de novo. Com
+  /// `amountCents` nulo ele deixou de vigorar no mês exibido, e sai da lista.
+  void replace(IncomeModel income) {
+    final current = _state.value;
+    if (current is! Loaded<List<IncomeModel>>) return;
+
+    _state.value = Loaded([
+      for (final item in current.data)
+        if (item.id != income.id)
+          item
+        else if (income.amountCents != null)
+          income,
+    ]);
+  }
+
+  /// Chamado do detalhe: o ganho sai da lista sem buscar tudo de novo, e o
+  /// `pop` tira a tela do detalhe. Na falha a tela fica, com o recado por toast.
+  Future<void> delete(String id) async {
+    final result = await _repository.delete(id);
+
+    result.when((_) {
+      final current = _state.value;
+      if (current is Loaded<List<IncomeModel>>) {
+        _state.value = Loaded(
+          current.data.where((income) => income.id != id).toList(),
+        );
+      }
+
+      _navigationService.pop();
+    }, (failure) => toastError(failure.message));
+  }
 }

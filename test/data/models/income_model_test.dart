@@ -24,6 +24,13 @@ void main() {
       expect(income.history, hasLength(1));
     });
 
+    // GAN-12: fora da vigência no mês pedido, o backend manda o valor nulo.
+    test('amountCents nulo é lido como nulo', () {
+      final income = IncomeModel.fromJson({...salaryJson, 'amountCents': null});
+
+      expect(income.amountCents, isNull);
+    });
+
     test(
       'history vem na ordem do backend, da mais antiga para a mais nova',
       () {

@@ -75,35 +75,6 @@ void main() {
     });
   });
 
-  group('getById', () {
-    test('busca /incomes/:id e lê o ganho com o histórico', () async {
-      final (repository: repository, adapter: adapter) = _repoQueResponde(
-        (_) async => _json(adjustedSalaryJson, 200),
-      );
-
-      final result = await repository.getById('abc');
-
-      final request = _ultimaRequisicao(adapter);
-      expect(request.method, 'GET');
-      expect(request.path, '/incomes/abc');
-      expect(request.queryParameters.containsKey('month'), isFalse);
-
-      final income = result.tryGetSuccess()!;
-      expect(income.amountCents, 550000);
-      expect(income.history, hasLength(2));
-    });
-
-    test('com mês, leva a competência', () async {
-      final (repository: repository, adapter: adapter) = _repoQueResponde(
-        (_) async => _json(salaryJson, 200),
-      );
-
-      await repository.getById('abc', month: '2026-05');
-
-      expect(_ultimaRequisicao(adapter).queryParameters['month'], '2026-05');
-    });
-  });
-
   group('create', () {
     test('manda o corpo do contrato e devolve o ganho do 201', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
@@ -151,30 +122,35 @@ void main() {
     });
   });
 
-  // As quatro respondem 204, sem corpo. O que as distingue é a rota, o método e
-  // o que vai no corpo — e é por isso que a asserção é sobre a requisição.
-  group('operações que respondem 204', () {
+  // GAN-12: as três respondem 200 com o ganho como ficou, no mês pedido. O que
+  // as distingue é a rota, o método e o que vai no corpo.
+  group('operações que devolvem o ganho', () {
     test(
       'reajuste é POST em /adjustments, com valor e mês de vigência',
       () async {
         final (repository: repository, adapter: adapter) = _repoQueResponde(
-          (_) async => _json(null, 204),
+          (_) async => _json(adjustedSalaryJson, 200),
         );
 
         final result = await repository.adjust(
           'abc',
           amountCents: 550000,
           effectiveFrom: '2026-11',
+          month: '2026-12',
         );
 
         final request = _ultimaRequisicao(adapter);
         expect(request.method, 'POST');
         expect(request.path, '/incomes/abc/adjustments');
+        expect(request.queryParameters['month'], '2026-12');
         expect(request.data, {
           'amountCents': 550000,
           'effectiveFrom': '2026-11',
         });
-        expect(result.isSuccess(), isTrue);
+
+        final income = result.tryGetSuccess()!;
+        expect(income.amountCents, 550000);
+        expect(income.history, hasLength(2));
       },
     );
 
@@ -182,14 +158,19 @@ void main() {
     // rota, com outra semântica.
     test('correção é PATCH em /amount, e manda só o valor', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
-        (_) async => _json(null, 204),
+        (_) async => _json(salaryJson, 200),
       );
 
-      final result = await repository.correct('abc', amountCents: 480000);
+      final result = await repository.correct(
+        'abc',
+        amountCents: 480000,
+        month: '2026-05',
+      );
 
       final request = _ultimaRequisicao(adapter);
       expect(request.method, 'PATCH');
       expect(request.path, '/incomes/abc/amount');
+      expect(request.queryParameters['month'], '2026-05');
       expect(request.data, {'amountCents': 480000});
       expect(result.isSuccess(), isTrue);
     });
@@ -198,20 +179,43 @@ void main() {
       'encerramento é POST em /closure, com o último mês recebido',
       () async {
         final (repository: repository, adapter: adapter) = _repoQueResponde(
-          (_) async => _json(null, 204),
+          (_) async => _json(salaryJson, 200),
         );
 
-        final result = await repository.close('abc', lastMonth: '2026-12');
+        final result = await repository.close(
+          'abc',
+          lastMonth: '2026-12',
+          month: '2026-12',
+        );
 
         final request = _ultimaRequisicao(adapter);
         expect(request.method, 'POST');
         expect(request.path, '/incomes/abc/closure');
+        expect(request.queryParameters['month'], '2026-12');
         expect(request.data, {'lastMonth': '2026-12'});
         expect(result.isSuccess(), isTrue);
       },
     );
 
-    test('exclusão é DELETE em /incomes/:id', () async {
+    // Fora da vigência no mês pedido, o backend manda `amountCents` nulo — é
+    // assim que a lista sabe que deve tirar o ganho.
+    test('ganho que deixou de vigorar no mês vem com valor nulo', () async {
+      final (repository: repository, adapter: _) = _repoQueResponde(
+        (_) async => _json({...salaryJson, 'amountCents': null}, 200),
+      );
+
+      final result = await repository.close(
+        'abc',
+        lastMonth: '2026-05',
+        month: '2026-06',
+      );
+
+      expect(result.tryGetSuccess()!.amountCents, isNull);
+    });
+  });
+
+  group('exclusão', () {
+    test('é DELETE em /incomes/:id e responde 204', () async {
       final (repository: repository, adapter: adapter) = _repoQueResponde(
         (_) async => _json(null, 204),
       );
@@ -240,6 +244,7 @@ void main() {
         'abc',
         amountCents: 550000,
         effectiveFrom: '2026-01',
+        month: '2026-01',
       );
 
       final failure = result.tryGetError();
@@ -259,6 +264,7 @@ void main() {
         'abc',
         amountCents: 550000,
         effectiveFrom: '2026-11',
+        month: '2026-11',
       );
 
       expect(result.tryGetError(), isA<ConflictFailure>());
@@ -299,7 +305,7 @@ void main() {
         (_) async => _json(_erro('NOT_FOUND', 'Ganho não encontrado.'), 404),
       );
 
-      final result = await repository.getById('sumiu');
+      final result = await repository.delete('sumiu');
 
       expect(result.tryGetError(), isA<NotFoundFailure>());
     });

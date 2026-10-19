@@ -312,22 +312,10 @@ void stubIncomeList(
   });
 }
 
-void stubIncomeDetail(
-  MockIncomeRepository mock, {
-  Result<IncomeModel, Failure>? result,
-  Future<void>? pendenteAte,
-}) {
-  when(() => mock.getById(any(), month: any(named: 'month'))).thenAnswer((
-    _,
-  ) async {
-    if (pendenteAte != null) await pendenteAte;
-    return result ?? Success(IncomeModel.fromJson(salaryJson));
-  });
-}
-
-/// Stub das quatro operações que devolvem 204. Um valor só para todas porque o
-/// que se verifica delas é a chamada, não a resposta — e quando importa falhar,
-/// falham todas juntas (o teste de 422).
+/// Stub do cadastro, das três operações de valor e da exclusão. Quando importa
+/// falhar, [result] derruba as quatro últimas juntas (o teste de 422). No
+/// sucesso, reajuste, correção e encerramento devolvem [updateResult] — o
+/// salário, se o teste não passar outro.
 void stubIncomeOperations(
   MockIncomeRepository mock, {
   Result<bool, Failure> result = const Success(true),
@@ -335,10 +323,17 @@ void stubIncomeOperations(
   // ganho (GAN-11), o padrão sai de um `fromJson` — que não é const, e
   // parâmetro opcional exige const.
   Result<IncomeModel, Failure>? createResult,
+  Result<IncomeModel, Failure>? updateResult,
   Future<void>? pendenteAte,
 }) {
   final criado =
       createResult ?? Success(IncomeModel.fromJson(createdIncomeJson));
+  final atualizado =
+      updateResult ??
+      result.when<Result<IncomeModel, Failure>>(
+        (_) => Success(IncomeModel.fromJson(salaryJson)),
+        Error.new,
+      );
 
   Future<T> answer<T>(T value) async {
     if (pendenteAte != null) await pendenteAte;
@@ -359,32 +354,39 @@ void stubIncomeOperations(
       any(),
       amountCents: any(named: 'amountCents'),
       effectiveFrom: any(named: 'effectiveFrom'),
+      month: any(named: 'month'),
     ),
-  ).thenAnswer((_) => answer(result));
+  ).thenAnswer((_) => answer(atualizado));
 
   when(
-    () => mock.correct(any(), amountCents: any(named: 'amountCents')),
-  ).thenAnswer((_) => answer(result));
+    () => mock.correct(
+      any(),
+      amountCents: any(named: 'amountCents'),
+      month: any(named: 'month'),
+    ),
+  ).thenAnswer((_) => answer(atualizado));
 
   when(
-    () => mock.close(any(), lastMonth: any(named: 'lastMonth')),
-  ).thenAnswer((_) => answer(result));
+    () => mock.close(
+      any(),
+      lastMonth: any(named: 'lastMonth'),
+      month: any(named: 'month'),
+    ),
+  ).thenAnswer((_) => answer(atualizado));
 
   when(() => mock.delete(any())).thenAnswer((_) => answer(result));
 }
 
-/// Mock de ganhos pronto: lista de exemplo, detalhe do salário e as operações
-/// respondendo sucesso.
+/// Mock de ganhos pronto: lista de exemplo e as operações respondendo
+/// sucesso.
 MockIncomeRepository incomeRepositoryMock({
   Result<List<IncomeModel>, Failure>? list,
-  Result<IncomeModel, Failure>? detail,
   Result<bool, Failure> operations = const Success(true),
   Result<IncomeModel, Failure>? create,
   Future<void>? pendenteAte,
 }) {
   final mock = MockIncomeRepository();
   stubIncomeList(mock, result: list, pendenteAte: pendenteAte);
-  stubIncomeDetail(mock, result: detail);
   stubIncomeOperations(
     mock,
     result: operations,

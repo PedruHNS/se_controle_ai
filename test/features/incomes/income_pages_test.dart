@@ -1,13 +1,16 @@
+import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/config/globals.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/incomes/view/income_detail_page.dart';
 import 'package:se_controle_ai/features/incomes/view/income_list_page.dart';
 
@@ -17,9 +20,14 @@ import '../../fixtures/test_injector.dart';
 
 void main() {
   late MockIncomeRepository repository;
+  late MockNavigationService nav;
 
   setUp(() {
     repository = setupIncomeTestInjector();
+    // O dublê é um só para a suíte inteira: sem limpar, o `pop` de um teste
+    // contaria no seguinte.
+    nav = getIt<NavigationService>() as MockNavigationService;
+    clearInteractions(nav);
   });
 
   Future<void> pumpList(WidgetTester tester) async {
@@ -28,10 +36,14 @@ void main() {
   }
 
   /// Abre o detalhe com o ganho que a lista entregaria pelo `extra` da rota —
-  /// o salário, a não ser que o teste passe outro.
+  /// o salário, a não ser que o teste passe outro. O `navigatorKey` é o do app
+  /// porque a falha sai em toast, e o toast procura o contexto por ele. Quem
+  /// fecha diálogo e tela é o `NavigationService` dublê, então os dois ficam
+  /// montados e o teste confere o `pop`.
   Future<void> pumpDetail(WidgetTester tester, {IncomeModel? income}) async {
     await tester.pumpWidget(
       MaterialApp(
+        navigatorKey: Globals.navigatorKey,
         home: IncomeDetailPage(
           income:
               income ?? IncomeModel.fromJson({...salaryJson, 'id': 'income-1'}),
@@ -206,7 +218,6 @@ void main() {
       await pumpDetail(tester);
 
       expect(find.text('Salário'), findsOneWidget);
-      verifyNever(() => repository.getById(any(), month: any(named: 'month')));
     });
 
     testWidgets('ganho aberto oferece as quatro ações', (tester) async {
@@ -263,9 +274,11 @@ void main() {
           'income-1',
           amountCents: 550000,
           effectiveFrom: MonthUtils.current(),
+          month: any(named: 'month'),
         ),
       ).called(1);
-      expect(find.byType(AlertDialog), findsNothing);
+      // O diálogo e a tela do detalhe: quem mostra o valor novo é a lista.
+      verify(() => nav.pop()).called(2);
     });
 
     testWidgets('correção manda só o valor, e já vem preenchida', (
@@ -285,18 +298,23 @@ void main() {
       await tester.pumpAndSettle();
 
       verify(
-        () => repository.correct('income-1', amountCents: 480000),
+        () => repository.correct(
+          'income-1',
+          amountCents: 480000,
+          month: any(named: 'month'),
+        ),
       ).called(1);
       verifyNever(
         () => repository.adjust(
           any(),
           amountCents: any(named: 'amountCents'),
           effectiveFrom: any(named: 'effectiveFrom'),
+          month: any(named: 'month'),
         ),
       );
     });
 
-    testWidgets('422 aparece dentro do diálogo, que continua aberto', (
+    testWidgets('422 avisa por toast, e o diálogo continua aberto', (
       tester,
     ) async {
       stubIncomeOperations(
@@ -319,10 +337,17 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
+      verifyNever(() => nav.pop());
+      expect(find.byType(Flushbar), findsOneWidget);
       expect(
         find.text('Reajuste para o mesmo valor já vigente.'),
         findsOneWidget,
       );
+
+      // O toast some sozinho em 3s; sem esperar, o teste acaba com o timer do
+      // Flushbar pendente.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('excluir pede confirmação antes de apagar', (tester) async {
@@ -338,6 +363,20 @@ void main() {
       await tester.pumpAndSettle();
 
       verifyNever(() => repository.delete(any()));
+    });
+
+    // Quem exclui é o controller da lista: o ganho sai dela, e o `pop` tira a
+    // tela do detalhe.
+    testWidgets('excluir confirmado apaga e sai da tela', (tester) async {
+      await pumpDetail(tester);
+
+      await tester.tap(find.text('Excluir'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Excluir'));
+      await tester.pumpAndSettle();
+
+      verify(() => repository.delete('income-1')).called(1);
+      verify(() => nav.pop()).called(1);
     });
   });
 }

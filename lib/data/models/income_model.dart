@@ -6,7 +6,9 @@ class IncomeModel {
   final bool recurring;
   final String startMonth;
   final String? endMonth;
-  final int amountCents;
+
+  /// Nulo quando o ganho não vigora na competência pedida (GAN-12).
+  final int? amountCents;
   final List<AmountVersionModel> history;
   const IncomeModel({
     required this.id,
@@ -24,7 +26,7 @@ class IncomeModel {
     recurring: json['recurring'] as bool,
     startMonth: json['startMonth'] as String,
     endMonth: json['endMonth'] as String?,
-    amountCents: json['amountCents'] as int,
+    amountCents: json['amountCents'] as int?,
     history: (json['history'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
         .map(AmountVersionModel.fromJson)

@@ -8,20 +8,28 @@ import '../models/income_model.dart';
 
 abstract interface class IncomeRepository {
   Future<Result<List<IncomeModel>, Failure>> list({required String month});
-  Future<Result<IncomeModel, Failure>> getById(String id, {String? month});
   Future<Result<IncomeModel, Failure>> create({
     required String description,
     required int amountCents,
     required String startMonth,
     bool recurring = true,
   });
-  Future<Result<bool, Failure>> adjust(
+  Future<Result<IncomeModel, Failure>> adjust(
     String id, {
     required int amountCents,
     required String effectiveFrom,
+    required String month,
   });
-  Future<Result<bool, Failure>> correct(String id, {required int amountCents});
-  Future<Result<bool, Failure>> close(String id, {required String lastMonth});
+  Future<Result<IncomeModel, Failure>> correct(
+    String id, {
+    required int amountCents,
+    required String month,
+  });
+  Future<Result<IncomeModel, Failure>> close(
+    String id, {
+    required String lastMonth,
+    required String month,
+  });
   Future<Result<bool, Failure>> delete(String id);
 }
 
@@ -39,24 +47,6 @@ class IncomeRepositoryImpl implements IncomeRepository {
         queryParameters: {'month': month},
       );
       return Success(Decode.listOf(response.data, IncomeModel.fromJson));
-    } on AppException catch (exception) {
-      return Error(Failure.fromException(exception));
-    } catch (error, stackTrace) {
-      return Error(serializationFailure(error, stackTrace));
-    }
-  }
-
-  @override
-  Future<Result<IncomeModel, Failure>> getById(
-    String id, {
-    String? month,
-  }) async {
-    try {
-      final response = await _api.get(
-        '/incomes/$id',
-        queryParameters: {'month': month},
-      );
-      return Success(IncomeModel.fromJson(Decode.object(response.data)));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
@@ -89,18 +79,22 @@ class IncomeRepositoryImpl implements IncomeRepository {
     }
   }
 
+  /// As três operações de valor devolvem o ganho como ficou (GAN-12), com o
+  /// `amountCents` de [month] — nulo se ele deixou de vigorar ali.
   @override
-  Future<Result<bool, Failure>> adjust(
+  Future<Result<IncomeModel, Failure>> adjust(
     String id, {
     required int amountCents,
     required String effectiveFrom,
+    required String month,
   }) async {
     try {
-      await _api.post(
+      final response = await _api.post(
         '/incomes/$id/adjustments',
         data: {'amountCents': amountCents, 'effectiveFrom': effectiveFrom},
+        queryParameters: {'month': month},
       );
-      return Success(true);
+      return Success(IncomeModel.fromJson(Decode.object(response.data)));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
@@ -109,16 +103,18 @@ class IncomeRepositoryImpl implements IncomeRepository {
   }
 
   @override
-  Future<Result<bool, Failure>> correct(
+  Future<Result<IncomeModel, Failure>> correct(
     String id, {
     required int amountCents,
+    required String month,
   }) async {
     try {
-      await _api.patch(
+      final response = await _api.patch(
         '/incomes/$id/amount',
         data: {'amountCents': amountCents},
+        queryParameters: {'month': month},
       );
-      return Success(true);
+      return Success(IncomeModel.fromJson(Decode.object(response.data)));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {
@@ -127,13 +123,18 @@ class IncomeRepositoryImpl implements IncomeRepository {
   }
 
   @override
-  Future<Result<bool, Failure>> close(
+  Future<Result<IncomeModel, Failure>> close(
     String id, {
     required String lastMonth,
+    required String month,
   }) async {
     try {
-      await _api.post('/incomes/$id/closure', data: {'lastMonth': lastMonth});
-      return Success(true);
+      final response = await _api.post(
+        '/incomes/$id/closure',
+        data: {'lastMonth': lastMonth},
+        queryParameters: {'month': month},
+      );
+      return Success(IncomeModel.fromJson(Decode.object(response.data)));
     } on AppException catch (exception) {
       return Error(Failure.fromException(exception));
     } catch (error, stackTrace) {

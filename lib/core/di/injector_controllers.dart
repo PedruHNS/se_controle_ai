@@ -76,10 +76,15 @@ void _registerControllers() {
   // factory — e, como factory não aceita o `dispose:` do get_it, quem libera é o
   // `dispose` da página.
   //
-  // Ele recebe o id pelo `start`, e não pelo registro: id é dado de rota, e quem
-  // o conhece é a view.
+  // Ele recebe o ganho pelo `start`, e não pelo registro: o ganho chega pelo
+  // `extra` da rota, e quem o conhece é a view.
   getIt.registerFactory<IncomeDetailController>(
-    () => IncomeDetailController(repository: getIt<IncomeRepository>()),
+    () => IncomeDetailController(
+      repository: getIt<IncomeRepository>(),
+      nav: getIt<NavigationService>(),
+      selectedMonth: getIt<SelectedMonthService>(),
+      incomeController: getIt<IncomeController>(),
+    ),
   );
 
   // Cartões têm **um** controller, como tags: a lista e o formulário no mesmo

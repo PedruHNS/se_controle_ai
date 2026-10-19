@@ -53,7 +53,7 @@ class IncomeTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            MoneyUtils.format(income.amountCents),
+            MoneyUtils.format(income.amountCents ?? 0),
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.primary,
             ),

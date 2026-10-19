@@ -7,185 +7,168 @@ import 'package:se_controle_ai/core/errors/app_exception.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
+import 'package:se_controle_ai/data/services/selected_month_service.dart';
+import 'package:se_controle_ai/features/incomes/controller/income_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_detail_controller.dart';
 
 import '../../fixtures/income_fixture.dart';
 import '../../fixtures/mocks.dart';
 
-/// O ganho que a lista entrega ao detalhe pelo `extra` da rota.
-final salario = IncomeModel.fromJson({...salaryJson, 'id': 'income-1'});
-
 void main() {
+  // A falha avisa por toast, e o toast procura o contexto do `navigatorKey`
+  // global — o que só existe com binding inicializado.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockIncomeRepository repository;
+  late MockNavigationService nav;
+  late SelectedMonthService month;
+  late IncomeController incomes;
   late IncomeDetailController controller;
 
-  setUp(() {
+  /// A lista no estado em que está agora.
+  List<IncomeModel> naLista() =>
+      (incomes.state.value as Loaded<List<IncomeModel>>).data;
+
+  /// O ganho que a lista entrega ao detalhe pelo `extra` da rota.
+  IncomeModel salario() =>
+      naLista().firstWhere((i) => i.description == 'Salário');
+
+  setUp(() async {
     repository = incomeRepositoryMock();
-    controller = IncomeDetailController(repository: repository);
+    nav = navigationServiceMock();
+    month = SelectedMonthService();
+    incomes = IncomeController(
+      repository: repository,
+      selectedMonth: month,
+      navigationService: nav,
+    );
+    await pumpEventQueue();
+
+    controller = IncomeDetailController(
+      repository: repository,
+      nav: nav,
+      selectedMonth: month,
+      incomeController: incomes,
+    );
     // O ganho vem da rota, então quem o entrega é a view. No teste, o `start`
     // ocupa esse papel.
-    controller.start(salario);
+    controller.start(salario());
+    clearInteractions(repository);
   });
 
-  tearDown(() => controller.dispose());
-
-  group('start', () {
-    // A lista já trouxe o ganho com o histórico: abrir o detalhe não volta ao
-    // servidor.
-    test('mostra o ganho que veio da lista, sem buscar de novo', () {
-      verifyNever(() => repository.getById(any(), month: any(named: 'month')));
-      expect(controller.state.value, isA<Loaded<IncomeModel>>());
-      expect(
-        (controller.state.value as Loaded<IncomeModel>).data.description,
-        'Salário',
-      );
-    });
-
-    test('construir não busca nada — sem id não há o que buscar', () {
-      final fresh = MockIncomeRepository();
-      stubIncomeDetail(fresh);
-      addTearDown(IncomeDetailController(repository: fresh).dispose);
-
-      verifyNever(() => fresh.getById(any(), month: any(named: 'month')));
-    });
-
-    test(
-      'o id do start é o usado por load, refresh e pelas operações',
-      () async {
-        await controller.refresh();
-        await controller.correct(amountCents: 1000);
-
-        expect(controller.id, 'income-1');
-        verify(
-          () => repository.getById('income-1', month: null),
-        ).called(greaterThan(1));
-        verify(
-          () => repository.correct('income-1', amountCents: 1000),
-        ).called(1);
-      },
-    );
+  tearDown(() {
+    controller.dispose();
+    incomes.dispose();
+    month.dispose();
   });
 
-  group('refresh', () {
-    test('passa por Loading e volta ao ganho', () async {
-      final segura = Completer<void>();
-      stubIncomeDetail(repository, pendenteAte: segura.future);
+  test('o id do start é o que as operações usam', () async {
+    await controller.correct(amountCents: 1000);
 
-      final pending = controller.refresh();
+    expect(controller.id, salario().id);
+    verify(
+      () => repository.correct(
+        salario().id,
+        amountCents: 1000,
+        month: any(named: 'month'),
+      ),
+    ).called(1);
+  });
 
-      expect(controller.state.value, isA<Loading<IncomeModel>>());
-      segura.complete();
-      await pending;
-      expect(controller.state.value, isA<Loaded<IncomeModel>>());
-    });
+  // O valor devolvido vem no mês da lista, para entrar nela sem conta no app.
+  test('as operações mandam o mês selecionado na home', () async {
+    month.select('2026-12');
 
-    // É o que o "tentar de novo" do cartão de falha chama.
-    test('depois de uma falha volta a mostrar o ganho', () async {
-      stubIncomeDetail(
-        repository,
-        result: Error(
-          Failure.fromException(const NetworkException(message: 'sem rede')),
-        ),
-      );
-      await controller.refresh();
-      expect(controller.state.value, isA<Failed<IncomeModel>>());
+    await controller.close(lastMonth: '2026-12');
 
-      stubIncomeDetail(repository);
-      await controller.refresh();
-
-      expect(controller.state.value, isA<Loaded<IncomeModel>>());
-    });
-
-    test(
-      'resposta que chega depois do dispose é descartada, sem lançar',
-      () async {
-        // A página libera o controller ao sair da tela, e a busca pode ainda
-        // estar em voo. Escrever no signal liberado lançaria um erro que ninguém
-        // captura.
-        final segura = Completer<void>();
-        final lenta = incomeRepositoryMock();
-        stubIncomeDetail(lenta, pendenteAte: segura.future);
-        final saiu = IncomeDetailController(repository: lenta);
-
-        saiu.start(salario);
-        final pending = saiu.refresh();
-        saiu.dispose();
-        segura.complete();
-        await pending;
-      },
-    );
+    verify(
+      () => repository.close(any(), lastMonth: '2026-12', month: '2026-12'),
+    ).called(1);
   });
 
   group('reajuste e correção são chamadas diferentes', () {
-    // As duas devolvem o mesmo Success — o que as distingue é o que foi
-    // enviado. Por isso a asserção é sobre a chamada, não sobre o retorno.
+    // O que as distingue é o que foi enviado. Por isso a asserção é sobre a
+    // chamada, não sobre o retorno.
     test('reajuste manda o mês de vigência', () async {
-      final failure = await controller.adjust(
-        amountCents: 550000,
-        effectiveFrom: '2026-11',
-      );
+      await controller.adjust(amountCents: 550000, effectiveFrom: '2026-11');
 
-      expect(failure, isNull);
       verify(
         () => repository.adjust(
-          'income-1',
+          any(),
           amountCents: 550000,
           effectiveFrom: '2026-11',
+          month: any(named: 'month'),
         ),
       ).called(1);
       verifyNever(
-        () => repository.correct(any(), amountCents: any(named: 'amountCents')),
+        () => repository.correct(
+          any(),
+          amountCents: any(named: 'amountCents'),
+          month: any(named: 'month'),
+        ),
       );
     });
 
-    test('correção manda só o valor — não tem mês', () async {
-      final failure = await controller.correct(amountCents: 480000);
+    test('correção manda só o valor — não tem mês de vigência', () async {
+      await controller.correct(amountCents: 480000);
 
-      expect(failure, isNull);
       verify(
-        () => repository.correct('income-1', amountCents: 480000),
+        () => repository.correct(
+          any(),
+          amountCents: 480000,
+          month: any(named: 'month'),
+        ),
       ).called(1);
       verifyNever(
         () => repository.adjust(
           any(),
           amountCents: any(named: 'amountCents'),
           effectiveFrom: any(named: 'effectiveFrom'),
+          month: any(named: 'month'),
         ),
       );
     });
   });
 
   test('encerramento manda o último mês recebido', () async {
-    final failure = await controller.close(lastMonth: '2026-12');
+    await controller.close(lastMonth: '2026-12');
 
-    expect(failure, isNull);
-    verify(() => repository.close('income-1', lastMonth: '2026-12')).called(1);
+    verify(
+      () => repository.close(
+        any(),
+        lastMonth: '2026-12',
+        month: any(named: 'month'),
+      ),
+    ).called(1);
   });
 
-  test(
-    'operação bem-sucedida recarrega — o 204 não traz o estado novo',
-    () async {
-      stubIncomeDetail(
-        repository,
-        result: Success(IncomeModel.fromJson(adjustedSalaryJson)),
-      );
+  // GAN-12: a operação devolve o ganho como ficou, e ele vai para a lista.
+  group('operação que deu certo', () {
+    test('o ganho devolvido toma o lugar do antigo na lista', () async {
+      final reajustado = IncomeModel.fromJson({
+        ...adjustedSalaryJson,
+        'id': salario().id,
+      });
+      stubIncomeOperations(repository, updateResult: Success(reajustado));
 
       await controller.adjust(amountCents: 550000, effectiveFrom: '2026-11');
 
-      final state = controller.state.value as Loaded<IncomeModel>;
-      expect(state.data.amountCents, 550000);
-      expect(state.data.history, hasLength(2));
-    },
-  );
+      expect(naLista(), hasLength(2));
+      expect(salario().amountCents, 550000);
+      expect(salario().history, hasLength(2));
+    });
 
-  test('exclusão não recarrega — o ganho deixou de existir', () async {
-    clearInteractions(repository);
+    test('nem a lista nem o ganho são buscados de novo', () async {
+      await controller.correct(amountCents: 1000);
 
-    final failure = await controller.delete();
+      verifyNever(() => repository.list(month: any(named: 'month')));
+    });
 
-    expect(failure, isNull);
-    verify(() => repository.delete('income-1')).called(1);
-    verifyNever(() => repository.getById(any(), month: any(named: 'month')));
+    test('fecha o diálogo e a tela do detalhe', () async {
+      await controller.close(lastMonth: '2026-12');
+
+      verify(() => nav.pop()).called(2);
+    });
   });
 
   group('recusa do backend', () {
@@ -204,27 +187,14 @@ void main() {
       );
     });
 
-    test(
-      'devolve a falha para o diálogo, em vez de guardá-la no estado',
-      () async {
-        final failure = await controller.adjust(
-          amountCents: 550000,
-          effectiveFrom: '2026-01',
-        );
+    // O recado sai por toast — quem o vê é o teste da página.
+    test('deixa o diálogo aberto e a lista como estava', () async {
+      final antes = naLista();
 
-        expect(failure, isA<DomainRuleFailure>());
-        expect(failure!.message, 'Reajuste precisa valer de um mês posterior.');
-        // A tela continua mostrando o ganho: quem falhou foi a ação, não a busca.
-        expect(controller.state.value, isA<Loaded<IncomeModel>>());
-      },
-    );
+      await controller.adjust(amountCents: 550000, effectiveFrom: '2026-01');
 
-    test('falha não recarrega — não há estado novo para buscar', () async {
-      clearInteractions(repository);
-
-      await controller.correct(amountCents: 1000);
-
-      verifyNever(() => repository.getById(any(), month: any(named: 'month')));
+      verifyNever(() => nav.pop());
+      expect(naLista(), same(antes));
     });
   });
 
@@ -237,6 +207,19 @@ void main() {
     expect(controller.working.value, isTrue);
     segura.complete();
     await pending;
+    expect(controller.working.value, isFalse);
+  });
+
+  test('working desliga também quando a operação falha', () async {
+    stubIncomeOperations(
+      repository,
+      result: Error(
+        Failure.fromException(const NetworkException(message: 'sem rede')),
+      ),
+    );
+
+    await controller.correct(amountCents: 1000);
+
     expect(controller.working.value, isFalse);
   });
 }

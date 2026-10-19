@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../core/shared/view_state.dart';
 import '../../../core/shared/widgets/amount_history_card.dart';
-import '../../../core/shared/widgets/failure_card_widget.dart';
-import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/income_model.dart';
+import '../controller/income_controller.dart';
 import '../controller/income_detail_controller.dart';
 import '../widgets/income_amount_dialog.dart';
 import '../widgets/income_closure_dialog.dart';
@@ -24,6 +22,9 @@ class IncomeDetailPage extends StatefulWidget {
 
 class _IncomeDetailPageState extends State<IncomeDetailPage> {
   final _controller = getIt<IncomeDetailController>();
+
+  /// O da lista, que é quem exclui: o ganho sai dela sem buscar de novo.
+  final _incomeController = getIt<IncomeController>();
 
   @override
   void initState() {
@@ -60,69 +61,40 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true) return;
 
-    final failure = await _controller.delete();
-
-    if (!mounted) return;
-
-    if (failure != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failure.message)));
-      return;
-    }
-
-    Navigator.of(context).pop();
+    await _incomeController.delete(income.id);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Ganho'), centerTitle: true),
+      // O ganho é o que veio da lista: a tela não busca nem muda nada nele, e
+      // quem mostra o resultado de uma operação é a lista, ao voltar.
       body: SignalBuilder(
-        builder: (context) {
-          final state = _controller.state.value;
-
-          return StateTransition(
-            stateKey: state.runtimeType,
-            child: switch (state) {
-              Loading() => const Center(child: CircularProgressIndicator()),
-              Failed(failure: final failure) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FailureCardWidget(
-                    failure: failure,
-                    onRetry: _controller.refresh,
-                  ),
-                ),
-              ),
-              Loaded(data: final income) => _IncomeDetail(
-                income: income,
-                working: _controller.working.value,
-                onRefresh: _controller.refresh,
-                onAdjust: () => showIncomeAmountDialog(
-                  context,
-                  controller: _controller,
-                  income: income,
-                  mode: IncomeAmountMode.adjust,
-                ),
-                onCorrect: () => showIncomeAmountDialog(
-                  context,
-                  controller: _controller,
-                  income: income,
-                  mode: IncomeAmountMode.correct,
-                ),
-                onClose: () => showIncomeClosureDialog(
-                  context,
-                  controller: _controller,
-                  income: income,
-                ),
-                onDelete: () => _confirmDelete(income),
-              ),
-            },
-          );
-        },
+        builder: (context) => _IncomeDetail(
+          income: widget.income,
+          working: _controller.working.value,
+          onAdjust: () => showIncomeAmountDialog(
+            context,
+            controller: _controller,
+            income: widget.income,
+            mode: IncomeAmountMode.adjust,
+          ),
+          onCorrect: () => showIncomeAmountDialog(
+            context,
+            controller: _controller,
+            income: widget.income,
+            mode: IncomeAmountMode.correct,
+          ),
+          onClose: () => showIncomeClosureDialog(
+            context,
+            controller: _controller,
+            income: widget.income,
+          ),
+          onDelete: () => _confirmDelete(widget.income),
+        ),
       ),
     );
   }
@@ -132,7 +104,6 @@ class _IncomeDetail extends StatelessWidget {
   const _IncomeDetail({
     required this.income,
     required this.working,
-    required this.onRefresh,
     required this.onAdjust,
     required this.onCorrect,
     required this.onClose,
@@ -141,7 +112,6 @@ class _IncomeDetail extends StatelessWidget {
 
   final IncomeModel income;
   final bool working;
-  final Future<void> Function() onRefresh;
   final VoidCallback onAdjust;
   final VoidCallback onCorrect;
   final VoidCallback onClose;
@@ -156,91 +126,87 @@ class _IncomeDetail extends StatelessWidget {
     // com `endMonth` e ainda entra no mês dele.
     final closed = income.endMonth != null;
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(income.description, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Text(
-                    MoneyUtils.format(income.amountCents),
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(income.description, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  MoneyUtils.format(income.amountCents ?? 0),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: theme.colorScheme.primary,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    closed
-                        ? 'Encerrado em ${MonthUtils.label(income.endMonth!)}'
-                        : income.recurring
-                        ? 'Recorrente desde ${MonthUtils.label(income.startMonth)}'
-                        : 'Mês único — ${MonthUtils.label(income.startMonth)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  closed
+                      ? 'Encerrado em ${MonthUtils.label(income.endMonth!)}'
+                      : income.recurring
+                      ? 'Recorrente desde ${MonthUtils.label(income.startMonth)}'
+                      : 'Mês único — ${MonthUtils.label(income.startMonth)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+        ),
+        const SizedBox(height: 16),
 
-          // Ganho encerrado não aceita reajuste, correção nem encerramento
-          // (GAN-08). Some com os botões em vez de deixar o usuário levar 422.
-          if (!closed) ...[
-            _ActionCard(
-              icon: Icons.trending_up,
-              title: 'Reajustar',
-              subtitle:
-                  'Recebi um aumento a partir de um mês. O passado fica '
-                  'como está.',
-              onTap: working ? null : onAdjust,
-            ),
-            const SizedBox(height: 8),
-            _ActionCard(
-              icon: Icons.edit_outlined,
-              title: 'Corrigir valor',
-              subtitle:
-                  'O valor estava errado. Vale também para os meses que '
-                  'já passaram.',
-              onTap: working ? null : onCorrect,
-            ),
-            const SizedBox(height: 8),
-            _ActionCard(
-              icon: Icons.event_busy_outlined,
-              title: 'Encerrar',
-              subtitle: 'Parei de receber. O histórico continua.',
-              onTap: working ? null : onClose,
-            ),
-            const SizedBox(height: 8),
-          ],
-
+        // Ganho encerrado não aceita reajuste, correção nem encerramento
+        // (GAN-08). Some com os botões em vez de deixar o usuário levar 422.
+        if (!closed) ...[
           _ActionCard(
-            icon: Icons.delete_outline,
-            title: 'Excluir',
-            subtitle: 'Cadastrei errado. Apaga o ganho e todo o histórico.',
-            destructive: true,
-            onTap: working ? null : onDelete,
+            icon: Icons.trending_up,
+            title: 'Reajustar',
+            subtitle:
+                'Recebi um aumento a partir de um mês. O passado fica '
+                'como está.',
+            onTap: working ? null : onAdjust,
           ),
-
-          // A linha do tempo só aparece quando há mais de uma vigência para
-          // comparar.
-          if (income.history.length > 1) ...[
-            const SizedBox(height: 16),
-            AmountHistoryCard(history: income.history),
-          ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          _ActionCard(
+            icon: Icons.edit_outlined,
+            title: 'Corrigir valor',
+            subtitle:
+                'O valor estava errado. Vale também para os meses que '
+                'já passaram.',
+            onTap: working ? null : onCorrect,
+          ),
+          const SizedBox(height: 8),
+          _ActionCard(
+            icon: Icons.event_busy_outlined,
+            title: 'Encerrar',
+            subtitle: 'Parei de receber. O histórico continua.',
+            onTap: working ? null : onClose,
+          ),
+          const SizedBox(height: 8),
         ],
-      ),
+
+        _ActionCard(
+          icon: Icons.delete_outline,
+          title: 'Excluir',
+          subtitle: 'Cadastrei errado. Apaga o ganho e todo o histórico.',
+          destructive: true,
+          onTap: working ? null : onDelete,
+        ),
+
+        // A linha do tempo só aparece quando há mais de uma vigência para
+        // comparar.
+        if (income.history.length > 1) ...[
+          const SizedBox(height: 16),
+          AmountHistoryCard(history: income.history),
+        ],
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

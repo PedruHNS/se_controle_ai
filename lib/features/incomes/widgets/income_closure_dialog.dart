@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:signals/signals_flutter.dart';
 
-import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
@@ -10,17 +10,19 @@ import '../controller/income_detail_controller.dart';
 
 /// Encerramento: o ganho existiu e parou. Diferente de excluir, que apaga o
 /// histórico como se nunca tivesse existido (GAN-07 vs. GAN-09).
-Future<bool> showIncomeClosureDialog(
+///
+/// Quem fecha o diálogo no sucesso é o controller; na falha ele fica aberto, e
+/// o recado sai por toast.
+Future<void> showIncomeClosureDialog(
   BuildContext context, {
   required IncomeDetailController controller,
   required IncomeModel income,
-}) async {
-  final applied = await showDialog<bool>(
+}) {
+  return showDialog<void>(
     context: context,
     builder: (context) =>
         _IncomeClosureDialog(controller: controller, income: income),
   );
-  return applied ?? false;
 }
 
 class _IncomeClosureDialog extends StatefulWidget {
@@ -42,9 +44,6 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
       validators: [Validators.required],
     ),
   });
-
-  String? _generalError;
-  bool _sending = false;
 
   /// O último mês não pode ser anterior ao início da vigência atual (GAN-07).
   /// Diferente do reajuste, aqui o próprio mês de início é permitido.
@@ -71,39 +70,9 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
       return;
     }
 
-    setState(() {
-      _sending = true;
-      _generalError = null;
-    });
-
-    final failure = await widget.controller.close(
+    await widget.controller.close(
       lastMonth: _form.control(_lastMonth).value as String,
     );
-
-    if (!mounted) return;
-
-    if (failure == null) {
-      Navigator.of(context).pop(true);
-      return;
-    }
-
-    setState(() {
-      _sending = false;
-      _generalError = _applyFailure(failure);
-    });
-  }
-
-  String? _applyFailure(Failure failure) {
-    if (failure is ValidationFailure && failure.issues.isNotEmpty) {
-      for (final issue in failure.issues) {
-        if (!_form.contains(issue.path)) continue;
-        _form.control(issue.path)
-          ..setErrors({'backend': issue.message})
-          ..markAsTouched();
-        return null;
-      }
-    }
-    return failure.message;
   }
 
   @override
@@ -130,26 +99,23 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
               formControlName: _lastMonth,
               label: 'Último mês recebido',
             ),
-            if (_generalError != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _generalError!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ],
           ],
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _sending ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+        SignalBuilder(
+          builder: (context) => TextButton(
+            onPressed: widget.controller.working.value
+                ? null
+                : () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
         ),
-        FilledButton(
-          onPressed: _sending ? null : _send,
-          child: const Text('Encerrar'),
+        SignalBuilder(
+          builder: (context) => FilledButton(
+            onPressed: widget.controller.working.value ? null : _send,
+            child: const Text('Encerrar'),
+          ),
         ),
       ],
     );

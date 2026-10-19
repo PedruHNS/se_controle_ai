@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:signals/signals_flutter.dart';
 
-import '../../../core/errors/failure.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
@@ -22,19 +22,19 @@ enum IncomeAmountMode {
   correct,
 }
 
-/// Abre o diálogo e devolve `true` se a operação foi aplicada.
-Future<bool> showIncomeAmountDialog(
+/// Abre o diálogo. Quem o fecha no sucesso é o controller; na falha ele fica
+/// aberto, e o recado sai por toast.
+Future<void> showIncomeAmountDialog(
   BuildContext context, {
   required IncomeDetailController controller,
   required IncomeModel income,
   required IncomeAmountMode mode,
-}) async {
-  final applied = await showDialog<bool>(
+}) {
+  return showDialog<void>(
     context: context,
     builder: (context) =>
         _IncomeAmountDialog(controller: controller, income: income, mode: mode),
   );
-  return applied ?? false;
 }
 
 class _IncomeAmountDialog extends StatefulWidget {
@@ -69,9 +69,6 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
     ),
   });
 
-  String? _generalError;
-  bool _sending = false;
-
   bool get _isAdjust => widget.mode == IncomeAmountMode.adjust;
 
   /// Reajuste precisa valer de um mês **posterior** ao início da vigência
@@ -103,51 +100,16 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
       return;
     }
 
-    setState(() {
-      _sending = true;
-      _generalError = null;
-    });
-
     final cents = _form.control(_amount).value as int;
-    final failure = _isAdjust
-        ? await widget.controller.adjust(
-            amountCents: cents,
-            effectiveFrom: _form.control(_effectiveFrom).value as String,
-          )
-        : await widget.controller.correct(amountCents: cents);
 
-    if (!mounted) return;
-
-    if (failure == null) {
-      Navigator.of(context).pop(true);
-      return;
+    if (_isAdjust) {
+      await widget.controller.adjust(
+        amountCents: cents,
+        effectiveFrom: _form.control(_effectiveFrom).value as String,
+      );
+    } else {
+      await widget.controller.correct(amountCents: cents);
     }
-
-    setState(() {
-      _sending = false;
-      // 400 vem campo a campo e desce para o campo; 422 traz a regra de
-      // negócio já em português, e ela não pertence a campo nenhum.
-      _generalError = _applyFailure(failure);
-    });
-  }
-
-  /// Devolve a mensagem que sobra para o rodapé do diálogo, ou null se tudo o
-  /// que veio já foi pendurado num campo.
-  String? _applyFailure(Failure failure) {
-    if (failure is! ValidationFailure || failure.issues.isEmpty) {
-      return failure.message;
-    }
-
-    var placed = false;
-    for (final issue in failure.issues) {
-      if (!_form.contains(issue.path)) continue;
-      _form.control(issue.path)
-        ..setErrors({'backend': issue.message})
-        ..markAsTouched();
-      placed = true;
-    }
-
-    return placed ? null : failure.message;
   }
 
   @override
@@ -185,26 +147,23 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
                 label: 'A partir de',
               ),
             ],
-            if (_generalError != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _generalError!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ],
           ],
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _sending ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+        SignalBuilder(
+          builder: (context) => TextButton(
+            onPressed: widget.controller.working.value
+                ? null
+                : () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
         ),
-        FilledButton(
-          onPressed: _sending ? null : _send,
-          child: Text(_isAdjust ? 'Reajustar' : 'Corrigir'),
+        SignalBuilder(
+          builder: (context) => FilledButton(
+            onPressed: widget.controller.working.value ? null : _send,
+            child: Text(_isAdjust ? 'Reajustar' : 'Corrigir'),
+          ),
         ),
       ],
     );

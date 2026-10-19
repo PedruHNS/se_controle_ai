@@ -366,9 +366,6 @@ void main() {
         await controller.submit();
 
         expect(loadedIncomes().map((i) => i.id), contains('novo-id'));
-        verifyNever(
-          () => repository.getById(any(), month: any(named: 'month')),
-        );
         verifyNever(() => repository.list(month: any(named: 'month')));
       },
     );
@@ -409,6 +406,91 @@ void main() {
 
       expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
       verifyNever(() => repository.list(month: any(named: 'month')));
+    });
+  });
+
+  // Reajuste, correção e encerramento saem do detalhe com o ganho como ficou
+  // (GAN-12), e é a lista que o recebe.
+  group('replace', () {
+    IncomeModel comoFicou(IncomeModel antes, {int? amountCents}) =>
+        IncomeModel.fromJson({
+          ...salaryJson,
+          'id': antes.id,
+          'description': antes.description,
+          'amountCents': amountCents,
+        });
+
+    test('o ganho toma o lugar do antigo, na mesma posição', () {
+      final antes = loadedIncomes();
+
+      controller.replace(comoFicou(antes.last, amountCents: 123));
+
+      expect(loadedIncomes().map((i) => i.id), antes.map((i) => i.id));
+      expect(loadedIncomes().last.amountCents, 123);
+    });
+
+    // GAN-12: `amountCents` nulo diz que ele deixou de vigorar no mês exibido.
+    test('ganho que deixou de vigorar no mês sai da lista', () {
+      final encerrado = loadedIncomes().first;
+
+      controller.replace(comoFicou(encerrado));
+
+      expect(loadedIncomes().map((i) => i.id), isNot(contains(encerrado.id)));
+      expect(loadedIncomes(), hasLength(1));
+    });
+
+    test('lista que não está na tela fica como estava', () async {
+      stubIncomeList(repository, result: semRede());
+      await controller.refresh();
+
+      controller.replace(IncomeModel.fromJson(salaryJson));
+
+      expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
+    });
+  });
+
+  // A exclusão sai do detalhe, mas quem perde o ganho é a lista.
+  group('exclusão', () {
+    test(
+      'tira o ganho da lista, sem voltar ao servidor, e fecha o detalhe',
+      () async {
+        final id = loadedIncomes().first.id;
+        clearInteractions(repository);
+
+        await controller.delete(id);
+
+        verify(() => repository.delete(id)).called(1);
+        expect(loadedIncomes().map((i) => i.id), isNot(contains(id)));
+        expect(loadedIncomes(), hasLength(1));
+        verifyNever(() => repository.list(month: any(named: 'month')));
+        verify(() => nav.pop()).called(1);
+      },
+    );
+
+    // Na falha o detalhe fica, e o recado sai por toast.
+    test('falha deixa a lista como estava e o detalhe aberto', () async {
+      stubIncomeOperations(
+        repository,
+        result: Error(
+          Failure.fromException(const NetworkException(message: 'sem rede')),
+        ),
+      );
+
+      await controller.delete(loadedIncomes().first.id);
+
+      expect(loadedIncomes(), hasLength(2));
+      verifyNever(() => nav.pop());
+    });
+
+    // O detalhe sai da tela mesmo sem a lista carregada para atualizar.
+    test('lista que não está na tela não impede o detalhe de fechar', () async {
+      stubIncomeList(repository, result: semRede());
+      await controller.refresh();
+
+      await controller.delete('income-1');
+
+      expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
+      verify(() => nav.pop()).called(1);
     });
   });
 }

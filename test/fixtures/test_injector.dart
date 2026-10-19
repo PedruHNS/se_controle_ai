@@ -188,7 +188,12 @@ MockIncomeRepository setupIncomeTestInjector({MockIncomeRepository? mock}) {
       dispose: (controller) => controller.dispose(),
     )
     ..registerFactory<IncomeDetailController>(
-      () => IncomeDetailController(repository: getIt<IncomeRepository>()),
+      () => IncomeDetailController(
+        repository: getIt<IncomeRepository>(),
+        nav: getIt<NavigationService>(),
+        selectedMonth: getIt<SelectedMonthService>(),
+        incomeController: getIt<IncomeController>(),
+      ),
     );
 
   return repository;
