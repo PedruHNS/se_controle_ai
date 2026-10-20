@@ -1,7 +1,8 @@
 # Quadro de refatoração
 
 Candidatos levantados por feature, **reconferidos contra o código em
-01/09/2026**. Nenhum item é obrigatório: são pontos onde a repetição ou o tamanho
+01/09/2026**; `core/`, `data/`, `incomes`, `projection` e testes revistos em
+**20/10/2026**. Nenhum item é obrigatório: são pontos onde a repetição ou o tamanho
 já incomodam, com o motivo ao lado, para a decisão ser tomada com a conta na mão.
 
 A visão por feature, com status, está na seção **Refatoração** do
@@ -15,30 +16,38 @@ A visão por feature, com status, está na seção **Refatoração** do
 
 ## `core/` — o que atravessa todas as features
 
-- [ ] **`ViewStateBuilder`.** O `switch` de `Loading` / `Failed` / `Loaded`, com o
-      `FailureCardWidget` e o `CircularProgressIndicator`, está em **11 telas** —
-      eram 9 em 25/08. Um widget que receba o estado e o `onRetry` corta o mesmo
+- [ ] **`ViewStateBuilder`.** O `switch` de `Loading` / `Failed` / `Loaded` está
+      em **7 telas**. Contando do mesmo jeito (`Loading(` e `Failed(` no mesmo
+      arquivo de `view/`), eram 9 em 01/09 — saíram a projeção e o detalhe de
+      ganho. O "11" anotado antes vinha de outra contagem. Um widget que receba o estado e o `onRetry` corta o mesmo
       bloco de 15 linhas em todas. **É o item de maior retorno do app.**
 - [ ] **Guarda de corrida em um lugar só.** O par `_requestId` + `if (requestId
-      != _requestId) return` vive em **8 controllers**, sempre igual. Cabe num
+      != _requestId) return` vive em **3 controllers** (eram 8): `home`,
+      `expense_list` e `expense_detail`. Como a regra dos controllers proíbe o
+      `requestId`, o caminho agora é tirá-lo, e não extraí-lo. Cabe num
       mixin (`RaceGuard`) ou no `BaseController`. Cuidado: o teste de cada
       controller cobre essa guarda hoje — a extração precisa manter os testes
       passando sem reescrevê-los.
-- [ ] **`_applyFailure` em um lugar só.** São **8 cópias**: 3 em controllers de
-      formulário e 5 em diálogos. Todas fazem o mesmo — `issues[].path` que casa
+- [ ] **`_applyFailure` em um lugar só.** São **4 cópias** (eram 8), todas em
+      gastos: o `ExpenseFormController` e três diálogos. Ganhos deixou de usar em
+      outubro — toda falha sai por toast. Todas fazem o mesmo — `issues[].path` que casa
       com campo vira erro do campo, o resto sobe como falha geral. Vira uma
       função que recebe `FormGroup` e `Failure` e devolve a mensagem que sobrou.
 - [x] **`_serializationFailure` em um lugar só.** Feito em 11/09/2026: virou
       `serializationFailure` em `core/errors/serialization_failure.dart`. Eram
       **seis** cópias, e não cinco — o repositório do dashboard nasceu com a
       sétima e já usa a função.
-- [ ] **`_ActionCard` compartilhado.** Duplicado entre o detalhe de ganho e o de
-      gasto. Vira `core/shared/widgets/action_card.dart`.
-- [ ] **`_openAndReload` compartilhado.** As **4 telas de lista** repetem
-      "navega, volta, recarrega". Cabe num mixin de `State`.
-- [ ] **Quebrar o `app_router.dart`** (276 linhas). Uma lista de rotas por
+- [ ] **`_ActionCard` compartilhado.** Meio caminho feito em 20/10: o de ganho
+      virou `ActionCardWidget`, mas em `incomes/widgets/`. O detalhe de gasto
+      segue com o `_ActionCard` dele (`expense_detail_page.dart:415`). Subir o
+      widget para `core/shared/widgets/` e apagar o privado fecha o item.
+- [ ] ~~**`_openAndReload` compartilhado.**~~ Sobrou **uma** tela, a lista de
+      gastos (eram 4) — com um só uso, um mixin não se paga.
+- [ ] **Tirar `Patch` e `TextOrderUtils`.** Os dois estão `@Deprecated` (19/10 e
+      15/10), marcados para sair do código.
+- [ ] **Quebrar o `app_router.dart`** (300 linhas). Uma lista de rotas por
       feature, montada na raiz — como o injector já faz.
-- [x] **Quebrar o `injector.dart`.** Feito: a raiz tem 79 linhas e o registro se
+- [x] **Quebrar o `injector.dart`.** Feito: a raiz tem 57 linhas e o registro se
       divide em `part` por camada (`injector_repositories`,
       `injector_controllers`, `injector_services`). O `part` foi escolhido no
       lugar de arquivos com import porque o registro é um só, e não seis
@@ -55,32 +64,24 @@ A visão por feature, com status, está na seção **Refatoração** do
 
 ## `data/`
 
-- [ ] **`ExpenseModel` (213) acumulou dois tipos num só.** Campos de fixo
+- [ ] **`ExpenseModel` (83) acumulou dois tipos num só.** Campos de fixo
       (`history`), de parcelado (`installments`, `totalCents`,
       `installmentsCount`), mais tag e observação. Funciona porque o backend
       garante que só metade vem preenchida, mas a classe já não cabe na cabeça.
       Avaliar um `sealed` com dois filhos — sabendo que isso mexe em toda tela de
       gasto.
-- [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models.** Desde
-      11/09/2026 a regra está escrita em [`.claude/rules/models.md`](.claude/rules/models.md):
-      model tem atributos, serialização, `copyWith`/`==`/`hashCode` quando
-      necessário e `toString` sempre — nada derivado. O `ExpenseModel` tem
-      **treze** membros derivados e o `IncomeModel` **sete**, e os dois
-      compartilham o mesmo `amountCentsIn(month)`, que percorre vigências e cai
-      nas parcelas quando não acha (GFX-09).
+- [x] ~~**`ExpenseModel` e `IncomeModel` fora da regra dos models.**~~ **Feito
+      em 07/10/2026**, com a revisão de ganhos: os dois ficaram com atributos,
+      `fromJson` e `toString`. As contas foram para quem usa — o `IncomeTile`
+      calcula o próprio selo — e para `ExpenseUtils` e `AmountVersionUtils`.
+      Saíram juntos o `isOpen` (`AmountVersionModel`) e o `label`
+      (`InstallmentModel`).
 
-      São ~90 pontos de chamada: `amountCentsIn` em 21, `currentVersion` em 11,
-      `isClosed` em 10. **Ele decidiu em 11/09 não refatorar agora.** Quando for:
-      o que é enfeite (`isFixed`, `isInstallment`, `onCreditCard`) sai para quem
-      usa; o que é regra de domínio vai para extension, que tira a conta do model
-      sem reescrever as dezenas de chamadas.
-
-      Menores, na mesma dívida: `isOpen` (`AmountVersionModel`), `label`
-      (`AuthUserModel`, `InstallmentModel`), `limitUsage`
-      (`CreditCardInvoiceModel`), `hasLimit` e `dueInNextMonth`
-      (`CreditCardModel`), `isNegative` (`MonthlyBalanceModel` e
-      `MonthlySummaryModel`), `isEmpty` (`SummarySectionModel`). E **falta
-      `toString` em todos eles** — os nove do dashboard e o `TagModel` já têm.
+      Ainda na mesma dívida, um membro cada: `label` (`AuthUserModel`),
+      `limitUsage` (`CreditCardInvoiceModel`), `isNegative`
+      (`MonthlyBalanceModel` e `MonthlySummaryModel`) e `isEmpty`
+      (`SummarySectionModel`). Falta `toString` em seis: esses quatro últimos,
+      `CreditCardBillModel` e `SummaryLineItemModel`.
 - [ ] **`fromJson` manual em 12 models.** Sem codegen é uma escolha do projeto; o
       que dá para melhorar é o `Decode`, que hoje resolve só objeto e lista.
 - [ ] **Conferir que nenhum repositório novo trouxe o `_guard` de volta.** O
@@ -89,33 +90,41 @@ A visão por feature, com status, está na seção **Refatoração** do
 
 ## `home`
 
-- [ ] **`home_page.dart` cresceu para 297 linhas** e ainda carrega o
+- [ ] **`home_page.dart` cresceu para 379 linhas** (eram 297 em 01/09) e ainda carrega o
       `_SummaryContent` inteiro (linha 173). Ele é conteúdo, não estrutura de
       tela — cabe em `widgets/`.
 - [ ] **Três tiles com a mesma anatomia.** `LineItemTile`, `IncomeTile` e
       `ExpenseTile` são "título, subtítulo, valor à direita, selo". Um tile base
       com slots resolveria — mas veja a ressalva sobre tiles no fim.
 
-## `incomes`
+## `incomes` — ✅ refatorado
 
-- [ ] **`submit` valida o grupo inteiro.** Em gastos a validação passou a ser por
-      campo (por causa dos campos do tipo não escolhido); aqui continua
-      `form.invalid`. Não está errado, mas são duas formas de fazer a mesma coisa
-      no mesmo app — vale escolher uma.
-- [ ] **`income_detail_page.dart`** (274).
-- [ ] **Os dois diálogos são quase iguais aos de gasto** (207/154 contra
-      211/158). Ver a ressalva no fim antes de unificar.
+**Refatorada em 20/10/2026**, depois de duas semanas de revisão — o passo a passo
+está em "Ganhos, revistos" no [`ROADMAP.md`](ROADMAP.md).
+
+- [x] ~~**`submit` valida o grupo inteiro.**~~ Continua assim, e ficou por
+      decisão: em gastos a validação por campo existe por causa dos campos do
+      tipo não escolhido, e em ganhos todo campo vale para todo ganho.
+- [x] ~~**`income_detail_page.dart`** (274)~~ — **143 linhas**, com o
+      `IncomeDetailCardWidget` e o `ActionCardWidget` em `widgets/`.
+- [x] **Três controllers viraram um** (07/10): o `IncomeController` (231), no
+      desenho do `TagListController`, sem `requestId` nem `silent`.
+- [ ] **Os dois diálogos ainda se parecem com os de gasto** (180/130 contra
+      217/161), mas divergiram de comportamento: os de ganho mandam a falha para
+      o toast e giram no botão; os de gasto recebem `Failure?` do controller e
+      aplicam o erro no campo. Ver a ressalva no fim antes de unificar.
 
 ## `expenses`
 
-- [ ] **`expense_form_page.dart` (541) e `expense_form_controller.dart` (527) são
-      os maiores arquivos do app.** O formulário faz cadastro fixo, cadastro
+- [ ] **`expense_form_page.dart` (629) e `expense_form_controller.dart` (733) são
+      os maiores arquivos do app**, e cresceram desde setembro (541 e 527). O formulário faz cadastro fixo, cadastro
       parcelado e edição, com campos que aparecem e somem. Separar por modo — ou
       ao menos extrair os blocos de campos — é o item de maior retorno da
       feature.
-- [ ] **`expense_detail_page.dart`** (419). A escolha de ações por tipo e o
+- [ ] **`expense_detail_page.dart`** (445). A escolha de ações por tipo e o
       `_periodLine` são lógica de apresentação misturada com layout.
-- [ ] **Quatro diálogos na mesma pasta**, dois deles gêmeos dos de ganho.
+- [ ] **Quatro diálogos na mesma pasta**, dois deles parecidos com os de ganho —
+      e hoje com outro tratamento de erro (ver `incomes`).
 - [ ] **`_createTag` está órfão** (linha 591): o botão que o chamava está
       comentado (linha 195). É o único aviso do `flutter analyze`. Decidir entre
       religar o botão e apagar a função — o controller e os testes de `createTag`
@@ -134,12 +143,11 @@ A visão por feature, com status, está na seção **Refatoração** do
       linhas e a tela 197, com o card da fatura e o aviso de vazio em
       `widgets/`.
 
-## `projection`
+## `projection` — removida
 
-- [ ] **`projection_page.dart`** (243). `_MonthRow` cabe em `widgets/`.
-- [ ] **O `ProjectionChart` não tem teste de desenho.** Hoje é verificado só por
-      existir na árvore. Um golden test seria o primeiro do projeto — decidir se
-      vale abrir essa porta.
+A feature inteira saiu em 11/09/2026, com a A13 do dashboard. Os dois itens que
+estavam aqui (`projection_page.dart` e o teste de desenho do `ProjectionChart`)
+foram junto.
 
 ## `tags` — ✅ refatorado
 
@@ -154,13 +162,13 @@ A visão por feature, com status, está na seção **Refatoração** do
 
 ## Testes
 
-- [ ] **`fixtures/mocks.dart` foi de 566 para 787 linhas** e tem os mocks e stubs
+- [ ] **`fixtures/mocks.dart` foi de 566 para 874 linhas** e tem os mocks e stubs
       de seis repositórios e do `NavigationService`. Dividir por feature (`mocks/expense_mocks.dart`…) e
       manter um `mocks.dart` que reexporta.
-- [ ] **`fixtures/test_injector.dart` foi de 207 para 309** e carrega uma
-      divergência conhecida: os controllers de lista são `registerFactory` aqui e
-      `registerLazySingleton` em produção, então o caminho de `dispose` real nunca
-      é exercido em teste.
+- [ ] **`fixtures/test_injector.dart` foi de 207 para 351** e carrega uma
+      divergência conhecida, hoje num controller só: o `ExpenseListController` é
+      `registerFactory` aqui e `registerLazySingleton` em produção, então o
+      caminho de `dispose` real dele nunca é exercido em teste.
 - [ ] **Helper de rolagem repetido.** `scrollUntilVisible(..., scrollable:
       find.byType(Scrollable).first)` aparece em 4 lugares, sempre com o mesmo
       comentário explicando o `.first`.
@@ -180,9 +188,9 @@ limpeza.
 - **O `try/catch` escrito em cada método do repositório.** O `_guard` com closure
   foi tirado de propósito em 20/08: o tratamento de erro fica visível onde
   acontece.
-- **O gráfico da projeção sem biblioteca.** Sessenta linhas de `CustomPainter`
-  contra uma dependência que traz o que a tela não usa. Reabrir só se precisar de
-  tooltip, zoom ou várias séries.
+- ~~**O gráfico da projeção sem biblioteca.**~~ Saiu com a projeção, em 11/09. O
+  dashboard entrou com o `fl_chart` — ver "O gráfico vem do `fl_chart`" no
+  `ROADMAP.md`.
 - **Um model por arquivo, sem barrel.** Cada consumidor importa a classe que usa.
 - **Os tiles separados por feature.** Antes de unificar, note que cada um tem um
   selo com regra própria (parcela `3/10`, "Encerrado", uso do limite). O que dá

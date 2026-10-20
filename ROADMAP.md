@@ -6,9 +6,9 @@ App Flutter do controle de gastos, cliente da API `expense-tracker-api`
 
 ## Onde estamos
 
-*Atualizado em 06/10/2026.*
+*Atualizado em 20/10/2026.*
 
-Flutter 3.47.1 · Dart 3.13.1 · **660 testes verdes e 11 pulados, nenhum
+Flutter 3.47.1 · Dart 3.13.1 · **714 testes verdes e 11 pulados, nenhum
 vermelho** · `flutter analyze` com **1 aviso** (`_createTag` não referenciado —
 veja "O que falta").
 
@@ -25,8 +25,8 @@ veja "O que falta").
 
 O app entra pelo Google (Firebase Auth) antes de qualquer tela; a home mostra o
 resumo do mês; ganhos, gastos, cartões e tags têm CRUD completo com reajuste,
-correção e encerramento; parcelado tem reparcelamento e quitação; a projeção
-mostra para onde o saldo caminha. **O ID token é a única credencial que o app
+correção e encerramento; parcelado tem reparcelamento e quitação; o dashboard
+mostra o mês em sete cards, no lugar da projeção. **O ID token é a única credencial que o app
 manda** — a `x-api-key` saiu em 31/08 (decisão 5).
 
 A **Fase 11 é a última por motivo técnico**: offline-first é uma segunda fonte da
@@ -187,6 +187,59 @@ três buscas viraram uma.
 
 A tela caiu de 254 para **197 linhas**, o controller está em **72**, e o arquivo
 de teste tem **12 casos**.
+
+## Ganhos, revistos (07/10 → 20/10/2026) — fechada
+
+Dezoito commits, e a feature ficou no desenho da de tags: um controller só, o
+detalhe sem busca própria e toda mutação reescrevendo a lista com o que a API
+devolve. Ele deu `incomes` por refatorada em 20/10.
+
+- [x] **Um controller só** (07/10). `IncomeListController`,
+      `IncomeFormController` e `IncomeDetailController` — 341 linhas somadas —
+      viraram o `IncomeController` (**231**), `lazySingleton` que a lista libera
+      ao sair; o detalhe e o formulário usam o mesmo, e por isso as operações
+      recebem o id do ganho. Sem `requestId` nem `silent`: `income_list` e
+      `income_detail` saíram da lista dos controllers antigos.
+- [x] **O `IncomeModel` entrou na regra dos models** (07/10): atributos,
+      `fromJson` e `toString`, em 41 linhas. As sete contas foram para quem usa
+      — o `IncomeTile` calcula o próprio selo — e para o `AmountVersionUtils`. O
+      `ExpenseModel` foi junto, no mesmo dia.
+- [x] **Ganho sem tag** (08/10). Model, repositório, controller e formulário
+      deixaram a tag de lado, e o `list(month:)` passou a exigir a competência.
+      A lista carrega em esqueleto e o vazio virou `IncomeEmptyWidget`.
+- [x] **O cadastro entra na lista sem novo GET** (15/10, GAN-11). O `create`
+      devolve o ganho do 201, e o controller o encaixa pela descrição. O
+      formulário só fecha no sucesso; na falha fica com o que foi digitado, e o
+      toast aparece sobre ele. A lista ganhou pull-to-refresh.
+- [x] **O detalhe abre com o ganho da lista** (15/10), pelo `extra` da rota. A
+      rota virou `detail`: o `:id` que sobrou exigia um `pathParameters` que a
+      lista não manda mais, e o go_router recusava o toque.
+- [x] **Reajuste, correção e encerramento trocam o ganho na lista pelo que a
+      API devolve** (19/10, GAN-12). Cada operação manda o mês selecionado na
+      home. No sucesso o diálogo e o detalhe fecham pelo `NavigationService`; na
+      falha — 400 e 422 inclusive — o diálogo fica aberto com o toast, e o erro
+      não desce mais para o campo. O ganho encerrado antes do mês exibido fica
+      na lista com `amountCents` nulo até a próxima busca (GAN-10).
+- [x] **O detalhe foi desmontado** (19/10 → 20/10). O cabeçalho virou
+      `IncomeDetailCardWidget`, com o histórico de vigências dentro, e os cards
+      de ação viraram `ActionCardWidget`. A página caiu de 274 para **143
+      linhas**.
+- [x] **Os quatro diálogos giram no botão** (20/10) e só fecham quando a
+      operação volta. O `CustomButtonDefaultWidget`, novo em
+      `core/shared/widgets/`, troca o texto pelo `CircularProgressIndicator`; o
+      `PopScope` tira o voltar e o toque fora, e o Cancelar fica desligado
+      enquanto gira. A exclusão passou a fechar só no sucesso, como as outras
+      três. O Salvar do formulário usa o mesmo botão.
+
+Fora de ganhos, no mesmo período: o `MonthFieldWidget` virou rótulo em cima e
+caixa preenchida e **perdeu o `minMonth`** (15/10) — as setas dos diálogos vão
+abaixo do início da vigência, e quem recusa é o backend, com 422; as tags
+passaram a ordenar pelo `compareTo` (15/10), com o `TextOrderUtils` marcado
+`@Deprecated`; o `Patch` também ficou deprecated (19/10); e o SDK mínimo do
+Dart subiu para 3.13.1.
+
+A feature caiu de 1.382 para **1.184 linhas** e tem **71 testes**: 40 do
+controller, 10 do formulário e 21 das telas.
 
 ## O que falta
 
@@ -550,15 +603,13 @@ A tela que hospeda as duas primeiras é a **Fase 13**, o perfil da conta.
   repositório fake e seguiram verdes com o `ApiClient` quebrado. Quem guarda essa
   fronteira é `api_client_test.dart`, com `HttpClientAdapter` trocado — método
   novo no client entra com caso novo no grupo `devolve o Response do Dio`.
-- **O `dispose` de produção quase não é exercitado.** Sobraram dois:
-  `ExpenseListController` e `IncomeListController` são `registerFactory` no
-  `test_injector` e `registerLazySingleton` com `dispose:` em produção, então o
-  caminho real fica sem prova. Os outros cinco foram alinhados — home, tags,
-  dashboard, lista de cartões e fatura —, e não por gosto: a página que chama
+- **O `dispose` de produção quase não é exercitado.** Sobrou um: o
+  `ExpenseListController` é `registerFactory` no `test_injector` e
+  `registerLazySingleton` com `dispose:` em produção, então o caminho real fica
+  sem prova. Os outros seis foram alinhados — home, tags, dashboard, lista de
+  cartões, fatura e, desde 07/10, o `IncomeController` —, e não por gosto: a página que chama
   `resetLazySingleton` no `dispose` **derruba o teste** se o registro for
   `factory`. Foi o que aconteceu com a fatura do cartão, em 30/09.
-- **O `ProjectionChart` é verificado só por existir na árvore.** Comparar pixel
-  exigiria golden test, que o projeto não usa em lugar nenhum.
 - **O rateio de parcelas não é testado aqui**, de propósito: está coberto no
   backend, exaustivamente. Reimplementar duplicaria conhecimento.
 
@@ -602,14 +653,15 @@ disse o que incomoda: **perguntar antes de mexer**.
       no mesmo dia.
 - [ ] **`ExpenseListController` nunca é liberado**, então o `effect` do mês
       segue vivo e buscando com a tela fechada.
-- [ ] **`requestId` e `silent` em cinco controllers antigos** — `home`,
-      `expense_list`, `expense_detail`, `income_list` e `income_detail`. A regra
-      nova proíbe os dois; alinhar ao mexer. O `credit_card_expenses` saiu da
-      lista na revisão de setembro: hoje ele é o controller da feature mais
-      perto da regra — signal privado, `effect` no mês e o cleanup no `dispose`.
-      **`.claude/rules/controllers.md` ainda diz seis.**
-- [ ] **`ExpenseModel` e `IncomeModel` fora da regra dos models** — 13 e 7
-      membros derivados, ~90 pontos de chamada. Detalhe em `REFATORACAO.md`.
+- [ ] **`requestId` e `silent` em três controllers antigos** — `home`,
+      `expense_list` e `expense_detail`. A regra nova proíbe os dois; alinhar ao
+      mexer. O `credit_card_expenses` saiu da lista na revisão de setembro, e
+      `income_list` e `income_detail` deixaram de existir em 07/10, quando
+      viraram o `IncomeController`. **`.claude/rules/controllers.md` ainda diz
+      seis.**
+- [x] ~~**`ExpenseModel` e `IncomeModel` fora da regra dos models**~~ —
+      **feito em 07/10/2026**. Os dois têm só atributos, `fromJson` e
+      `toString`; as contas foram para quem usa e para os utils.
 
 ### Já resolvido, mas com ressalva
 
@@ -628,26 +680,27 @@ disse o que incomoda: **perguntar antes de mexer**.
 
 ## Refatoração
 
-Situação por feature, conferida contra o código em **05/09/2026**. O detalhe de
-cada item — e a lista de repetições que estão lá **de propósito** — fica em
+Situação por feature, conferida contra o código em **05/09/2026** e revista em
+**20/10/2026** — ganhos, `core`, `data`, projeção e fixtures. O detalhe de cada
+item — e a lista de repetições que estão lá **de propósito** — fica em
 [`REFATORACAO.md`](REFATORACAO.md).
 
 | Feature | Status | O que ainda pesa |
 |---|---|---|
 | `tags` | ✅ **refatorado** | Nada. A tela caiu de 359 para 172 linhas, com `TagTile` e o diálogo de criação extraídos |
-| `core` (DI) | ✅ **refatorado** | `injector.dart` virou 79 linhas com um `part` por camada (rede, repositórios, controllers, services) |
-| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` com `FailureCardWidget` e `CircularProgressIndicator` está em **11 telas** (eram 9 em 25/08), e é o item de maior retorno do app. Faltam também `RaceGuard` (7 controllers, era 8), `applyFailure` (8 cópias), `ActionCard` (2 detalhes), `openAndReload` (4 listas), e `app_router.dart` (291) por feature |
+| `core` (DI) | ✅ **refatorado** | `injector.dart` virou 79 linhas (hoje 57) com um `part` por camada (rede, repositórios, controllers, services) |
+| `core` (resto) | 🟡 parcial | `ViewStateBuilder` não existe — o `switch` de `Loading`/`Failed`/`Loaded` está em **7 telas** — pela mesma contagem, eram 9 em 01/09; saíram a projeção e o detalhe de ganho —, e segue o item de maior retorno do app. O resto encolheu com a revisão de ganhos: `RaceGuard` em **3 controllers** (eram 8), `applyFailure` em **4 cópias**, todas de gastos (eram 8), e `openAndReload` só na lista de gastos (eram 4). O `ActionCard` virou `ActionCardWidget`, mas em `incomes/widgets/` — o detalhe de gasto segue com o `_ActionCard` dele. Faltam também `app_router.dart` (300) por feature e tirar `Patch` e `TextOrderUtils`, deprecated desde outubro |
 | `auth` | 🟡 parcial | A parte com regra já saiu do router: `rotaParaEstado` em `auth_gate.dart` (48 linhas, 14 testes). O que sobra é tela — `login_page` 209, `auth_repository` 225 |
-| `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**: `expense_form_page` (548) e `expense_form_controller` (527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (419) mistura escolha de ação por tipo com layout |
-| `home` | ⬜ pendente | `home_page.dart` **cresceu para 364** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
-| `incomes` | ⬜ pendente | `income_detail_page` (274). E o `submit` valida `form.invalid`, enquanto gastos valida por campo: duas formas para a mesma coisa |
-| `credit_cards` | ✅ **refatorado** (06/10) | Nada. **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (187). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: **72 linhas**, e a tela dele de 254 para **197**, com o card da fatura (118) e o aviso de vazio (35) em `widgets/`. O `ExpenseTile`, revisto por ele em 06/10, caiu de 315 para **189** |
-| `projection` | ⬜ **em remodelagem** | `projection_page` (243) — `_MonthRow` cabe em `widgets/`. Sem teste de desenho. A feature inteira vai ser remodelada (05/09); refatorar antes do desenho novo é trabalho jogado fora |
-| `data` | ⬜ pendente | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09) — a varredura de 13/09 está logo abaixo: **10 dos 22** models têm membro derivado, 27 no total, e 10 não têm `toString` — o `CreditCardModel` saiu da lista no dia seguinte à varredura. **Adiado por decisão dele**, alinhar só ao mexer. Continua valendo o `ExpenseModel` (219) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
-| `test/fixtures` | ⬜ pendente | **Segue piorando**: `mocks.dart` foi de 566 (25/08) para **862** e `test_injector.dart` de 207 para **358**. Dividir por feature e manter um arquivo que reexporta |
+| `expenses` | ⬜ pendente | **Os dois maiores arquivos do app**, e crescendo: `expense_form_page` (629, era 548 em 05/09) e `expense_form_controller` (733, era 527), que fazem cadastro fixo, cadastro parcelado e edição num só lugar. `expense_detail_page` (445) mistura escolha de ação por tipo com layout |
+| `home` | ⬜ pendente | `home_page.dart` **cresceu para 379** (eram 297 em 01/09) e ainda carrega o `_SummaryContent` inteiro — é conteúdo, não estrutura de tela |
+| `incomes` | ✅ **refatorado** (20/10) | Nada. **Um controller só** (07/10): os três viraram o `IncomeController` (231), e toda mutação reescreve a lista com o que a API devolve (GAN-11, GAN-12). O detalhe caiu de 274 para **143**, com `IncomeDetailCardWidget` e `ActionCardWidget` em `widgets/`, e os quatro diálogos giram no botão até a operação voltar. O formulário segue validando o grupo inteiro, e aqui isso não trava nada: todo campo vale para todo ganho |
+| `credit_cards` | ✅ **refatorado** (06/10) | Nada. **Um controller só (04/09):** o `CreditCardFormController` deixou de existir e virou o lado de formulário do `CreditCardController` (187). O diff do CAR-08 saiu junto — a edição manda o cartão inteiro, e o `Patch<T>` não é mais usado aqui. O `CreditCardExpensesController` caiu de 3 buscas para 1 e de record para model: **72 linhas**, e a tela dele de 254 para **197**, com o card da fatura (118) e o aviso de vazio (35) em `widgets/`. O `ExpenseTile`, revisto por ele em 06/10, caiu de 315 para **189** (hoje 204) |
+| `projection` | — **removida** (11/09) | A feature inteira saiu com a A13, quando o dashboard tomou o lugar dela. Não há o que refatorar |
+| `data` | 🟡 parcial | **Fora da regra dos models** (`.claude/rules/models.md`, 11/09) — a varredura, revista em 20/10, está logo abaixo: **5 dos 22** models têm membro derivado, um cada, e 6 não têm `toString` (eram 10, 27 e 10 em 13/09). `ExpenseModel` e `IncomeModel`, que concentravam a dívida, saíram da lista em 07/10. **Adiado por decisão dele**, alinhar só ao mexer. Continua valendo o `ExpenseModel` (83) acumulando os dois tipos de gasto, e o `fromJson` manual em 12 models |
+| `test/fixtures` | ⬜ pendente | `mocks.dart` foi de 566 (25/08) para **874** e `test_injector.dart` de 207 para **351** — o segundo encolheu um pouco com os três controllers de ganho virando um. Dividir por feature e manter um arquivo que reexporta |
 | `notifications` | — | Só o estado vazio. Vira código de verdade com a Etapa 8 do backend; nada a refatorar antes |
 
-### Models fora da regra (varredura de 13/09/2026)
+### Models fora da regra (varredura de 13/09/2026, revista em 20/10)
 
 Varredura dos 22 arquivos de `lib/data/models/` contra
 [`.claude/rules/models.md`](.claude/rules/models.md). **Nenhum importa
@@ -662,18 +715,18 @@ item 4 de "por onde começar".
 
 | Model | Membros derivados | Quais | `toString` |
 |---|---|---|---|
-| `expense_model` | 13 | `isFixed`, `isInstallment`, `onCreditCard`, `isClosed`, `isSingleMonth`, `endedBefore`, `amountCentsIn`, `installmentIn`, `installmentLabelIn`, `isActiveIn`, `latestAmountCents`, `currentVersion`, `hasAdjustments` | falta |
-| `income_model` | 7 | `isClosed`, `isSingleMonth`, `endedBefore`, `amountCentsIn`, `isActiveIn`, `currentVersion`, `hasAdjustments` | falta |
-| `amount_version_model` | 1 | `isOpen` | falta |
 | `auth_user_model` | 1 | `label` | tem |
 | `credit_card_invoice_model` | 1 | `limitUsage` | falta |
-| `installment_model` | 1 | `label` | falta |
 | `monthly_balance_model` | 1 | `isNegative` | falta |
 | `monthly_summary_model` | 1 | `isNegative` | falta |
 | `summary_section_model` | 1 | `isEmpty` | falta |
 | `credit_card_bill_model` | 0 | — | falta |
 | `credit_card_model` | 0 | limpo em 13/09 — as seis contas viraram `CreditCardMonthsUtils` | tem |
 | `summary_line_item_model` | 0 | — | falta |
+| `expense_model` | 0 | limpo em 07/10 — eram 13; as contas foram para quem usa, `ExpenseUtils` e `AmountVersionUtils` | tem |
+| `income_model` | 0 | limpo em 07/10 — eram 7 | tem |
+| `amount_version_model` | 0 | limpo em 07/10 — era o `isOpen` | tem |
+| `installment_model` | 0 | limpo em 07/10 — era o `label` | tem |
 
 **Já limpos, e é o padrão a copiar:** os nove models do dashboard e o
 `TagModel`. O `_serie` do `dashboard_daily_model` é `static` privado a serviço
@@ -684,9 +737,10 @@ do `fromJson`, e por isso não conta — desserialização é permitida.
 1. **`summary_section_model.isEmpty` não tem um único chamador.** A tela usa
    `items.isEmpty` direto. É apagar a linha, e sai um item da lista sem
    nenhuma reescrita.
-2. **`toString` nos 11 que não têm.** Não quebra chamador nenhum, e é a parte
-   da regra que só melhora o dia em que um teste falha.
-3. **Os sete models de um getter só.** Cada um é entre 1 e 6 pontos de chamada;
+2. **`toString` nos 6 que não têm** (eram 11). Não quebra chamador nenhum, e é
+   a parte da regra que só melhora o dia em que um teste falha.
+3. **Os cinco models de um getter só** (eram sete; `amount_version` e
+   `installment` saíram em 07/10). Cada um é entre 1 e 6 pontos de chamada;
    `isNegative` (`monthly_balance` e `monthly_summary`) é a mesma conta
    duplicada em dois arquivos, e as duas telas que a usam pintam o valor de
    vermelho — candidato a util em `lib/core/utils/`, não a getter em cada model.
@@ -701,9 +755,9 @@ do `fromJson`, e por isso não conta — desserialização é permitida.
    `invoice_card_widget.dart`. A dúvida **(b)**, o seletor de mês da lista de
    cartões, saiu no mesmo dia. O model está em **42 linhas**: atributos,
    `fromJson` e `toString`.
-5. **`ExpenseModel` e `IncomeModel`, por último.** São ~90 pontos de chamada e
-   a decisão de 11/09 continua valendo: **não sair refatorando em mutirão**,
-   alinhar ao mexer por outro motivo.
+5. ~~**`ExpenseModel` e `IncomeModel`, por último.**~~ **Feito em 07/10/2026**,
+   antes do que esta lista previa: entraram com a revisão de ganhos, que mexia
+   nos dois. Ficaram com atributos, `fromJson` e `toString`.
 
 ---
 
@@ -772,7 +826,9 @@ return Success(MonthlySummaryModel.fromJson(Decode.object(response.data)));
 - **`registerLazySingleton`, e quem libera é o get_it.** A página faz
   `getIt<XController>()` e **não** chama `dispose`. Quando a mesma rota pode ser
   empilhada duas vezes com estados diferentes, vira `registerFactory` e o
-  `dispose` passa para o `State` — é o caso do formulário e do detalhe de ganho.
+  `dispose` passa para o `State` — é o caso do formulário e do detalhe de gasto.
+  Ganhos fez o caminho contrário em 07/10: lista, formulário e detalhe dividem
+  o `IncomeController`, e quem o libera é a lista, ao sair.
 - **No construtor entram só dependências — repositório ou service. Nunca um
   valor.** Nem id, nem mês, nem filtro. Dado de rota é entregue **pela view**,
   depois da construção: `controller.start(widget.id)` no `initState`.
@@ -830,11 +886,12 @@ entrou no menu do card: a lista conhece o cadastro, a fatura é sobre o mês.
   control de mesmo nome, e se limpa na validação seguinte. `path` que não casa
   com campo sobe como falha geral.
 - **A validação é por campo, não pelo grupo** (em gastos): os campos do tipo não
-  escolhido nascem vazios e travariam o `form.invalid`. Ganhos ainda valida o
-  grupo inteiro — é a divergência anotada na tabela de refatoração.
+  escolhido nascem vazios e travariam o `form.invalid`. Ganhos valida o grupo
+  inteiro, e lá isso não trava nada: todo campo vale para todo ganho.
 - **Competência e dia são seletor de setas, nunca campo de texto.** Nascem
-  válidos por construção, e o `minMonth` trava no que a regra do backend
-  permitiria: requisição que voltaria 422 nem sai.
+  válidos por construção. Desde 15/10 o `MonthFieldWidget` não tem mais
+  `minMonth`: as setas vão abaixo do que a regra permite, e quem recusa é o
+  backend, com 422. O diálogo ainda **abre** no primeiro mês permitido.
 - **A máscara de moeda ao vivo não entra** (decidido na Fase 7). O campo já tem
   prefixo, teclado numérico e filtro; reformatar enquanto digita briga com o
   `reactive_forms` e dá cursor pulando. Reabrir só com reclamação concreta.
@@ -872,8 +929,10 @@ Firebase. A única rota que a Etapa 7 acrescentou é `GET /me`.
   **uma** vez antes de deixá-lo subir.
 - **403 não existe.** "Não é você" é 401, "não é seu" é 404, e não há terceiro caso.
 - **Nenhum corpo de resposta tem `userId`** — o dono é implícito.
-- **Mutação responde 204, sem corpo.** Quem precisa do estado novo relê. Só
-  `POST` de criação foge disso, com 201 e o corpo do que foi criado.
+- **Mutação responde 204, sem corpo.** Quem precisa do estado novo relê. Fogem
+  disso o `POST` de criação, com 201 e o corpo do que foi criado, e — desde o
+  GAN-12 — reajuste, correção e encerramento de ganho, com 200 e o ganho como
+  ficou.
 - **A ordem dos itens do resumo é contrato.** Dentro de cada competência, do
   lançamento criado mais recentemente para o mais antigo, com a descrição como
   desempate. É o que permite à home cortar a lista nas primeiras linhas sem
@@ -884,17 +943,21 @@ Firebase. A única rota que a Etapa 7 acrescentou é `GET /me`.
 | Método | Rota | Observação |
 |---|---|---|
 | GET | `/summary?month=` | Sem `month`, usa o mês corrente. Devolve `incomeCents`, `expenseCents`, `balanceCents`, `committedPercent`, ganhos, `debit` e `creditCards[]` com a fatura de cada cartão |
-| GET | `/summary/projection?from=&months=N` | `N` de 1 a 60, default 12 |
+| ~~GET~~ | ~~`/summary/projection`~~ | **Removida em 11/09**, com a tela — ver "Dashboard" |
 
 ### Ganhos
 | Método | Rota | Semântica |
 |---|---|---|
-| POST | `/incomes` | `{description, amountCents, startMonth, recurring?, tagId?}` |
+| POST | `/incomes` | `{description, amountCents, startMonth, recurring?}` → 201 com o ganho inteiro (GAN-11). Ganho não tem tag |
 | GET | `/incomes?month=` · `/incomes/:id?month=` | `amountCents` = valor vigente no mês |
-| POST | `/incomes/:id/adjustments` | **Reajuste**: preserva os meses anteriores |
-| PATCH | `/incomes/:id/amount` | **Correção**: o valor estava errado desde o início |
-| POST | `/incomes/:id/closure` | `{lastMonth}` — parei de receber |
-| DELETE | `/incomes/:id` | |
+| POST | `/incomes/:id/adjustments?month=` | **Reajuste**: preserva os meses anteriores. `{amountCents, effectiveFrom}` |
+| PATCH | `/incomes/:id/amount?month=` | **Correção**: o valor estava errado desde o início |
+| POST | `/incomes/:id/closure?month=` | `{lastMonth}` — parei de receber |
+| DELETE | `/incomes/:id` | 204 |
+
+As três operações respondem **200 com o ganho como ficou** (GAN-12), e o
+`?month` escolhe a competência do `amountCents`, como no `GET`. É o que deixa o
+app trocar o ganho na lista sem reler.
 
 **Reajuste e correção são operações diferentes**, e a UI precisa deixar isso
 explícito — não são dois caminhos para "editar valor".
