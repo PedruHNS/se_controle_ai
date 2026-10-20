@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/core/shared/widgets/amount_history_card.dart';
 import 'package:se_controle_ai/core/utils/money_utils.dart';
 import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
@@ -35,6 +36,13 @@ class const IncomeDetailCardWidget({
                   : 'Mês único — ${MonthUtils.label(income.startMonth)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Visibility(
+              visible: income.history.length > 1,
+              child: Padding(
+                padding: const .only(top: 12),
+                child: AmountHistoryCard(history: income.history),
               ),
             ),
           ],

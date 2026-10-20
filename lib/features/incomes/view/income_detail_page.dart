@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../core/shared/widgets/amount_history_card.dart';
 import '../../../data/models/income_model.dart';
 import '../controller/income_controller.dart';
 import '../widgets/income_amount_dialog.dart';
@@ -126,13 +125,6 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
                 destructive: true,
                 onTap: working ? null : () => _confirmDelete(income),
               ),
-
-              // A linha do tempo só aparece quando há mais de uma vigência
-              // para comparar.
-              if (income.history.length > 1) ...[
-                const SizedBox(height: 8),
-                AmountHistoryCard(history: income.history),
-              ],
             ],
           );
         },
@@ -161,14 +153,11 @@ class _ActionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final color = destructive ? theme.colorScheme.error : null;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ListTile(
-        onTap: onTap,
-        leading: Icon(icon, color: color),
-        title: Text(title, style: TextStyle(color: color)),
-        subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
-      ),
+    return ListTile(
+      onTap: onTap,
+      leading: Icon(icon, color: color),
+      title: Text(title, style: TextStyle(color: color)),
+      subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
     );
   }
 }

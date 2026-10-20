@@ -4,65 +4,66 @@ import '../../../data/models/amount_version_model.dart';
 import '../../utils/money_utils.dart';
 import '../../utils/month_utils.dart';
 
-/// A linha do tempo de vigências — é a prova visual de que um reajuste em
-/// novembro não mexeu no que foi pago em setembro.
-///
-/// Serve ganho e gasto porque os dois leem o mesmo motor de vigência no backend
-/// e recebem o histórico no mesmo formato. O que muda entre os dois é o texto
-/// das ações, não o desenho de uma linha do tempo — por isso aqui só entra a
-/// lista, e nenhum dos dois models.
-class AmountHistoryCard extends StatelessWidget {
-  const AmountHistoryCard({required this.history, super.key});
-
-  /// Da mais antiga para a mais nova, como o backend devolve.
-  final List<AmountVersionModel> history;
-
+class const AmountHistoryCard({
+  super.key,
+  required final List<AmountVersionModel> history,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.history,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text('Histórico de valores', style: theme.textTheme.titleSmall),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: .stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 8, 12, 4),
+          child: Row(
+            spacing: 8,
+            children: [
+              Icon(
+                Icons.history,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+
+              Text('Histórico de valores', style: theme.textTheme.titleSmall),
+            ],
           ),
-          // Mais recente primeiro: é o que se consulta com mais frequência.
-          for (final version in history.reversed)
-            ListTile(
-              dense: true,
-              // `validTo` nulo é a vigência em aberto, a que vale hoje.
-              leading: Icon(
-                version.validTo == null ? Icons.play_arrow : Icons.check,
-                size: 16,
-                color: version.validTo == null
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              title: Text(
-                MonthUtils.periodLabel(version.validFrom, version.validTo),
-              ),
-              trailing: Text(
-                MoneyUtils.format(version.amountCents),
-                style: theme.textTheme.bodyLarge,
-              ),
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        ),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            physics: AlwaysScrollableScrollPhysics(),
+            reverse: true,
+            padding: .only(top: 8),
+            itemCount: history.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                dense: true,
+                leading: Icon(
+                  history[index].validTo == null
+                      ? Icons.play_arrow
+                      : Icons.check,
+                  size: 16,
+                  color: history[index].validTo == null
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                title: Text(
+                  MonthUtils.periodLabel(
+                    history[index].validFrom,
+                    history[index].validTo,
+                  ),
+                ),
+                trailing: Text(
+                  MoneyUtils.format(history[index].amountCents),
+                  style: theme.textTheme.bodyLarge,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
