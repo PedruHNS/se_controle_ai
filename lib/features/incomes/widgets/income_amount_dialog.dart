@@ -75,9 +75,8 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
   /// atual (GAN-03/GAN-05). O diálogo abre nele; abaixo disso o backend
   /// recusa com 422.
   String get _minMonth {
-    final from = AmountVersionUtils.openVersion(
-      widget.income.history,
-    )?.validFrom;
+    final from = AmountVersionUtils.openVersion(widget.income.history)
+        ?.validFrom;
     return from == null ? MonthUtils.current() : MonthUtils.next(from);
   }
 
@@ -109,7 +108,10 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
         effectiveFromMonth: _form.control(_effectiveFrom).value as String,
       );
     } else {
-      await widget.controller.correctingValueIncome(widget.income.id, amountCents: cents);
+      await widget.controller.correctingValueIncome(
+        widget.income.id,
+        amountCents: cents,
+      );
     }
   }
 

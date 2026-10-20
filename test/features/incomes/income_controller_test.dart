@@ -447,9 +447,8 @@ void main() {
 
       await controller.terminateRecurringIncome(id, lastMonth: '2026-12');
 
-      verify(
-        () => repository.close(id, lastMonth: '2026-12', month: '2026-12'),
-      ).called(1);
+      verify(() => repository.close(id, lastMonth: '2026-12', month: '2026-12'))
+          .called(1);
     });
 
     group('reajuste e correção são chamadas diferentes', () {
