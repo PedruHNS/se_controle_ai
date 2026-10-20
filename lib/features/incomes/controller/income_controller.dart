@@ -9,17 +9,11 @@ import '../../../data/models/income_model.dart';
 import '../../../data/repositories/income_repository.dart';
 import '../../../data/services/selected_month_service.dart';
 
-class IncomeController extends BaseController with MessageMixin {
-  final IncomeRepository _repository;
-  final SelectedMonthService _selectedMonth;
-  final NavigationService _navigationService;
-
-  IncomeController({
-    required this._repository,
-    required this._selectedMonth,
-    required this._navigationService,
-  });
-
+class IncomeController({
+  required final IncomeRepository _repository,
+  required final SelectedMonthService _selectedMonth,
+  required final NavigationService _navigationService,
+}) extends BaseController with MessageMixin {
   late final form = FormGroup({
     'description': FormControl<String>(validators: [Validators.required]),
     'amountCents': FormControl<int>(
