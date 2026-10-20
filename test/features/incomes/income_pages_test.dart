@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -365,8 +367,8 @@ void main() {
       verifyNever(() => repository.delete(any()));
     });
 
-    // Quem exclui é o controller da lista: o ganho sai dela, e o `pop` tira a
-    // tela do detalhe.
+    // Quem exclui é o controller da lista: o ganho sai dela, e os dois `pop`
+    // tiram o diálogo e a tela do detalhe.
     testWidgets('excluir confirmado apaga e sai da tela', (tester) async {
       await pumpDetail(tester);
 
@@ -376,7 +378,55 @@ void main() {
       await tester.pumpAndSettle();
 
       verify(() => repository.delete('income-1')).called(1);
-      verify(() => nav.pop()).called(1);
+      verify(() => nav.pop()).called(2);
     });
+
+    // O diálogo só fecha quando a operação volta: nem Cancelar, nem tocar fora.
+    for (final (action, button) in [
+      ('Reajustar', 'Reajustar'),
+      ('Corrigir valor', 'Corrigir'),
+      ('Encerrar', 'Encerrar'),
+      ('Excluir', 'Excluir'),
+    ]) {
+      testWidgets('$button gira enquanto a operação não volta', (tester) async {
+        final segura = Completer<void>();
+        stubIncomeOperations(repository, pendenteAte: segura.future);
+        await pumpDetail(tester);
+
+        await tester.tap(find.text(action));
+        await tester.pumpAndSettle();
+        // Só o reajuste abre vazio; correção e encerramento já vêm preenchidos.
+        if (action == 'Reajustar') {
+          await tester.enterText(find.byType(TextField), '5500');
+        }
+        await tester.tap(find.widgetWithText(FilledButton, button));
+        await tester.pump();
+
+        final dialog = find.byType(AlertDialog);
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.byType(CircularProgressIndicator),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<TextButton>(find.widgetWithText(TextButton, 'Cancelar'))
+              .onPressed,
+          isNull,
+        );
+
+        await tester.tapAt(const Offset(8, 8));
+        await tester.pump();
+        expect(dialog, findsOneWidget);
+        verifyNever(() => nav.pop());
+
+        segura.complete();
+        await tester.pumpAndSettle();
+
+        verify(() => nav.pop()).called(2);
+      });
+    }
   });
 }

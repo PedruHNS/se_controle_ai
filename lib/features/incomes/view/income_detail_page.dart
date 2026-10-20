@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/core/shared/widgets/custom_button_default_widget.dart';
 import 'package:se_controle_ai/features/incomes/widgets/action_card_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
@@ -19,35 +20,42 @@ class IncomeDetailPage extends StatefulWidget {
 }
 
 class _IncomeDetailPageState extends State<IncomeDetailPage> {
-  // O da lista: quem o libera é ela, ao sair.
   final _controller = getIt<IncomeController>();
 
   Future<void> _confirmDelete(IncomeModel income) async {
-    final confirmed = await showDialog<bool>(
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir ganho'),
-        content: Text(
-          'Apaga "${income.description}" e todo o histórico, como se nunca '
-          'tivesse existido. Para registrar que você parou de receber, use '
-          'Encerrar.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Excluir'),
-          ),
-        ],
+
+      builder: (context) => SignalBuilder(
+        builder: (context) {
+          final deleting = _controller.saving.value;
+          return PopScope(
+            canPop: false, 
+            child: AlertDialog(
+              title: const Text('Excluir ganho'),
+              content: Text(
+                'Apaga "${income.description}" e todo o histórico, como se '
+                'nunca tivesse existido. Para registrar que você parou de '
+                'receber, use Encerrar.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: deleting
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                CustomButtonDefaultWidget(
+                  isLoading: deleting,
+                  onPressed: () async => await _controller.delete(income.id),
+                  title: 'Excluir',
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
-
-    if (confirmed != true) return;
-
-    await _controller.delete(income.id);
   }
 
   @override

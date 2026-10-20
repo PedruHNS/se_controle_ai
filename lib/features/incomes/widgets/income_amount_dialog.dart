@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals_flutter.dart';
 
+import '../../../core/shared/widgets/custom_button_default_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
@@ -23,7 +24,8 @@ enum IncomeAmountMode {
 }
 
 /// Abre o diálogo. Quem o fecha no sucesso é o controller; na falha ele fica
-/// aberto, e o recado sai por toast.
+/// aberto, e o recado sai por toast. Por fora, só o Cancelar o fecha, e ele
+/// fica desligado enquanto o botão gira.
 Future<void> showIncomeAmountDialog(
   BuildContext context, {
   required IncomeController controller,
@@ -119,56 +121,60 @@ class _IncomeAmountDialogState extends State<_IncomeAmountDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: Text(_isAdjust ? 'Reajustar' : 'Corrigir valor'),
-      content: ReactiveForm(
-        formGroup: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              _isAdjust
-                  ? 'O valor novo passa a valer do mês escolhido em diante. '
-                        'Os meses anteriores continuam com o valor antigo.'
-                  : 'O valor passa a valer desde o início da vigência atual, '
-                        'inclusive nos meses que já passaram.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Text(_isAdjust ? 'Reajustar' : 'Corrigir valor'),
+        content: ReactiveForm(
+          formGroup: _form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _isAdjust
+                    ? 'O valor novo passa a valer do mês escolhido em diante. '
+                          'Os meses anteriores continuam com o valor antigo.'
+                    : 'O valor passa a valer desde o início da vigência atual, '
+                          'inclusive nos meses que já passaram.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            MoneyFieldWidget(
-              formControlName: _amount,
-              autofocus: true,
-              label: 'Novo valor',
-            ),
-            if (_isAdjust) ...[
               const SizedBox(height: 16),
-              MonthFieldWidget(
-                formControlName: _effectiveFrom,
-                label: 'A partir de',
+              MoneyFieldWidget(
+                formControlName: _amount,
+                autofocus: true,
+                label: 'Novo valor',
               ),
+              if (_isAdjust) ...[
+                const SizedBox(height: 16),
+                MonthFieldWidget(
+                  formControlName: _effectiveFrom,
+                  label: 'A partir de',
+                ),
+              ],
             ],
-          ],
+          ),
         ),
+        actions: [
+          SignalBuilder(
+            builder: (context) => TextButton(
+              onPressed: widget.controller.saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ),
+          SignalBuilder(
+            builder: (context) => CustomButtonDefaultWidget(
+              isLoading: widget.controller.saving.value,
+              onPressed: _send,
+              title: _isAdjust ? 'Reajustar' : 'Corrigir',
+            ),
+          ),
+        ],
       ),
-      actions: [
-        SignalBuilder(
-          builder: (context) => TextButton(
-            onPressed: widget.controller.saving.value
-                ? null
-                : () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-        ),
-        SignalBuilder(
-          builder: (context) => FilledButton(
-            onPressed: widget.controller.saving.value ? null : _send,
-            child: Text(_isAdjust ? 'Reajustar' : 'Corrigir'),
-          ),
-        ),
-      ],
     );
   }
 }

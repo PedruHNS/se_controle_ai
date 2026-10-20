@@ -679,7 +679,8 @@ void main() {
         expect(loadedIncomes().map((i) => i.id), isNot(contains(id)));
         expect(loadedIncomes(), hasLength(1));
         verifyNever(() => repository.list(month: any(named: 'month')));
-        verify(() => nav.pop()).called(1);
+        // Um pop fecha o diálogo, o outro o detalhe.
+        verify(() => nav.pop()).called(2);
       },
     );
 
@@ -706,7 +707,7 @@ void main() {
       await controller.delete('income-1');
 
       expect(controller.state.value, isA<Failed<List<IncomeModel>>>());
-      verify(() => nav.pop()).called(1);
+      verify(() => nav.pop()).called(2);
     });
   });
 }

@@ -209,7 +209,11 @@ class IncomeController extends BaseController with MessageMixin {
   }
 
   Future<void> delete(String id) async {
+    _saving.value = true;
+
     final result = await _repository.delete(id);
+
+    _saving.value = false;
 
     result.when((_) {
       final current = _state.value;
@@ -219,7 +223,9 @@ class IncomeController extends BaseController with MessageMixin {
         );
       }
 
-      _navigationService.pop();
+      _navigationService
+        ..pop()
+        ..pop();
     }, (failure) => toastError(failure.message));
   }
 }

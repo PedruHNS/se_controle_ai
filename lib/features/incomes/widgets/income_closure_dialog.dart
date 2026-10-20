@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
 import 'package:signals/signals_flutter.dart';
 
+import '../../../core/shared/widgets/custom_button_default_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/amount_version_utils.dart';
 import '../../../core/utils/month_utils.dart';
@@ -12,7 +13,8 @@ import '../controller/income_controller.dart';
 /// histórico como se nunca tivesse existido (GAN-07 vs. GAN-09).
 ///
 /// Quem fecha o diálogo no sucesso é o controller; na falha ele fica aberto, e
-/// o recado sai por toast.
+/// o recado sai por toast. Por fora, só o Cancelar o fecha, e ele fica
+/// desligado enquanto o botão gira.
 Future<void> showIncomeClosureDialog(
   BuildContext context, {
   required IncomeController controller,
@@ -80,45 +82,49 @@ class _IncomeClosureDialogState extends State<_IncomeClosureDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: const Text('Encerrar ganho'),
-      content: ReactiveForm(
-        formGroup: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Escolha o último mês em que você recebeu. O histórico continua, '
-              'e os meses anteriores seguem contando no resumo.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Encerrar ganho'),
+        content: ReactiveForm(
+          formGroup: _form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Escolha o último mês em que você recebeu. O histórico continua, '
+                'e os meses anteriores seguem contando no resumo.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            MonthFieldWidget(
-              formControlName: _lastMonth,
-              label: 'Último mês recebido',
-            ),
-          ],
+              const SizedBox(height: 16),
+              MonthFieldWidget(
+                formControlName: _lastMonth,
+                label: 'Último mês recebido',
+              ),
+            ],
+          ),
         ),
+        actions: [
+          SignalBuilder(
+            builder: (context) => TextButton(
+              onPressed: widget.controller.saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ),
+          SignalBuilder(
+            builder: (context) => CustomButtonDefaultWidget(
+              isLoading: widget.controller.saving.value,
+              onPressed: _send,
+              title: 'Encerrar',
+            ),
+          ),
+        ],
       ),
-      actions: [
-        SignalBuilder(
-          builder: (context) => TextButton(
-            onPressed: widget.controller.saving.value
-                ? null
-                : () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-        ),
-        SignalBuilder(
-          builder: (context) => FilledButton(
-            onPressed: widget.controller.saving.value ? null : _send,
-            child: const Text('Encerrar'),
-          ),
-        ),
-      ],
     );
   }
 }
