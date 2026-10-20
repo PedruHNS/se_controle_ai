@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:se_controle_ai/features/incomes/widgets/action_card_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
 import '../../../core/di/injector.dart';
@@ -72,7 +73,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
                   child: Column(
                     spacing: 8,
                     children: [
-                      _ActionCard(
+                      ActionCardWidget(
                         icon: Icons.trending_up,
                         title: 'Reajustar',
                         subtitle:
@@ -87,7 +88,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
                                 mode: IncomeAmountMode.adjust,
                               ),
                       ),
-                      _ActionCard(
+                      ActionCardWidget(
                         icon: Icons.edit_outlined,
                         title: 'Corrigir valor',
                         subtitle:
@@ -102,7 +103,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
                                 mode: IncomeAmountMode.correct,
                               ),
                       ),
-                      _ActionCard(
+                      ActionCardWidget(
                         icon: Icons.event_busy_outlined,
                         title: 'Encerrar',
                         subtitle: 'Parei de receber. O histórico continua.',
@@ -118,7 +119,7 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
                   ),
                 ),
               ),
-              _ActionCard(
+              ActionCardWidget(
                 icon: Icons.delete_outline,
                 title: 'Excluir',
                 subtitle: 'Cadastrei errado. Apaga o ganho e todo o histórico.',
@@ -129,35 +130,6 @@ class _IncomeDetailPageState extends State<IncomeDetailPage> {
           );
         },
       ),
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = destructive ? theme.colorScheme.error : null;
-
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: color),
-      title: Text(title, style: TextStyle(color: color)),
-      subtitle: Text(subtitle, style: theme.textTheme.bodySmall),
     );
   }
 }
