@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:se_controle_ai/core/shared/widgets/custom_button_default_widget.dart';
 import 'package:se_controle_ai/core/shared/widgets/text_field_custom_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
@@ -87,15 +88,11 @@ class _IncomeFormPageState extends State<IncomeFormPage> {
 
                 return ReactiveFormConsumer(
                   builder: (context, form, child) {
-                    return FilledButton(
-                      onPressed: form.valid && !saving ? _submit : null,
-                      child: saving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Salvar'),
+                    return CustomButtonDefaultWidget(
+                      isLoading: saving,
+                      enable: form.valid,
+                      onPressed: _submit,
+                      title: 'Salvar',
                     );
                   },
                 );
