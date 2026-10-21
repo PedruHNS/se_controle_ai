@@ -3,18 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
+import 'package:se_controle_ai/core/shared/view_state.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/data/models/tag_model.dart';
-import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
+import 'package:se_controle_ai/features/expenses/controller/expense_controller.dart';
 
 import 'package:se_controle_ai/data/models/expense_model.dart';
 
 import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
+
 import 'package:se_controle_ai/core/utils/tag_color_utils.dart';
 
 void main() {
+  // A recusa avisa por toast, e o toast procura o contexto pelo `navigatorKey`
+  // — o que exige o binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('TagModel', () {
     test('lê o JSON do backend', () {
       final tag = TagModel.fromJson(tagListJson.first);
@@ -54,7 +60,7 @@ void main() {
     late MockExpenseRepository repository;
     late MockCreditCardRepository cards;
     late MockTagRepository tags;
-    late ExpenseFormController controller;
+    late ExpenseController controller;
     late SelectedMonthService month;
 
     setUp(() {
@@ -64,7 +70,13 @@ void main() {
       tags = MockTagRepository();
       stubTagList(tags);
       stubTagCreate(tags);
-      controller = ExpenseFormController(repository, cards, tags, month);
+      controller = ExpenseController(
+        repository: repository,
+        cardRepository: cards,
+        tagRepository: tags,
+        selectedMonth: month,
+        nav: navigationServiceMock(),
+      );
     });
 
     tearDown(() {
@@ -72,8 +84,13 @@ void main() {
       month.dispose();
     });
 
+    final comTagArquivada = ExpenseModel.fromJson({
+      ...aluguelJson,
+      'tag': {'id': arquivadaTagId, 'name': 'Assinaturas', 'color': '#8D6E63'},
+    });
+
     test('carrega as tags ao abrir', () async {
-      await controller.start();
+      await controller.startForm();
 
       expect(controller.tags.value.map((t) => t.name), [
         'Moradia',
@@ -84,14 +101,15 @@ void main() {
 
     // TAG-06: sem tag o formulário não salva, e o backend nem é chamado.
     test('sem tag escolhida, não chama o backend', () async {
-      await controller.start();
+      await controller.startForm();
 
       controller.form.patchValue({
-        ExpenseFormController.description: 'Aluguel',
-        ExpenseFormController.amountCents: 120000,
+        ExpenseController.description: 'Aluguel',
+        ExpenseController.amountCents: 120000,
       });
 
-      expect(await controller.submit(), isNull);
+      await controller.submit();
+
       verifyNever(
         () => repository.createFixed(
           description: any(named: 'description'),
@@ -110,32 +128,18 @@ void main() {
     // arquivada. Sem ela na lista, o dropdown teria valor sem item
     // correspondente — que no Flutter é assertion, não campo vazio.
     test('editando gasto com tag arquivada, ela entra na lista', () async {
-      stubExpenseDetail(
-        repository,
-        result: Success(
-          ExpenseModel.fromJson({
-            ...aluguelJson,
-            'tag': {
-              'id': arquivadaTagId,
-              'name': 'Assinaturas',
-              'color': '#8D6E63',
-            },
-          }),
-        ),
-      );
+      await controller.startForm(expense: comTagArquivada);
 
-      await controller.start(id: 'gasto-1');
-
-      expect(controller.ready.value, isTrue);
+      expect(controller.formState.value, isA<Loaded<void>>());
       expect(controller.tags.value.map((t) => t.id), contains(arquivadaTagId));
       expect(
-        controller.control<String>(ExpenseFormController.tagId).value,
+        controller.control<String>(ExpenseController.tagId).value,
         arquivadaTagId,
       );
     });
 
     test('tag arquivada não aparece no cadastro novo', () async {
-      await controller.start();
+      await controller.startForm();
 
       expect(
         controller.tags.value.map((t) => t.id),
@@ -149,51 +153,44 @@ void main() {
         result: const Error(NetworkFailure(message: 'Sem conexão.')),
       );
 
-      await controller.start();
+      await controller.startForm();
 
-      expect(controller.ready.value, isFalse);
-      expect(controller.generalFailure.value, isA<NetworkFailure>());
+      final state = controller.formState.value;
+      expect(state, isA<Failed<void>>());
+      expect((state as Failed<void>).failure, isA<NetworkFailure>());
     });
 
-    // O `POST` devolve a tag inteira, então o seletor se atualiza com ela: sem
-    // isso era preciso um segundo `GET /tags` para exibir o que o servidor
-    // acabou de responder.
-    test(
-      'criar tag entra no seletor e já fica selecionada, sem novo GET',
-      () async {
-        await controller.start();
-        // O `GET` da abertura já aconteceu; daqui para a frente não deve haver
-        // outro.
-        clearInteractions(tags);
+    // Quem cria é o `TagListController`, pelo diálogo de tags; o formulário só
+    // recebe a tag pronta. Sem um segundo `GET /tags` para exibir o que o
+    // servidor acabou de responder.
+    test('a tag criada entra no seletor e já fica selecionada', () async {
+      await controller.startForm();
+      clearInteractions(tags);
 
-        final erro = await controller.createTag(
-          name: 'Mercado',
-          color: '#66BB6A',
-        );
+      controller.selectCreatedTag(TagModel.fromJson(tagCriadaJson));
 
-        expect(erro, isNull);
-        expect(
-          controller.control<String>(ExpenseFormController.tagId).value,
-          criadaTagId,
-        );
-        expect(controller.tags.value.map((t) => t.name), contains('Mercado'));
-        verify(() => tags.create(name: 'Mercado', color: '#66BB6A')).called(1);
-        verifyNever(() => tags.list());
-      },
-    );
-
-    // A lista local tem que ficar igual à que o servidor devolveria: ordenada
-    // por nome, sem diferenciar caixa, como o `ORDER BY name` do Postgres.
-    test('a tag nova entra na posição certa', () async {
-      await controller.start();
-      stubTagCreate(
-        tags,
-        result: Success(
-          TagModel.fromJson({...tagCriadaJson, 'name': 'Farmácia'}),
+      expect(
+        controller.control<String>(ExpenseController.tagId).value,
+        criadaTagId,
+      );
+      expect(controller.tags.value.map((t) => t.id), contains(criadaTagId));
+      verifyNever(() => tags.list());
+      verifyNever(
+        () => tags.create(
+          name: any(named: 'name'),
+          color: any(named: 'color'),
         ),
       );
+    });
 
-      await controller.createTag(name: 'Farmácia', color: '#66BB6A');
+    // A lista local tem que ficar ordenada por nome, como a que o servidor
+    // devolve.
+    test('a tag nova entra na posição certa', () async {
+      await controller.startForm();
+
+      controller.selectCreatedTag(
+        TagModel.fromJson({...tagCriadaJson, 'name': 'Farmácia'}),
+      );
 
       expect(controller.tags.value.map((t) => t.name), [
         'Farmácia',
@@ -203,26 +200,24 @@ void main() {
       ]);
     });
 
-    // Nome repetido é 409 (TAG-01). O erro é do diálogo, não da tela: o
-    // formulário continua utilizável.
-    test('tag recusada devolve a mensagem e não derruba a tela', () async {
-      await controller.start();
+    // TAG-17: criar com o nome de uma arquivada ressuscita aquela tag. Se ela
+    // já estava no seletor — a do gasto em edição —, troca a linha em vez de
+    // repetir.
+    test('a ressuscitada não aparece duas vezes', () async {
+      await controller.startForm(expense: comTagArquivada);
 
-      stubTagCreate(
-        tags,
-        result: const Error(
-          ConflictFailure(message: 'Já existe uma tag chamada "Moradia"'),
+      controller.selectCreatedTag(
+        const TagModel(
+          id: arquivadaTagId,
+          name: 'Assinaturas',
+          color: '#8D6E63',
         ),
       );
 
-      final erro = await controller.createTag(
-        name: 'Moradia',
-        color: '#66BB6A',
+      expect(
+        controller.tags.value.where((t) => t.id == arquivadaTagId),
+        hasLength(1),
       );
-
-      expect(erro, 'Já existe uma tag chamada "Moradia"');
-      expect(controller.generalFailure.value, isNull);
-      expect(controller.ready.value, isTrue);
     });
   });
 }

@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
+import 'package:se_controle_ai/core/config/globals.dart';
 import 'package:se_controle_ai/core/di/injector.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
@@ -10,9 +14,13 @@ import 'package:se_controle_ai/core/utils/iso_date_utils.dart';
 import 'package:se_controle_ai/core/utils/month_utils.dart';
 import 'package:se_controle_ai/data/models/credit_card_model.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
+import 'package:se_controle_ai/data/models/tag_model.dart';
+import 'package:se_controle_ai/data/repositories/tag_repository.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_list_page.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../fixtures/credit_card_fixture.dart';
 import '../../fixtures/expense_fixture.dart';
@@ -30,19 +38,39 @@ String primeiroDoMes() {
 
 void main() {
   late MockExpenseRepository repository;
+  late MockNavigationService nav;
 
   setUp(() {
     setupCreditCardTestInjector();
     repository = setupExpenseTestInjector();
+    // O dublê é um só para a suíte inteira: sem limpar, o `pop` de um teste
+    // contaria no seguinte.
+    nav = getIt<NavigationService>() as MockNavigationService;
+    clearInteractions(nav);
   });
+
+  /// O toast some sozinho em 3s; sem esperar, o teste acaba com o timer do
+  /// Flushbar pendente.
+  Future<void> esperarToastSumir(WidgetTester tester) async {
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+  }
 
   Future<void> pumpList(WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: ExpenseListPage()));
     await tester.pumpAndSettle();
   }
 
-  Future<void> pumpForm(WidgetTester tester, {String? id}) async {
-    await tester.pumpWidget(MaterialApp(home: ExpenseFormPage(id: id)));
+  /// O `navigatorKey` é o do app porque o recado sai em toast, e o toast
+  /// procura o contexto por ele. Quem fecha a tela é o `NavigationService`
+  /// dublê, então ela fica montada e o teste confere o `pop`.
+  Future<void> pumpForm(WidgetTester tester, {ExpenseModel? expense}) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: Globals.navigatorKey,
+        home: ExpenseFormPage(expense: expense),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -108,9 +136,31 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> pumpDetail(WidgetTester tester) async {
+  /// Leva a ação até a tela e toca nela. `ensureVisible`, e não
+  /// `scrollUntilVisible`: o histórico de valores tem uma lista própria no meio
+  /// do card do gasto, e o arrasto pelo centro da tela rolaria ela, não a tela.
+  /// A tela alta do [pumpDetail] garante que a ação já foi construída.
+  Future<void> tocarAcao(WidgetTester tester, String titulo) async {
+    await tester.ensureVisible(find.text(titulo));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(titulo));
+    await tester.pumpAndSettle();
+  }
+
+  /// O detalhe recebe o gasto que a lista entregaria pelo `extra` da rota — o
+  /// aluguel, a não ser que o teste passe outro.
+  Future<void> pumpDetail(WidgetTester tester, {ExpenseModel? expense}) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
-      const MaterialApp(home: ExpenseDetailPage(id: 'gasto-1')),
+      MaterialApp(
+        navigatorKey: Globals.navigatorKey,
+        home: ExpenseDetailPage(
+          expense: expense ?? ExpenseModel.fromJson(aluguelJson),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
   }
@@ -177,10 +227,7 @@ void main() {
       // No mês corrente o presente ainda não saiu: só o aluguel conta.
       expect(
         find.descendant(
-          of: find.widgetWithText(
-            ListTile,
-            'Sai em ${MonthUtils.label(atual)}',
-          ),
+          of: find.widgetWithText(Row, 'Sai em ${MonthUtils.label(atual)}'),
           matching: find.text(r'R$ 1.350,00'),
         ),
         findsOneWidget,
@@ -193,10 +240,7 @@ void main() {
       // o novo `activeFrom` e o rodapé se recompôs, agora com o presente somado.
       expect(
         find.descendant(
-          of: find.widgetWithText(
-            ListTile,
-            'Sai em ${MonthUtils.label(proximo)}',
-          ),
+          of: find.widgetWithText(Row, 'Sai em ${MonthUtils.label(proximo)}'),
           matching: find.text(r'R$ 1.530,00'),
         ),
         findsOneWidget,
@@ -287,6 +331,35 @@ void main() {
 
       expect(find.text('Sem conexão.'), findsOneWidget);
     });
+
+    // O `Skeletonizer` público não aparece na árvore — quem aparece é o
+    // `SkeletonizerScope` que ele monta.
+    testWidgets('enquanto carrega, mostra o esqueleto e o seletor de mês', (
+      tester,
+    ) async {
+      final pendente = Completer<void>();
+      addTearDown(() {
+        if (!pendente.isCompleted) pendente.complete();
+      });
+      setupExpenseTestInjector(
+        mock: expenseRepositoryMock(pendenteAte: pendente.future),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: ExpenseListPage()));
+      await tester.pump();
+
+      expect(find.byType(SkeletonizerScope), findsWidgets);
+      expect(find.text('Aluguel'), findsNothing);
+      expect(
+        find.text(MonthUtils.label(getIt<SelectedMonthService>().month.value)),
+        findsOneWidget,
+      );
+
+      pendente.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Aluguel'), findsOneWidget);
+    });
   });
 
   group('formulário de cadastro', () {
@@ -362,7 +435,7 @@ void main() {
     // Em edição a competência nem viaja no PATCH — um seletor ali seria um
     // campo que não muda nada.
     testWidgets('em edição não há ajuste de competência', (tester) async {
-      await pumpForm(tester, id: 'gasto-1');
+      await pumpForm(tester, expense: ExpenseModel.fromJson(aluguelJson));
 
       expect(find.text('Ajustar competência'), findsNothing);
       expect(find.byType(MonthFieldWidget), findsNothing);
@@ -492,28 +565,7 @@ void main() {
       final outroMes = MonthUtils.next(MonthUtils.next(MonthUtils.current()));
       getIt<SelectedMonthService>().select(outroMes);
 
-      // Com pilha de verdade: o aviso é mostrado no instante em que a tela
-      // fecha, e um `MaterialApp` com uma rota só não teria `Scaffold`
-      // sobrando para hospedá-lo depois do `pop`.
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<String>(
-                    builder: (_) => const ExpenseFormPage(),
-                  ),
-                ),
-                child: const Text('abrir'),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('abrir'));
-      await tester.pumpAndSettle();
-
+      await pumpForm(tester);
       await escolherTag(tester);
 
       await tester.enterText(
@@ -526,11 +578,17 @@ void main() {
       );
       await tapSalvar(tester);
 
+      verify(() => nav.pop()).called(1);
       expect(getIt<SelectedMonthService>().month.value, MonthUtils.current());
+      expect(find.byType(Flushbar), findsOneWidget);
       expect(find.textContaining('Lançado em'), findsOneWidget);
+
+      await esperarToastSumir(tester);
     });
 
-    testWidgets('falha de rede vira snackbar', (tester) async {
+    testWidgets('falha de rede avisa por toast, e a tela continua', (
+      tester,
+    ) async {
       setupExpenseTestInjector(
         mock: expenseRepositoryMock(
           create: const Error(NetworkFailure(message: 'Sem conexão.')),
@@ -544,13 +602,131 @@ void main() {
       await tester.enterText(find.byType(TextField).at(2), '1200,00');
       await tapSalvar(tester);
 
-      expect(find.widgetWithText(SnackBar, 'Sem conexão.'), findsOneWidget);
+      verifyNever(() => nav.pop());
+      expect(find.byType(Flushbar), findsOneWidget);
+      expect(find.text('Sem conexão.'), findsOneWidget);
+
+      await esperarToastSumir(tester);
+    });
+  });
+
+  group('nova categoria no formulário', () {
+    // Quem cria é o `TagListController`, pelo mesmo diálogo da tela de tags.
+    // Ele fecha o diálogo devolvendo a tag, e o formulário a seleciona. O
+    // `NavigationService` é dublê, então o fechamento de verdade é feito aqui,
+    // pelo `navigatorKey`, como o `GoRouter` faria.
+    testWidgets('cria pelo diálogo de tags e já seleciona a tag', (
+      tester,
+    ) async {
+      when(() => nav.pop<TagModel>(any())).thenAnswer(
+        (invocation) => Globals.navigatorKey.currentState!.pop(
+          invocation.positionalArguments.first,
+        ),
+      );
+      final tags = getIt<TagRepository>() as MockTagRepository;
+
+      await pumpForm(tester);
+
+      await tester.tap(find.byTooltip('Nova categoria'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Nome'), 'Mercado');
+      await tester.tap(find.byKey(ValueKey(Globals.pallete.first)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Criar'));
+      await tester.pumpAndSettle();
+
+      verify(() => tags.create(name: 'Mercado', color: Globals.pallete.first))
+          .called(1);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(DropdownButtonFormField<String>),
+          matching: find.text('Mercado'),
+        ),
+        findsOneWidget,
+      );
+
+      await esperarToastSumir(tester);
+    });
+  });
+
+  // O texto e o rótulo do campo de dia são montados pela tela, a partir da
+  // competência que o controller calcula.
+  group('dia da compra', () {
+    testWidgets('no débito o texto fala de competência', (tester) async {
+      await pumpForm(tester);
+
+      expect(find.textContaining('Entra na competência de'), findsOneWidget);
+    });
+
+    testWidgets('no cartão o texto nomeia a fatura e o vencimento', (
+      tester,
+    ) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.text('Cartão'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nubank ••••4321').last);
+      await tester.pumpAndSettle();
+
+      // A Nubank da fixture vence dia 17: só o nome do mês não bastava para
+      // saber de qual das duas faturas a frase está falando.
+      expect(find.textContaining('vence 17/'), findsOneWidget);
+    });
+
+    // Assinatura não se compra num dia; ela começa num.
+    testWidgets('recorrente troca o rótulo do campo', (tester) async {
+      await pumpForm(tester);
+
+      expect(find.text('Dia da compra'), findsOneWidget);
+
+      final recorrente = find.text('Recorrente');
+      await tester.scrollUntilVisible(
+        recorrente,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(recorrente);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Começou em'), findsOneWidget);
+    });
+  });
+
+  group('carregando', () {
+    testWidgets('o formulário mostra o esqueleto até cartões e tags chegarem', (
+      tester,
+    ) async {
+      final pendente = Completer<void>();
+      addTearDown(() {
+        if (!pendente.isCompleted) pendente.complete();
+      });
+      setupCreditCardTestInjector(
+        mock: creditCardRepositoryMock(pendenteAte: pendente.future),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: ExpenseFormPage()));
+      await tester.pump();
+
+      expect(find.byType(SkeletonizerScope), findsWidgets);
+
+      pendente.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SkeletonizerScope), findsNothing);
+      expect(find.widgetWithText(TextField, 'Descrição'), findsOneWidget);
     });
   });
 
   group('formulário de edição', () {
     testWidgets('abre preenchido e sem os campos de dinheiro', (tester) async {
-      await pumpForm(tester, id: 'gasto-1');
+      await pumpForm(tester, expense: ExpenseModel.fromJson(aluguelJson));
 
       expect(find.text('Editar gasto'), findsOneWidget);
       expect(find.text('Aluguel'), findsOneWidget);
@@ -561,16 +737,18 @@ void main() {
       expect(find.text('Recorrente'), findsNothing);
     });
 
-    testWidgets('GET que falha mostra erro, e não formulário', (tester) async {
-      setupExpenseTestInjector(
-        mock: expenseRepositoryMock(
-          detail: const Error(NotFoundFailure(message: 'Gasto não encontrado')),
+    testWidgets('cartões que não chegam mostram erro, e não formulário', (
+      tester,
+    ) async {
+      setupCreditCardTestInjector(
+        mock: creditCardRepositoryMock(
+          list: const Error(NetworkFailure(message: 'Sem conexão.')),
         ),
       );
 
-      await pumpForm(tester, id: 'sumiu');
+      await pumpForm(tester, expense: ExpenseModel.fromJson(aluguelJson));
 
-      expect(find.text('Gasto não encontrado'), findsOneWidget);
+      expect(find.text('Sem conexão.'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Salvar'), findsNothing);
     });
   });
@@ -580,19 +758,17 @@ void main() {
       await pumpDetail(tester);
 
       expect(find.text('Aluguel'), findsOneWidget);
-      expect(find.text(r'R$ 1.350,00'), findsOneWidget);
+      // O valor do mês, e de novo no histórico, que fica dentro do card.
+      expect(find.text(r'R$ 1.350,00'), findsWidgets);
       expect(find.textContaining('Recorrente desde'), findsOneWidget);
       expect(find.textContaining('No débito'), findsOneWidget);
     });
 
     testWidgets('o detalhe mostra o dia da compra', (tester) async {
-      setupExpenseTestInjector(
-        mock: expenseRepositoryMock(
-          detail: Success(ExpenseModel.fromJson(aluguelComDiaJson)),
-        ),
+      await pumpDetail(
+        tester,
+        expense: ExpenseModel.fromJson(aluguelComDiaJson),
       );
-
-      await pumpDetail(tester);
 
       expect(find.text('Compra em 17/08/2026'), findsOneWidget);
       // A competência de início é outra data, e continua na tela: o aluguel é
@@ -601,13 +777,7 @@ void main() {
     });
 
     testWidgets('gasto no cartão mostra o nome do cartão', (tester) async {
-      setupExpenseTestInjector(
-        mock: expenseRepositoryMock(
-          detail: Success(ExpenseModel.fromJson(youtubeJson)),
-        ),
-      );
-
-      await pumpDetail(tester);
+      await pumpDetail(tester, expense: ExpenseModel.fromJson(youtubeJson));
 
       expect(find.textContaining('Nubank ••••4321'), findsOneWidget);
     });
@@ -618,11 +788,7 @@ void main() {
     ) async {
       await pumpDetail(tester);
 
-      // O histórico fica embaixo dos cartões de ação, fora da tela — e a
-      // ListView não constrói o que não está visível.
-      await tester.scrollUntilVisible(find.text('Histórico de valores'), 200);
-      await tester.pumpAndSettle();
-
+      // Dentro do card do gasto, como no de ganho.
       expect(find.text('Histórico de valores'), findsOneWidget);
       expect(
         find.text(r'R$ 1.200,00'),
@@ -634,13 +800,7 @@ void main() {
     testWidgets('gasto encerrado esconde as operações de dinheiro', (
       tester,
     ) async {
-      setupExpenseTestInjector(
-        mock: expenseRepositoryMock(
-          detail: Success(ExpenseModel.fromJson(presenteJson)),
-        ),
-      );
-
-      await pumpDetail(tester);
+      await pumpDetail(tester, expense: ExpenseModel.fromJson(presenteJson));
 
       expect(find.text('Reajustar'), findsNothing);
       expect(find.text('Corrigir valor'), findsNothing);
@@ -662,15 +822,19 @@ void main() {
 
       verify(
         () => repository.adjust(
-          'gasto-1',
+          aluguelJson['id'] as String,
           amountCents: 150000,
           effectiveFrom: any(named: 'effectiveFrom'),
         ),
       ).called(1);
+      // O diálogo e o detalhe: quem mostra o valor novo é a lista.
+      verify(() => nav.pop()).called(2);
     });
 
-    // O 422 do backend fica no diálogo, que é onde a pergunta foi feita.
-    testWidgets('recusa do reajuste aparece dentro do diálogo', (tester) async {
+    // O 422 do backend sai por toast, e o diálogo fica aberto para a correção.
+    testWidgets('recusa do reajuste avisa por toast, e o diálogo continua', (
+      tester,
+    ) async {
       setupExpenseTestInjector(
         mock: expenseRepositoryMock(
           operations: const Error(
@@ -691,32 +855,37 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsOneWidget);
+      verifyNever(() => nav.pop());
+      expect(find.byType(Flushbar), findsOneWidget);
       expect(
         find.text('Reajuste precisa valer de 2026-09 em diante.'),
         findsOneWidget,
       );
+
+      await esperarToastSumir(tester);
     });
 
     testWidgets('correção manda só o valor', (tester) async {
       await pumpDetail(tester);
 
-      await tester.tap(find.text('Corrigir valor'));
-      await tester.pumpAndSettle();
+      await tocarAcao(tester, 'Corrigir valor');
 
       await tester.enterText(find.byType(TextField).first, '1400,00');
       await tester.tap(find.widgetWithText(FilledButton, 'Corrigir'));
       await tester.pumpAndSettle();
 
       verify(
-        () => repository.correct('gasto-1', amountCents: 140000),
+        () => repository.correct(
+          aluguelJson['id'] as String,
+          amountCents: 140000,
+        ),
       ).called(1);
     });
 
     testWidgets('encerramento pede o último mês pago', (tester) async {
       await pumpDetail(tester);
 
-      await tester.tap(find.text('Encerrar'));
-      await tester.pumpAndSettle();
+      await tocarAcao(tester, 'Encerrar');
 
       expect(find.text('Último mês pago'), findsOneWidget);
 
@@ -724,24 +893,17 @@ void main() {
       await tester.pumpAndSettle();
 
       verify(
-        () => repository.close('gasto-1', lastMonth: any(named: 'lastMonth')),
+        () => repository.close(
+          aluguelJson['id'] as String,
+          lastMonth: any(named: 'lastMonth'),
+        ),
       ).called(1);
     });
 
     testWidgets('exclusão pede confirmação antes de excluir', (tester) async {
       await pumpDetail(tester);
 
-      // O card de observação empurrou a ação para baixo da dobra, e a ListView
-      // não constrói o que está fora da tela.
-      await tester.scrollUntilVisible(
-        find.text('Excluir'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Excluir'));
-      await tester.pumpAndSettle();
+      await tocarAcao(tester, 'Excluir');
 
       expect(find.textContaining('como se nunca'), findsOneWidget);
       verifyNever(() => repository.delete(any()));
@@ -749,7 +911,9 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Excluir'));
       await tester.pumpAndSettle();
 
-      verify(() => repository.delete('gasto-1')).called(1);
+      verify(() => repository.delete(aluguelJson['id'] as String)).called(1);
+      // A confirmação e a tela do gasto, que deixou de existir.
+      verify(() => nav.pop()).called(2);
     });
   });
 }

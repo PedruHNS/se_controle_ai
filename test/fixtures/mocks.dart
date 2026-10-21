@@ -1,7 +1,6 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
-import 'package:se_controle_ai/core/shared/patch.dart';
 import 'package:se_controle_ai/data/models/auth_user_model.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/data/models/credit_card_bill_model.dart';
@@ -443,8 +442,7 @@ void stubTagDelete(
 /// esconderia a linha voltando da edição dizendo "sem uso".
 ///
 /// Sem `registerFallbackValue`: desde que a edição virou substituição, os dois
-/// parâmetros são `String`, e mocktail já sabe inventar um. O [Patch] segue nos
-/// stubs de cartão e de gasto, que continuam com `PATCH`.
+/// parâmetros são `String`, e mocktail já sabe inventar um.
 void stubTagUpdate(
   MockTagRepository mock, {
   Result<TagModel, Failure>? result,
@@ -682,29 +680,31 @@ void stubExpenseList(
   });
 }
 
-void stubExpenseDetail(
-  MockExpenseRepository mock, {
-  Result<ExpenseModel, Failure>? result,
-}) {
-  when(() => mock.getById(any(), month: any(named: 'month'))).thenAnswer(
-    (_) async => result ?? Success(ExpenseModel.fromJson(aluguelJson)),
-  );
-}
-
-/// Stub de criação, edição de dados e as quatro operações de 204.
+/// Stub de criação, edição de dados, das operações de dinheiro e da exclusão.
 ///
-/// O `updateDetails` casa com qualquer `Patch` pela mesma razão do cartão: o
-/// teste que verifica o corpo olha o argumento capturado, em vez de precisar de
-/// um stub por combinação de estados.
+/// Cadastro, edição e operações devolvem o gasto como ficou (GFX-13 e GPR-18):
+/// por padrão o aluguel, e no cadastro um gasto novo com o id `novo-gasto`. A
+/// exclusão acompanha [result] — falha junto quando ele é falha.
+///
+/// O teste que verifica o corpo do `updateDetails` olha o argumento capturado,
+/// em vez de precisar de um stub por combinação de campos.
 void stubExpenseOperations(
   MockExpenseRepository mock, {
-  Result<bool, Failure> result = const Success(true),
-  Result<String, Failure> createResult = const Success('novo-gasto'),
+  Result<ExpenseModel, Failure>? result,
+  Result<ExpenseModel, Failure>? createResult,
   Future<void>? pendenteAte,
 }) {
-  // `Patch` e `PaymentMethod` não são anuláveis nesta interface, e para esses o
-  // mocktail precisa de um valor de reserva antes de aceitar `any()`.
-  registerFallbackValue(const Patch<String>.keep());
+  final operation = result ?? Success(ExpenseModel.fromJson(aluguelJson));
+  final created =
+      createResult ??
+      Success(ExpenseModel.fromJson({...aluguelJson, 'id': 'novo-gasto'}));
+  final deleted = operation.when<Result<bool, Failure>>(
+    (_) => const Success(true),
+    (failure) => Error(failure),
+  );
+
+  // `PaymentMethod` não é anulável nesta interface, e o mocktail precisa de um
+  // valor de reserva antes de aceitar `any()`.
   registerFallbackValue(PaymentMethod.debit);
 
   Future<T> answer<T>(T value) async {
@@ -724,7 +724,7 @@ void stubExpenseOperations(
       recurring: any(named: 'recurring'),
       spentAt: any(named: 'spentAt'),
     ),
-  ).thenAnswer((_) => answer(createResult));
+  ).thenAnswer((_) => answer(created));
 
   when(
     () => mock.updateDetails(
@@ -737,7 +737,7 @@ void stubExpenseOperations(
     ),
   ).thenAnswer((invocation) {
     _recordExpenseUpdateBody(mock, invocation);
-    return answer(result);
+    return answer(operation);
   });
 
   when(
@@ -752,7 +752,7 @@ void stubExpenseOperations(
       creditCardId: any(named: 'creditCardId'),
       spentAt: any(named: 'spentAt'),
     ),
-  ).thenAnswer((_) => answer(createResult));
+  ).thenAnswer((_) => answer(created));
 
   when(
     () => mock.adjust(
@@ -760,15 +760,15 @@ void stubExpenseOperations(
       amountCents: any(named: 'amountCents'),
       effectiveFrom: any(named: 'effectiveFrom'),
     ),
-  ).thenAnswer((_) => answer(result));
+  ).thenAnswer((_) => answer(operation));
 
   when(
     () => mock.correct(any(), amountCents: any(named: 'amountCents')),
-  ).thenAnswer((_) => answer(result));
+  ).thenAnswer((_) => answer(operation));
 
   when(
     () => mock.close(any(), lastMonth: any(named: 'lastMonth')),
-  ).thenAnswer((_) => answer(result));
+  ).thenAnswer((_) => answer(operation));
 
   when(
     () => mock.reschedule(
@@ -777,27 +777,25 @@ void stubExpenseOperations(
       newInstallmentsCount: any(named: 'newInstallmentsCount'),
       fromMonth: any(named: 'fromMonth'),
     ),
-  ).thenAnswer((_) => answer(result));
+  ).thenAnswer((_) => answer(operation));
 
   when(
     () => mock.settle(any(), fromMonth: any(named: 'fromMonth')),
-  ).thenAnswer((_) => answer(result));
+  ).thenAnswer((_) => answer(operation));
 
-  when(() => mock.delete(any())).thenAnswer((_) => answer(result));
+  when(() => mock.delete(any())).thenAnswer((_) => answer(deleted));
 }
 
-/// Mock de gastos pronto: a lista de exemplo, o detalhe do aluguel e as
-/// operações respondendo sucesso.
+/// Mock de gastos pronto: a lista de exemplo e as operações respondendo
+/// sucesso.
 MockExpenseRepository expenseRepositoryMock({
   Result<List<ExpenseModel>, Failure>? list,
-  Result<ExpenseModel, Failure>? detail,
-  Result<bool, Failure> operations = const Success(true),
-  Result<String, Failure> create = const Success('novo-gasto'),
+  Result<ExpenseModel, Failure>? operations,
+  Result<ExpenseModel, Failure>? create,
   Future<void>? pendenteAte,
 }) {
   final mock = MockExpenseRepository();
   stubExpenseList(mock, result: list, pendenteAte: pendenteAte);
-  stubExpenseDetail(mock, result: detail);
   stubExpenseOperations(
     mock,
     result: operations,
@@ -820,18 +818,14 @@ void _recordExpenseUpdateBody(
   final named = invocation.namedArguments;
 
   final body = <String, dynamic>{
-    'description': ?named[const Symbol('description')] as String?,
-    'paymentMethod':
-        ?(named[const Symbol('paymentMethod')] as PaymentMethod?)?.wire,
-    // Tag não usa Patch: sendo obrigatória (TAG-06), null é "não mexi".
+    'description': named[const Symbol('description')] as String,
+    'paymentMethod': (named[const Symbol('paymentMethod')] as PaymentMethod)
+        .wire,
+    // Só vai quando trocou: reenviar uma tag arquivada é recusado com 422.
     'tagId': ?named[const Symbol('tagId')] as String?,
+    'notes': named[const Symbol('notes')] as String?,
+    'creditCardId': named[const Symbol('creditCardId')] as String?,
   };
-
-  (named[const Symbol('notes')] as Patch<String>? ?? const Patch<String>.keep())
-      .writeTo(body, 'notes');
-  (named[const Symbol('creditCardId')] as Patch<String>? ??
-          const Patch<String>.keep())
-      .writeTo(body, 'creditCardId');
 
   (_expenseUpdateBodies[mock] ??= []).add(body);
 }

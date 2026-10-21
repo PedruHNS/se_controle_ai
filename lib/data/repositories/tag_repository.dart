@@ -24,13 +24,7 @@ abstract interface class TagRepository {
     required String color,
   });
 
-  /// Substitui a tag: nome e cor vão **sempre os dois**, e ela passa a ser o
-  /// que foi mandado. Não há [Patch] aqui, ao contrário do cartão e do gasto
-  /// (CAR-08): sem campo opcional, não existe a ambiguidade entre "ausente" e
-  /// "limpa" que o `Patch` resolvia.
-  ///
-  /// Quem quer só renomear manda a cor atual de volta. O diálogo de tag tem os
-  /// dois campos na tela, então isso não custa nenhuma leitura extra.
+
   Future<Result<TagModel, Failure>> update(
     String id, {
     required String name,

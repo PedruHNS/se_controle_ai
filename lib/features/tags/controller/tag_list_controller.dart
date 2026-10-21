@@ -63,9 +63,6 @@ class TagListController extends BaseController with MessageMixin {
   Future<void> refresh() => _load();
 
   Future<void> create() async {
-    final current = _state.value;
-    if (current is! Loaded<List<TagModel>>) return;
-
     final color = _colorSelected.value;
     if (color == null) return toastError('Escolha uma cor para a tag.');
 
@@ -76,21 +73,28 @@ class TagListController extends BaseController with MessageMixin {
 
     result.when(
       (tag) {
-        final newList = [...current.data, tag]
-          ..sort((a, b) => a.name.compareTo(b.name));
+        final current = _state.value;
+        if (current is Loaded<List<TagModel>>) {
+          final newList = [...current.data, tag]
+            ..sort((a, b) => a.name.compareTo(b.name));
 
-        _state.value = Loaded(newList);
+          _state.value = Loaded(newList);
+        }
+
+        _nav.pop<TagModel>(tag);
         Future.delayed(
           Duration(milliseconds: 300),
           () => toastSucess('tag adicionada com sucesso.'),
         );
       },
-      (err) => Future.delayed(
-        Duration(milliseconds: 300),
-        () => toastError(err.message),
-      ),
+      (err) {
+        _nav.pop();
+        Future.delayed(
+          Duration(milliseconds: 300),
+          () => toastError(err.message),
+        );
+      },
     );
-    _nav.pop();
   }
 
   Future<void> update(String id) async {

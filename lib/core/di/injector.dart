@@ -14,9 +14,7 @@ import '../../features/auth/controller/login_controller.dart';
 import '../../features/credit_cards/controller/credit_card_expenses_controller.dart';
 import '../../features/credit_cards/controller/credit_card_controller.dart';
 import '../../features/dashboard/controller/dashboard_controller.dart';
-import '../../features/expenses/controller/expense_detail_controller.dart';
-import '../../features/expenses/controller/expense_form_controller.dart';
-import '../../features/expenses/controller/expense_list_controller.dart';
+import '../../features/expenses/controller/expense_controller.dart';
 import '../../features/home/controller/home_controller.dart';
 import '../../features/incomes/controller/income_controller.dart';
 import '../../features/tags/controller/tag_list_controller.dart';
@@ -32,10 +30,7 @@ part 'injector_services.dart';
 final getIt = GetIt.instance;
 
 Future<void> setupInjector() async {
-  // Os repositórios antes do Dio, invertendo a ordem de leitura: o Dio agora
-  // depende do de autenticação, que é quem sabe o token. Não muda a execução —
-  // `lazySingleton` resolve na hora de construir —, mas deixa a dependência
-  // visível para quem lê.
+
 
   _registerRepositories();
   if (!getIt.isRegistered<Dio>()) {

@@ -10,9 +10,7 @@ import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:se_controle_ai/features/auth/controller/login_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_expenses_controller.dart';
 import 'package:se_controle_ai/features/credit_cards/controller/credit_card_controller.dart';
-import 'package:se_controle_ai/features/expenses/controller/expense_detail_controller.dart';
-import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
-import 'package:se_controle_ai/features/expenses/controller/expense_list_controller.dart';
+import 'package:se_controle_ai/features/expenses/controller/expense_controller.dart';
 import 'package:se_controle_ai/features/home/controller/home_controller.dart';
 import 'package:se_controle_ai/features/incomes/controller/income_controller.dart';
 import 'package:se_controle_ai/core/theme/theme_controller.dart';
@@ -293,37 +291,24 @@ MockExpenseRepository setupExpenseTestInjector({MockExpenseRepository? mock}) {
   if (getIt.isRegistered<ExpenseRepository>()) {
     getIt.unregister<ExpenseRepository>();
   }
-  if (getIt.isRegistered<ExpenseListController>()) {
-    getIt.unregister<ExpenseListController>();
-  }
-  if (getIt.isRegistered<ExpenseFormController>()) {
-    getIt.unregister<ExpenseFormController>();
-  }
-  if (getIt.isRegistered<ExpenseDetailController>()) {
-    getIt.unregister<ExpenseDetailController>();
+  if (getIt.isRegistered<ExpenseController>()) {
+    getIt.unregister<ExpenseController>();
   }
 
   getIt
     ..registerSingleton<ExpenseRepository>(repository)
-    ..registerFactory<ExpenseListController>(
-      () => ExpenseListController(
-        getIt<ExpenseRepository>(),
-        getIt<SelectedMonthService>(),
+    // `lazySingleton` com `dispose:`, como em produção: a `ExpenseListPage`
+    // chama `resetLazySingleton` no seu `dispose`, e o get_it recusa isso em
+    // registro que não seja lazy.
+    ..registerLazySingleton<ExpenseController>(
+      () => ExpenseController(
+        repository: getIt<ExpenseRepository>(),
+        cardRepository: getIt<CreditCardRepository>(),
+        tagRepository: getIt<TagRepository>(),
+        selectedMonth: getIt<SelectedMonthService>(),
+        nav: getIt<NavigationService>(),
       ),
-    )
-    ..registerFactory<ExpenseFormController>(
-      () => ExpenseFormController(
-        getIt<ExpenseRepository>(),
-        getIt<CreditCardRepository>(),
-        getIt<TagRepository>(),
-        getIt<SelectedMonthService>(),
-      ),
-    )
-    ..registerFactory<ExpenseDetailController>(
-      () => ExpenseDetailController(
-        getIt<ExpenseRepository>(),
-        getIt<CreditCardRepository>(),
-      ),
+      dispose: (controller) => controller.dispose(),
     );
 
   return repository;

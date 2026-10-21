@@ -84,11 +84,29 @@ void main() {
 
   // O diálogo se fecha sozinho no sucesso: quem confirmou já viu a tag entrar
   // na lista atrás, e deixar a folha aberta pediria um segundo toque para dizer
-  // a mesma coisa.
-  test('fecha o diálogo depois de criar', () async {
+  // a mesma coisa. Fecha com a tag como resultado, que é como o formulário de
+  // gasto fica sabendo qual selecionar.
+  test('fecha o diálogo devolvendo a tag criada', () async {
     await criar('Mercado');
 
+    final devolvida =
+        verify(() => nav.pop<TagModel>(captureAny())).captured.single
+            as TagModel;
+    expect(devolvida.id, criadaTagId);
+  });
+
+  test('criação recusada fecha o diálogo sem tag', () async {
+    stubTagCreate(
+      repository,
+      result: const Error(
+        ConflictFailure(message: 'Já existe uma tag chamada "Moradia"'),
+      ),
+    );
+
+    await criar('Moradia');
+
     verify(() => nav.pop()).called(1);
+    verifyNever(() => nav.pop<TagModel>(any()));
   });
 
   // Quem chama `clearText` é o `initState` do diálogo, não o `create` — o
@@ -160,22 +178,13 @@ void main() {
     verifyNever(() => repository.list());
   });
 
-  // Sem lista em mãos não há onde inserir, e a criação para antes do `POST`.
-  //
-  // Não é caminho de tela: o FAB só existe com o estado em `Loaded`, então o
-  // diálogo nem abre antes do primeiro `GET` terminar. O teste fixa a guarda
-  // para quem chamar o controller direto.
-  test('sem lista carregada, não chega a criar', () async {
-    // Um `GET` que não volta: o `Completer` nunca é completado, e é o ponto.
-    // Nada aqui espera por ele — o que o teste quer é justamente o estado do
-    // meio, com a lista ainda a caminho.
+  // O formulário de gasto cria tag por este controller, e ele nasce na hora do
+  // toque — com o `GET` da lista ainda a caminho. A criação vai assim mesmo, e
+  // só a lista, que ninguém está vendo, fica para o `GET` trazer.
+  test('sem lista carregada, cria e devolve a tag', () async {
     final nuncaVolta = Completer<void>();
     stubTagList(repository, pendenteAte: nuncaVolta.future);
-
-    final emAberto = TagListController(
-      repository: repository,
-      nav: navigationServiceMock(),
-    );
+    final emAberto = TagListController(repository: repository, nav: nav);
     addTearDown(emAberto.dispose);
     emAberto.form.control('title').updateValue('Mercado');
     emAberto.setColorSelected = '#66BB6A';
@@ -183,12 +192,9 @@ void main() {
     await emAberto.create();
 
     expect(emAberto.state.value, isA<Loading<List<TagModel>>>());
-    verifyNever(
-      () => repository.create(
-        name: any(named: 'name'),
-        color: any(named: 'color'),
-      ),
-    );
+    verify(() => repository.create(name: 'Mercado', color: '#66BB6A'))
+        .called(1);
+    verify(() => nav.pop<TagModel>(any())).called(1);
   });
 
   // TAG-08: excluir tem dois desfechos — sem uso apaga, em uso arquiva. A tela

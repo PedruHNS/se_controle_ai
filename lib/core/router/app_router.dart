@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:se_controle_ai/data/models/income_model.dart';
 
 import '../../data/models/credit_card_model.dart';
+import '../../data/models/expense_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../config/globals.dart';
 
@@ -111,9 +112,7 @@ final GoRouter appRouter = GoRouter(
       name: AppRoutes.home,
       builder: (context, state) => const HomePage(),
 
-      // Telas filhas entram como `routes:` daqui quando cada fase chegar. Rota
-      // aninhada mantém o "voltar" coerente: de /expenses/:id o pop volta para
-      // /expenses, não para a home.
+     
     ),
 
     GoRoute(
@@ -142,23 +141,17 @@ final GoRouter appRouter = GoRouter(
       name: AppRoutes.creditCards,
       builder: (context, state) => const CreditCardListPage(),
       routes: [
-        // `form` antes de `:id`, pela mesma razão de ganhos: o go_router casa na
-        // ordem, e invertido a rota de cadastro viraria uma edição de id "form".
+      
         GoRoute(
           path: AppRoutes.creditCardFormPath,
           name: AppRoutes.creditCardForm,
           builder: (context, state) => const CreditCardFormPage(),
         ),
-        // `edit` também antes de `:id`, e pela mesma razão que `form`.
+        
         GoRoute(
           path: AppRoutes.creditCardEditPath,
           name: AppRoutes.creditCardEdit,
-          // O cartão vai inteiro por `extra`, e não por um id na rota: quem
-          // empilha já tem o cartão na mão — é o mesmo que a lista desenhou —,
-          // então buscá-lo de novo seria pedir o que já se tem.
-          //
-          // Sem `extra` — link colado, app reaberto na rota — o `card` vem
-          // null e a tela abre em cadastro.
+      
           builder: (context, state) =>
               CreditCardFormPage(card: state.extra as CreditCardModel?),
         ),
@@ -174,19 +167,13 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.expensesPath,
       name: AppRoutes.expenses,
-      // O filtro vem da query e é **lido aqui**, não dentro do controller: o
-      // construtor do controller só recebe dependência, e dado de rota chega
-      // pela view. Valor desconhecido cai em nulo — a lista completa —, que é o
-      // que uma URL digitada errado deve dar, não uma tela de erro.
+
       builder: (context, state) => ExpenseListPage(
         paymentMethod: PaymentMethod.tryFromWire(
           state.uri.queryParameters[AppRoutes.paymentMethodParam],
         ),
       ),
       routes: [
-        // `form` antes de `:id`, pela mesma razão de ganhos e cartões: o
-        // go_router casa na ordem, e invertido a rota de cadastro viraria um
-        // detalhe de id "form".
         GoRoute(
           path: AppRoutes.expenseFormPath,
           name: AppRoutes.expenseForm,
@@ -196,24 +183,21 @@ final GoRouter appRouter = GoRouter(
           path: AppRoutes.expenseDetailPath,
           name: AppRoutes.expenseDetail,
           builder: (context, state) =>
-              ExpenseDetailPage(id: state.pathParameters[RouteParams.id]!),
+              ExpenseDetailPage(expense: state.extra as ExpenseModel),
           routes: [
-            // Filha do detalhe: fechar a edição volta para o gasto, que é de
-            // onde se entrou nela.
+        
             GoRoute(
               path: AppRoutes.expenseEditPath,
               name: AppRoutes.expenseEdit,
               builder: (context, state) =>
-                  ExpenseFormPage(id: state.pathParameters[RouteParams.id]!),
+                  ExpenseFormPage(expense: state.extra as ExpenseModel?),
             ),
           ],
         ),
       ],
     ),
 
-    // Sem filhas e sem backend: a tela é só o aviso de "em desenvolvimento". A
-    // rota entra agora para o menu ter um destino de verdade, em vez de um item
-    // que não faz nada ao ser tocado.
+    
     GoRoute(
       path: AppRoutes.tagsPath,
       name: AppRoutes.tags,
@@ -233,8 +217,7 @@ final GoRouter appRouter = GoRouter(
     ),
   ],
 
-  /// Cai aqui em URL que não existe — digitada, deep link antigo, typo em
-  /// `goNamed`. Sem isto o go_router mostra uma tela de erro crua.
+  
   errorBuilder: (context, state) =>
       _RouteErrorPage(location: state.uri.toString(), error: state.error),
 );

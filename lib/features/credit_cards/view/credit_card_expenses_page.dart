@@ -4,6 +4,7 @@ import 'package:se_controle_ai/features/credit_cards/widgets/expense_empty_widge
 import 'package:se_controle_ai/features/credit_cards/widgets/invoice_card_widget.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+
 import '../../../core/di/injector.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
@@ -73,10 +74,8 @@ class _CreditCardExpensesPageState extends State<CreditCardExpensesPage> {
             Loaded(data: final view) => _CardExpenses(
               view: view,
               onRefresh: () => _controller.refresh(id: widget.id),
-              onOpen: (expense) => _nav.pushNamed(
-                AppRoutes.expenseDetail,
-                pathParameters: {RouteParams.id: expense.id},
-              ),
+              onOpen: (expense) =>
+                  _nav.pushNamed(AppRoutes.expenseDetail, extra: expense),
             ),
           };
         },

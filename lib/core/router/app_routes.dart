@@ -74,12 +74,8 @@ abstract final class AppRoutes {
   static const expenseForm = 'expense-form';
   static const expenseFormPath = 'form';
   static const expenseDetail = 'expense-detail';
-  static const expenseDetailPath = ':id';
+  static const expenseDetailPath = 'detail';
 
-  /// Edição usa a mesma tela do cadastro, com o id na rota — como em cartões.
-  /// Aqui ela é **filha do detalhe** (`/expenses/:id/edit`), e não irmã: o
-  /// gasto tem tela de detalhe, e sair da edição tem que voltar para ela, não
-  /// para a lista.
   static const expenseEdit = 'expense-edit';
   static const expenseEditPath = 'edit';
 

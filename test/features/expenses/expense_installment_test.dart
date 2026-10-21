@@ -5,8 +5,7 @@ import 'package:multiple_result/multiple_result.dart';
 import 'package:se_controle_ai/core/errors/failure.dart';
 import 'package:se_controle_ai/data/services/selected_month_service.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
-import 'package:se_controle_ai/features/expenses/controller/expense_detail_controller.dart';
-import 'package:se_controle_ai/features/expenses/controller/expense_form_controller.dart';
+import 'package:se_controle_ai/features/expenses/controller/expense_controller.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_detail_page.dart';
 import 'package:se_controle_ai/features/expenses/view/expense_form_page.dart';
 
@@ -14,24 +13,27 @@ import '../../fixtures/expense_fixture.dart';
 import '../../fixtures/mocks.dart';
 import '../../fixtures/tag_fixture.dart';
 import '../../fixtures/test_injector.dart';
+
 import 'package:se_controle_ai/data/enums/payment_method.dart';
 import 'package:se_controle_ai/data/enums/expense_type.dart';
 
 void main() {
+  // A recusa avisa por toast, e o toast procura o contexto pelo `navigatorKey`
+  // — o que exige o binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockExpenseRepository repository;
   late MockCreditCardRepository cards;
   late MockTagRepository tags;
+  late MockNavigationService nav;
 
   setUp(() {
     cards = setupCreditCardTestInjector();
     // O setupExpense já registra as tags no getIt; aqui é o mesmo mock, para o
     // teste poder construir o controller à mão.
     tags = setupTagTestInjector();
-    repository = setupExpenseTestInjector(
-      mock: expenseRepositoryMock(
-        detail: Success(ExpenseModel.fromJson(geladeiraJson)),
-      ),
-    );
+    repository = setupExpenseTestInjector();
+    nav = navigationServiceMock();
   });
 
   // O valor de um mês e o rótulo da parcela são contas, e estão no teste do
@@ -69,12 +71,18 @@ void main() {
   });
 
   group('cadastro', () {
-    late ExpenseFormController controller;
+    late ExpenseController controller;
     late SelectedMonthService month;
 
     setUp(() {
       month = SelectedMonthService();
-      controller = ExpenseFormController(repository, cards, tags, month);
+      controller = ExpenseController(
+        repository: repository,
+        cardRepository: cards,
+        tagRepository: tags,
+        selectedMonth: month,
+        nav: nav,
+      );
     });
     tearDown(() {
       controller.dispose();
@@ -82,26 +90,26 @@ void main() {
     });
 
     test('nasce como fixo', () async {
-      await controller.start();
+      await controller.startForm();
 
       expect(controller.selectedType, ExpenseType.fixed);
     });
 
     test('parcelado manda total, quantidade e primeira competência', () async {
-      await controller.start();
+      await controller.startForm();
       controller.selectType(ExpenseType.installment);
 
       controller.form.patchValue({
-        ExpenseFormController.tagId: moradiaTagId,
-        ExpenseFormController.description: 'Geladeira',
-        ExpenseFormController.totalCents: 300000,
-        ExpenseFormController.installmentsCount: 10,
-        ExpenseFormController.firstMonth: '2026-01',
+        ExpenseController.tagId: moradiaTagId,
+        ExpenseController.description: 'Geladeira',
+        ExpenseController.totalCents: 300000,
+        ExpenseController.installmentsCount: 10,
+        ExpenseController.firstMonth: '2026-01',
       });
 
-      final id = await controller.submit();
+      await controller.submit();
 
-      expect(id, 'novo-gasto');
+      verify(() => nav.pop()).called(1);
       verify(
         () => repository.createInstallment(
           description: 'Geladeira',
@@ -121,32 +129,34 @@ void main() {
     // o grupo inteiro, escolher parcelado travaria o salvamento por causa de um
     // "valor por mês" que nem está na tela.
     test('os campos do tipo não escolhido não travam o salvamento', () async {
-      await controller.start();
+      await controller.startForm();
       controller.selectType(ExpenseType.installment);
 
       controller.form.patchValue({
-        ExpenseFormController.tagId: moradiaTagId,
-        ExpenseFormController.description: 'Geladeira',
-        ExpenseFormController.totalCents: 300000,
+        ExpenseController.tagId: moradiaTagId,
+        ExpenseController.description: 'Geladeira',
+        ExpenseController.totalCents: 300000,
       });
 
       expect(
-        controller.control<int>(ExpenseFormController.amountCents).invalid,
+        controller.control<int>(ExpenseController.amountCents).invalid,
         isTrue,
         reason: 'o campo do gasto fixo continua vazio, e tudo bem',
       );
-      expect(await controller.submit(), isNotNull);
+      await controller.submit();
+
+      verify(() => nav.pop()).called(1);
     });
 
     test('voltar para fixo manda o cadastro de fixo', () async {
-      await controller.start();
+      await controller.startForm();
       controller.selectType(ExpenseType.installment);
       controller.selectType(ExpenseType.fixed);
 
       controller.form.patchValue({
-        ExpenseFormController.tagId: moradiaTagId,
-        ExpenseFormController.description: 'Aluguel',
-        ExpenseFormController.amountCents: 120000,
+        ExpenseController.tagId: moradiaTagId,
+        ExpenseController.description: 'Aluguel',
+        ExpenseController.amountCents: 120000,
       });
 
       await controller.submit();
@@ -180,17 +190,19 @@ void main() {
     });
 
     test('menos de duas parcelas é recusado antes de sair', () async {
-      await controller.start();
+      await controller.startForm();
       controller.selectType(ExpenseType.installment);
 
       controller.form.patchValue({
-        ExpenseFormController.tagId: moradiaTagId,
-        ExpenseFormController.description: 'Geladeira',
-        ExpenseFormController.totalCents: 300000,
-        ExpenseFormController.installmentsCount: 1,
+        ExpenseController.tagId: moradiaTagId,
+        ExpenseController.description: 'Geladeira',
+        ExpenseController.totalCents: 300000,
+        ExpenseController.installmentsCount: 1,
       });
 
-      expect(await controller.submit(), isNull);
+      await controller.submit();
+
+      verifyNever(() => nav.pop());
       verifyNever(
         () => repository.createInstallment(
           description: any(named: 'description'),
@@ -208,66 +220,80 @@ void main() {
   });
 
   group('operações', () {
-    late ExpenseDetailController controller;
+    late ExpenseController controller;
+    late SelectedMonthService month;
+    final geladeira = ExpenseModel.fromJson(geladeiraJson);
 
-    setUp(() => controller = ExpenseDetailController(repository, cards));
-    tearDown(() => controller.dispose());
+    ExpenseController build() => ExpenseController(
+      repository: repository,
+      cardRepository: cards,
+      tagRepository: tags,
+      selectedMonth: month,
+      nav: nav,
+    );
+
+    setUp(() {
+      month = SelectedMonthService();
+      controller = build();
+    });
+    tearDown(() {
+      controller.dispose();
+      month.dispose();
+    });
 
     test('reparcelamento manda os dois totais e o mês', () async {
-      await controller.start('gasto-1');
-
-      final failure = await controller.reschedule(
+      await controller.reschedule(
+        geladeira.id,
         newTotalCents: 400000,
         newInstallmentsCount: 12,
         fromMonth: '2026-05',
       );
 
-      expect(failure, isNull);
       verify(
         () => repository.reschedule(
-          'gasto-1',
+          geladeira.id,
           newTotalCents: 400000,
           newInstallmentsCount: 12,
           fromMonth: '2026-05',
         ),
       ).called(1);
-      // Recarga silenciosa depois da ação: a de abertura mais esta.
-      verify(() => repository.getById('gasto-1', month: null)).called(2);
+      // O diálogo e o detalhe: quem mostra o plano novo é a lista.
+      verify(() => nav.pop()).called(2);
     });
 
     test('quitação manda só o mês', () async {
-      await controller.start('gasto-1');
+      await controller.settle(geladeira.id, fromMonth: '2026-09');
 
-      final failure = await controller.settle(fromMonth: '2026-09');
-
-      expect(failure, isNull);
-      verify(
-        () => repository.settle('gasto-1', fromMonth: '2026-09'),
-      ).called(1);
+      verify(() => repository.settle(geladeira.id, fromMonth: '2026-09'))
+          .called(1);
+      verify(() => nav.pop()).called(2);
     });
 
-    test('recusa do backend volta como Failure', () async {
+    test('recusa do backend deixa o diálogo aberto', () async {
       repository = setupExpenseTestInjector(
         mock: expenseRepositoryMock(
-          detail: Success(ExpenseModel.fromJson(geladeiraJson)),
           operations: const Error(
             DomainRuleFailure(message: 'Não há parcelas futuras para quitar'),
           ),
         ),
       );
-      controller = ExpenseDetailController(repository, cards);
-      await controller.start('gasto-1');
+      controller.dispose();
+      controller = build();
 
-      final failure = await controller.settle(fromMonth: '2027-05');
+      await controller.settle(geladeira.id, fromMonth: '2027-05');
 
-      expect(failure, isA<DomainRuleFailure>());
+      verifyNever(() => nav.pop());
     });
   });
 
   group('telas', () {
     Future<void> pumpDetail(WidgetTester tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: ExpenseDetailPage(id: 'gasto-1')),
+        MaterialApp(
+          home: ExpenseDetailPage(
+            expense: ExpenseModel.fromJson(geladeiraJson),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
     }
@@ -334,7 +360,9 @@ void main() {
 
     testWidgets('a edição não oferece troca de tipo', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: ExpenseFormPage(id: 'gasto-1')),
+        MaterialApp(
+          home: ExpenseFormPage(expense: ExpenseModel.fromJson(aluguelJson)),
+        ),
       );
       await tester.pumpAndSettle();
 

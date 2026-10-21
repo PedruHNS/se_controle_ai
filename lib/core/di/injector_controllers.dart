@@ -98,27 +98,14 @@ void _registerControllers() {
     dispose: (e) => e.dispose(),
   );
 
-  getIt.registerLazySingleton<ExpenseListController>(
-    () => ExpenseListController(
-      getIt<ExpenseRepository>(),
-      getIt<SelectedMonthService>(),
+  getIt.registerLazySingleton<ExpenseController>(
+    () => ExpenseController(
+      repository: getIt<ExpenseRepository>(),
+      cardRepository: getIt<CreditCardRepository>(),
+      tagRepository: getIt<TagRepository>(),
+      selectedMonth: getIt<SelectedMonthService>(),
+      nav: getIt<NavigationService>(),
     ),
     dispose: (e) => e.dispose(),
-  );
-
-  getIt.registerFactory<ExpenseFormController>(
-    () => ExpenseFormController(
-      getIt<ExpenseRepository>(),
-      getIt<CreditCardRepository>(),
-      getIt<TagRepository>(),
-      getIt<SelectedMonthService>(),
-    ),
-  );
-
-  getIt.registerFactory<ExpenseDetailController>(
-    () => ExpenseDetailController(
-      getIt<ExpenseRepository>(),
-      getIt<CreditCardRepository>(),
-    ),
   );
 }
