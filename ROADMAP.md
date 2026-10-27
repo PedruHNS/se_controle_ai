@@ -531,8 +531,9 @@ sumiriam de vista se ficassem penduradas numa tarefa concluída.
 
 ### Tags — limite de gasto por categoria
 
-Pedido dele em 25/10/2026, como **ajuste na feature de tags**. Ele pediu só o
-registro: **não começar sem ele mandar.**
+Pedido dele em 25/10/2026, como **ajuste na feature de tags**. As perguntas
+foram respondidas em 27/10/2026, e o trabalho corre na branch
+`feat/tag-spending-limit`, no app e na API.
 
 O que ele pediu:
 
@@ -544,57 +545,80 @@ O que ele pediu:
   naquela tag.
 
 **A conta do "já gastei" já existe.** O backend soma o gasto por tag dentro da
-competência: é o `byTag` do dashboard (DSH-09), com o mesmo critério do resumo.
-O gasto de cartão entra pela competência da fatura, e o parcelado entra pela
-parcela do mês. Não há conta nova a inventar, só a mesma soma exposta em outra
-rota.
+competência: é o `byTag` do dashboard (DSH-09, `buildTagSlices` sobre o
+`inMonth`), com o mesmo critério do resumo. O gasto de cartão entra pela
+competência da fatura, e o parcelado entra pela parcela do mês. Não há conta
+nova a inventar, só a mesma soma exposta em outra rota.
+
+#### Decidido em 27/10/2026
+
+- **O limite é mensal**, por competência, comparado com a soma do `byTag`.
+- **A lista de tags mostra o mês do `SelectedMonthService`**, com seletor, como
+  o dashboard e a lista de cartões. O controller se inscreve na competência
+  (regra dos controllers).
+- **O limite é um valor só**, sem vigência. Trocar o valor muda a comparação
+  também nos meses passados, como renomear muda (TAG-03).
+- **O "perto do teto" é um percentual de cada tag**, definido no diálogo de
+  criar e editar.
+- **Salvar um gasto que leva a tag ao alerta ou acima do limite pede
+  confirmação antes**: "Moradia vai ficar com R$ 520,00 de R$ 500,00 em
+  outubro de 2026. Salvar mesmo assim?". Nada é bloqueado.
+- **O card 2 do dashboard não muda.** O limite aparece só na lista e no aviso
+  ao salvar.
 
 #### O que muda na API
 
-TAG-18 em diante, migration `013`.
+TAG-18 a TAG-21, migration `013`. Feito em 27/10/2026 na branch, com os testes
+verdes, e ainda **sem commit e sem deploy**. As regras estão em
+`docs/specs/06-tags.md`.
 
-- [ ] Coluna `spending_limit_cents` em `tags`: nula quer dizer sem limite, com
-      `CHECK > 0`.
-- [ ] `POST /tags` e `POST /tags/:id` aceitam `spendingLimitCents`. Como o
-      `POST /tags/:id` **substitui**, o limite vai junto do nome e da cor em toda
-      edição, e mandar `null` é o jeito de tirar o limite. Fica sem `Patch`, como
-      a cor ficou depois da `010`.
-- [ ] `GET /tags` devolve o gasto do mês de cada tag (`spentCents`), e por isso
-      passa a receber `?month`, como o dashboard. A resposta do
-      `POST /tags/:id` também traz o gasto, para a linha ser trocada sem
-      recarregar (regra dos repositórios: `month` obrigatório quando a resposta
-      só faz sentido dentro de um mês).
+- [x] Colunas `spending_limit_cents` (`CHECK > 0`) e `spending_alert_percent`
+      (`CHECK` entre 1 e 99) em `tags`, as duas anuláveis. Sem limite, não há
+      percentual (`CHECK`). Limite sem percentual avisa só acima de 100%.
+- [x] `POST /tags` e `POST /tags/:id` aceitam os dois campos. Na criação são
+      opcionais e nascem `null`. Na edição vêm sempre, porque o
+      `POST /tags/:id` **substitui**: mandar `null` é o jeito de tirar o limite,
+      e omitir é 400.
+- [x] `GET /tags?month=YYYY-MM` devolve o gasto de cada tag naquela competência
+      (`spentCents`), com a mesma soma do `byTag` do dashboard. Sem `?month`,
+      `spentCents` vem `null`, e é assim que o formulário de gasto continua
+      listando as tags. `POST /tags` e `POST /tags/:id` aceitam o mesmo `?month`,
+      para a linha ser inserida ou trocada sem recarregar.
+- [ ] Rodar a `013` contra um Postgres de verdade antes do deploy. A migration
+      só foi conferida pelos testes em memória.
 
 #### O que muda no app
 
-- [ ] `TagModel` ganha `spendingLimitCents` (`int?`) e `spentCents`. Quanto
-      falta e quanto passou do limite ficam fora do model (regra dos models).
-- [ ] O diálogo de criar e editar ganha um interruptor "Definir limite" que
-      abre o `MoneyFieldWidget`, dentro do `FormGroup` do controller, como o
-      resto do formulário.
+- [ ] `TagModel` ganha `spendingLimitCents` (`int?`), `spendingAlertPercent`
+      (`int?`) e `spentCents` (`int?`). Quanto falta, o percentual atingido e
+      se passou do limite ficam fora do model (regra dos models).
+- [ ] O `TagRepository.list` ganha `{String? month}`: a lista de tags manda o
+      mês, e o formulário de gasto não.
+- [ ] O `TagListController` se inscreve no `SelectedMonthService`, e a tela de
+      tags ganha o `MonthSelectorWidget`.
+- [ ] O diálogo de criar e editar ganha um interruptor "Definir limite", que
+      abre o `MoneyFieldWidget` e o campo "Avisar a partir de (%)", que já
+      começa em 80. Tudo fica dentro do `FormGroup` do controller.
 - [ ] A `TagTile` de uma tag com limite troca "N lançamentos" por "R$ 320 de
-      R$ 500" e mostra uma barra na cor da tag. Passou do limite, a barra e o
-      texto ficam com a cor de `error`. Tag sem limite continua como está.
-- [ ] Criar e editar continuam reescrevendo a lista a partir do `Loaded`, sem
-      voltar à rede.
+      R$ 500" e mostra uma barra na cor da tag. A partir do percentual, a barra
+      fica com o `warning` do `AppTheme`; acima do limite, com o `error`. Tag sem
+      limite continua como está.
+- [ ] No cadastro de gasto, o Salvar confere a tag escolhida. Se ela tem limite,
+      o controller busca `GET /tags?month=` na competência derivada do
+      formulário e soma o que o gasto acrescenta naquele mês: o valor por mês no
+      fixo, a primeira parcela no parcelado. Se a soma chega ao alerta ou passa
+      do limite, a tela pede confirmação antes de criar.
+- [ ] Criar e editar tag continuam reescrevendo a lista a partir do `Loaded`,
+      sem voltar à rede.
 
-#### Em aberto: perguntar antes de começar
+#### Fica para depois
 
-- **Qual é o período do limite?** O que combina com o resto do app é um limite
-  mensal, por competência, mas ele não disse.
-- **Que mês a lista mostra?** Hoje a tela de tags não tem mês. Pode ser sempre o
-  mês corrente, ou o do `SelectedMonthService` com seletor, como no dashboard
-  e na lista de cartões. No segundo caso, o controller se inscreve na
-  competência (regra dos controllers).
-- **É um limite só para todos os meses, ou ele tem vigência**, como o valor do
-  ganho? Com um limite só, trocar o valor muda também os meses passados, como
-  renomear muda (TAG-03). Com vigência, o limite de novembro muda sem reescrever
-  setembro.
-- **Estourar o limite faz alguma coisa além de mudar a cor?** Pode haver um aviso
-  ao lançar o gasto, um alerta perto do teto ou uma notificação (Fase 10). Ou
-  pode ficar só na lista.
-- **O card 2 do dashboard também mostra o limite?** Ele já mostra a soma por
-  tag.
+- O aviso só confere o **cadastro**. A edição que troca a tag e as operações de
+  dinheiro (reajuste, correção, reparcelamento) também podem levar a tag acima
+  do limite, e ficam de fora da primeira versão.
+- O aviso olha só o primeiro mês do gasto. O fixo recorrente e as parcelas
+  seguintes também entram nos meses de depois.
+- Notificação no celular quando a tag chega perto do teto depende da Fase 10.
 
 ### Fase 9 — para fechar
 
