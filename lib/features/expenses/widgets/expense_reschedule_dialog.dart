@@ -1,36 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:reactive_forms/reactive_forms.dart';
+import 'package:signals/signals_flutter.dart';
 
-import '../../../core/errors/failure.dart';
+import '../../../core/shared/widgets/custom_button_default_widget.dart';
 import '../../../core/shared/widgets/money_field_widget.dart';
 import '../../../core/shared/widgets/month_field_widget.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
 import '../../../data/models/expense_model.dart';
-import '../controller/expense_detail_controller.dart';
+import '../controller/expense_controller.dart';
 
 /// Reparcelamento: refaz o plano de um mês em diante.
 ///
 /// **Os dois números são totais da compra, não o que falta** (GPR-07/GPR-08), e
 /// é isso que o texto do diálogo precisa deixar claro: quem digita "12" está
 /// dizendo "12 no total", contando as que já foram cobradas, não "mais 12".
-Future<bool> showExpenseRescheduleDialog(
+///
+/// Quem o fecha no sucesso é o controller; na falha ele fica aberto, e o
+/// recado sai por toast.
+Future<void> showExpenseRescheduleDialog(
   BuildContext context, {
-  required ExpenseDetailController controller,
+  required ExpenseController controller,
   required ExpenseModel expense,
-}) async {
-  final applied = await showDialog<bool>(
+}) {
+  return showDialog<void>(
     context: context,
     builder: (context) =>
         _RescheduleDialog(controller: controller, expense: expense),
   );
-  return applied ?? false;
 }
 
 class _RescheduleDialog extends StatefulWidget {
   const _RescheduleDialog({required this.controller, required this.expense});
 
-  final ExpenseDetailController controller;
+  final ExpenseController controller;
   final ExpenseModel expense;
 
   @override
@@ -59,8 +62,8 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
     ),
   });
 
-  String? _generalError;
-  bool _sending = false;
+  /// A recusa que o próprio diálogo dá, antes de ir ao backend.
+  String? _countError;
 
   /// A primeira parcela que ainda não foi cobrada, ou o mês corrente quando
   /// todas já passaram. Reparcelar o passado é permitido (GPR-13), mas não é o
@@ -95,11 +98,11 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
     final count = _form.control(_newInstallmentsCount).value as int;
     final kept = _keptBefore(fromMonth);
 
-    // O backend responde 422 com a conta pronta ("2 parcela(s) já foram
-    // cobradas..."), mas a viagem é evitável e o número já está aqui.
+    // O backend responde 422 com a mesma conta, mas a viagem é evitável e o
+    // número já está aqui.
     if (count <= kept) {
       setState(
-        () => _generalError =
+        () => _countError =
             '$kept parcela(s) já foram cobradas antes de '
             '${MonthUtils.label(fromMonth)}. O novo total precisa ser maior que '
             'isso — para encerrar o parcelamento, use Quitar.',
@@ -107,146 +110,125 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
       return;
     }
 
-    setState(() {
-      _sending = true;
-      _generalError = null;
-    });
+    setState(() => _countError = null);
 
-    final failure = await widget.controller.reschedule(
+    await widget.controller.reschedule(
+      widget.expense.id,
       newTotalCents: _form.control(_newTotalCents).value as int,
       newInstallmentsCount: count,
       fromMonth: fromMonth,
     );
-
-    if (!mounted) return;
-
-    if (failure == null) {
-      Navigator.of(context).pop(true);
-      return;
-    }
-
-    setState(() {
-      _sending = false;
-      _generalError = _applyFailure(failure);
-    });
-  }
-
-  String? _applyFailure(Failure failure) {
-    if (failure is! ValidationFailure || failure.issues.isEmpty) {
-      return failure.message;
-    }
-
-    var placed = false;
-    for (final issue in failure.issues) {
-      if (!_form.contains(issue.path)) continue;
-      _form.control(issue.path)
-        ..setErrors({'backend': issue.message})
-        ..markAsTouched();
-      placed = true;
-    }
-
-    return placed ? null : failure.message;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: const Text('Reparcelar'),
-      content: ReactiveForm(
-        formGroup: _form,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'As parcelas anteriores ao mês escolhido ficam como estão — já '
-                'foram cobradas. O total e a quantidade são da compra inteira, '
-                'contando essas.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              MoneyFieldWidget(
-                formControlName: _newTotalCents,
-                autofocus: true,
-                label: 'Novo total da compra',
-              ),
-              const SizedBox(height: 16),
-              ReactiveTextField<int>(
-                formControlName: _newInstallmentsCount,
-                keyboardType: TextInputType.number,
-                validationMessages: {
-                  ValidationMessage.required: (_) =>
-                      'Informe a quantidade de parcelas.',
-                  ValidationMessage.number: (_) => 'Só números.',
-                  'backend': (error) => '$error',
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Parcelas no total',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              MonthFieldWidget(
-                formControlName: _fromMonth,
-                label: 'Replanejar a partir de',
-              ),
-              ReactiveValueListenableBuilder<String>(
-                formControlName: _fromMonth,
-                builder: (context, control, child) {
-                  final kept = _keptBefore(
-                    control.value ?? MonthUtils.current(),
-                  );
-                  if (kept == 0) return const SizedBox.shrink();
-
-                  final total = widget.expense.installments
-                      .where(
-                        (parcel) => MonthUtils.isBefore(
-                          parcel.referenceMonth,
-                          control.value ?? MonthUtils.current(),
-                        ),
-                      )
-                      .fold(0, (sum, parcel) => sum + parcel.amountCents);
-
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '$kept parcela(s) já cobradas, ${MoneyUtils.format(total)} — '
-                      'ficam como estão.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (_generalError != null) ...[
-                const SizedBox(height: 12),
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Reparcelar'),
+        content: ReactiveForm(
+          formGroup: _form,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Text(
-                  _generalError!,
+                  'As parcelas anteriores ao mês escolhido ficam como estão — já '
+                  'foram cobradas. O total e a quantidade são da compra inteira, '
+                  'contando essas.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+                const SizedBox(height: 16),
+                MoneyFieldWidget(
+                  formControlName: _newTotalCents,
+                  autofocus: true,
+                  label: 'Novo total da compra',
+                ),
+                const SizedBox(height: 16),
+                ReactiveTextField<int>(
+                  formControlName: _newInstallmentsCount,
+                  keyboardType: TextInputType.number,
+                  validationMessages: {
+                    ValidationMessage.required: (_) =>
+                        'Informe a quantidade de parcelas.',
+                    ValidationMessage.number: (_) => 'Só números.',
+                    'backend': (error) => '$error',
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Parcelas no total',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                MonthFieldWidget(
+                  formControlName: _fromMonth,
+                  label: 'Replanejar a partir de',
+                ),
+                ReactiveValueListenableBuilder<String>(
+                  formControlName: _fromMonth,
+                  builder: (context, control, child) {
+                    final kept = _keptBefore(
+                      control.value ?? MonthUtils.current(),
+                    );
+                    if (kept == 0) return const SizedBox.shrink();
+
+                    final total = widget.expense.installments
+                        .where(
+                          (parcel) => MonthUtils.isBefore(
+                            parcel.referenceMonth,
+                            control.value ?? MonthUtils.current(),
+                          ),
+                        )
+                        .fold(0, (sum, parcel) => sum + parcel.amountCents);
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '$kept parcela(s) já cobradas, ${MoneyUtils.format(total)} — '
+                        'ficam como estão.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (_countError != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _countError!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
+        actions: [
+          SignalBuilder(
+            builder: (context) => TextButton(
+              onPressed: widget.controller.saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ),
+          SignalBuilder(
+            builder: (context) => CustomButtonDefaultWidget(
+              isLoading: widget.controller.saving.value,
+              onPressed: _send,
+              title: 'Reparcelar',
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _sending ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _sending ? null : _send,
-          child: const Text('Reparcelar'),
-        ),
-      ],
     );
   }
 }

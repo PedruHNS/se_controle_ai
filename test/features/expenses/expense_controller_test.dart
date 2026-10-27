@@ -386,15 +386,11 @@ void main() {
     // A controller é uma só e vive enquanto a lista vive, então cada abertura
     // do formulário tem de começar limpa — nada da edição anterior vaza.
     test('abrir o cadastro depois de uma edição começa limpo', () async {
-      await controller.startForm(expense: aluguel);
-      await controller.startForm();
+      await controller.loadExpense(aluguel);
+      await controller.resetForm();
 
-      expect(controller.isEditing, isFalse);
-      expect(
-        controller.control<String>(ExpenseController.description).value,
-        isNull,
-      );
-      expect(controller.control<String>(ExpenseController.tagId).value, isNull);
+      expect(controller.form.control('description').value, isNull);
+      expect(controller.form.control('tagId').value, isNull);
       expect(controller.form.touched, isFalse);
     });
 
@@ -410,14 +406,14 @@ void main() {
           }),
         ),
       );
-      await controller.startForm();
+      await controller.resetForm();
 
       controller.form.patchValue({
-        ExpenseController.description: 'Mercado',
-        ExpenseController.tagId: moradiaTagId,
-        ExpenseController.amountCents: 2500,
+        'description': 'Mercado',
+        'tagId': moradiaTagId,
+        'amountCents': 2500,
       });
-      await controller.submit();
+      await controller.onSubmit(expense: null);
 
       nenhumaBuscaDaLista();
       expect(naLista(), contains('Mercado'));
@@ -444,14 +440,14 @@ void main() {
             }),
           ),
         );
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.description: 'Spotify',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.amountCents: 2190,
+          'description': 'Spotify',
+          'tagId': moradiaTagId,
+          'amountCents': 2190,
         });
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         expect(naLista(), isNot(contains('Spotify')));
         verify(() => nav.pop()).called(1);
@@ -461,12 +457,10 @@ void main() {
     test('editar troca a linha pelo gasto devolvido', () async {
       await comListaCarregada();
       operacoesDevolvem('Aluguel novo');
-      await controller.startForm(expense: aluguel);
+      await controller.loadExpense(aluguel);
 
-      controller.form.patchValue({
-        ExpenseController.description: 'Aluguel novo',
-      });
-      await controller.submit();
+      controller.form.patchValue({'description': 'Aluguel novo'});
+      await controller.onSubmit(expense: aluguel);
 
       nenhumaBuscaDaLista();
       expect(naLista(), contains('Aluguel novo'));
@@ -487,31 +481,22 @@ void main() {
           }),
         ),
       );
-      await controller.startForm(expense: aluguel);
+      await controller.loadExpense(aluguel);
 
-      await controller.submit();
+      await controller.onSubmit(expense: aluguel);
 
       expect(naLista(), isNot(contains('Aluguel')));
     });
 
     group('cadastro', () {
       test('abre pronto, com débito e sem recorrência', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         expect(controller.formState.value, isA<Loaded<void>>());
-        expect(controller.isEditing, isFalse);
-        expect(
-          controller
-              .control<PaymentMethod>(ExpenseController.paymentMethod)
-              .value,
-          PaymentMethod.debit,
-        );
+        expect(controller.getPaymentMethod.value, PaymentMethod.debit);
         // Desligada por padrão: o gasto de uma vez só é o caso comum, e o switch
         // ligado fazia um almoço virar cobrança mensal sem ninguém pedir.
-        expect(
-          controller.control<bool>(ExpenseController.recurring).value,
-          isFalse,
-        );
+        expect(controller.isRecurring.value, isFalse);
       });
 
       // O campo de dia nasce em hoje, e é dele que a competência sai. Antes da
@@ -519,12 +504,9 @@ void main() {
       // em nada — quem está vendo dezembro e lança um almoço de hoje lança em
       // setembro, que é quando o almoço aconteceu.
       test('o dia nasce em hoje', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
-        expect(
-          controller.control<String>(ExpenseController.spentAt).value,
-          isoDeHoje(),
-        );
+        expect(controller.form.control('spentAt').value, isoDeHoje());
       });
 
       test(
@@ -533,67 +515,50 @@ void main() {
           month.select('2026-12');
           controller = build();
 
-          await controller.startForm();
+          await controller.resetForm();
 
           expect(
-            controller.control<String>(ExpenseController.startMonth).value,
+            controller.form.control('startMonth').value,
             isoDeHoje().substring(0, 7),
           );
         },
       );
 
       test('sem dia não há o que salvar', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
-        controller.control<String>(ExpenseController.spentAt).value = null;
+        controller.form.control('spentAt').value = null;
 
-        expect(
-          controller.control<String>(ExpenseController.spentAt).valid,
-          isFalse,
-        );
+        expect(controller.form.control('spentAt').valid, isFalse);
       });
 
       // A lista de cartões é o que fecha o critério da Fase 3: o cartão
       // cadastrado precisa aparecer como opção no formulário de gasto.
       test('busca os cartões para o seletor', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         expect(controller.cards, hasLength(2));
         verify(() => cards.list(month: any(named: 'month'))).called(1);
       });
 
-      test('formulário vazio não manda requisição nem fecha a tela', () async {
-        await controller.startForm();
+      // O Salvar só habilita com o formulário válido, como no de cartão.
+      test('formulário vazio não é válido', () async {
+        await controller.resetForm();
 
-        await controller.submit();
-
-        verifyNever(() => nav.pop());
-        verifyNever(
-          () => repository.createFixed(
-            description: any(named: 'description'),
-            paymentMethod: any(named: 'paymentMethod'),
-            amountCents: any(named: 'amountCents'),
-            startMonth: any(named: 'startMonth'),
-            tagId: any(named: 'tagId'),
-            notes: any(named: 'notes'),
-            creditCardId: any(named: 'creditCardId'),
-            recurring: any(named: 'recurring'),
-            spentAt: any(named: 'spentAt'),
-          ),
-        );
+        expect(controller.form.valid, isFalse);
       });
 
       test('cadastra no débito e fecha a tela', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.description: '  Aluguel  ',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.amountCents: 120000,
-          ExpenseController.startMonth: '2026-01',
+          'description': '  Aluguel  ',
+          'tagId': moradiaTagId,
+          'amountCents': 120000,
+          'startMonth': '2026-01',
         });
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(() => nav.pop()).called(1);
         verify(
@@ -614,16 +579,16 @@ void main() {
       });
 
       test('categoria vazia vai como null, não como string vazia', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.description: 'Aluguel',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.notes: '   ',
-          ExpenseController.amountCents: 120000,
+          'description': 'Aluguel',
+          'tagId': moradiaTagId,
+          'notes': '   ',
+          'amountCents': 120000,
         });
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(
           () => repository.createFixed(
@@ -643,38 +608,31 @@ void main() {
       // GFX-01 do lado do cliente: o backend recusaria com 422, mas a viagem é
       // evitável e a mensagem fica embaixo do campo.
       test('cartão sem cartão escolhido não sai do lugar', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.description: 'Youtube',
-          ExpenseController.amountCents: 2490,
+          'tagId': moradiaTagId,
+          'description': 'Youtube',
+          'amountCents': 2490,
         });
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
+        controller.setPaymentMethod = PaymentMethod.creditCard;
 
-        await controller.submit();
-
-        verifyNever(() => nav.pop());
-        expect(
-          controller.control<String>(ExpenseController.creditCardId).invalid,
-          isTrue,
-        );
+        expect(controller.form.valid, isFalse);
+        expect(controller.form.control('creditCardId').invalid, isTrue);
       });
 
       test('cadastra no cartão com o cartão escolhido', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.description: 'Youtube Music',
-          ExpenseController.amountCents: 2490,
+          'tagId': moradiaTagId,
+          'description': 'Youtube Music',
+          'amountCents': 2490,
         });
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
-        controller
-            .control<String>(ExpenseController.creditCardId)
-            .updateValue('cartao-1');
+        controller.setPaymentMethod = PaymentMethod.creditCard;
+        controller.form.control('creditCardId').updateValue('cartao-1');
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(() => nav.pop()).called(1);
         verify(
@@ -695,25 +653,20 @@ void main() {
       // GFX-07 do lado do cliente: trocar para débito limpa o cartão. Sem isto o
       // valor ficaria pendurado num campo escondido e sairia junto.
       test('voltar para débito descarta o cartão escolhido', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.description: 'Aluguel',
-          ExpenseController.amountCents: 120000,
+          'tagId': moradiaTagId,
+          'description': 'Aluguel',
+          'amountCents': 120000,
         });
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
-        controller
-            .control<String>(ExpenseController.creditCardId)
-            .updateValue('cartao-1');
-        controller.selectPaymentMethod(PaymentMethod.debit);
+        controller.setPaymentMethod = PaymentMethod.creditCard;
+        controller.form.control('creditCardId').updateValue('cartao-1');
+        controller.setPaymentMethod = PaymentMethod.debit;
 
-        expect(
-          controller.control<String>(ExpenseController.creditCardId).value,
-          isNull,
-        );
+        expect(controller.form.control('creditCardId').value, isNull);
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(
           () => repository.createFixed(
@@ -731,16 +684,16 @@ void main() {
       });
 
       test('avulso manda recurring false', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.description: 'Presente',
-          ExpenseController.amountCents: 18000,
-          ExpenseController.recurring: false,
+          'tagId': moradiaTagId,
+          'description': 'Presente',
+          'amountCents': 18000,
         });
+        controller.setIsRecurring = false;
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(
           () => repository.createFixed(
@@ -771,15 +724,15 @@ void main() {
         test('${failure.runtimeType} não fecha a tela', () async {
           repository = expenseRepositoryMock(create: Error(failure));
           controller = build();
-          await controller.startForm();
+          await controller.resetForm();
 
           controller.form.patchValue({
-            ExpenseController.tagId: moradiaTagId,
-            ExpenseController.description: 'x',
-            ExpenseController.amountCents: 100,
+            'tagId': moradiaTagId,
+            'description': 'x',
+            'amountCents': 100,
           });
 
-          await controller.submit();
+          await controller.onSubmit(expense: null);
 
           verifyNever(() => nav.pop());
           expect(controller.saving.value, isFalse);
@@ -794,22 +747,22 @@ void main() {
         );
         controller = build();
 
-        await controller.startForm();
+        await controller.resetForm();
 
         final state = controller.formState.value;
         expect(state, isA<Failed<void>>());
         expect((state as Failed<void>).failure, isA<NetworkFailure>());
       });
 
-      test('refreshForm tenta de novo os GET que falharam', () async {
+      test('abrir de novo tenta os GET que falharam', () async {
         cards = creditCardRepositoryMock(
           list: const Error(NetworkFailure(message: 'sem rede')),
         );
         controller = build();
-        await controller.startForm();
+        await controller.resetForm();
 
         stubCreditCardList(cards);
-        await controller.refreshForm();
+        await controller.resetForm();
 
         expect(controller.formState.value, isA<Loaded<void>>());
       });
@@ -822,15 +775,15 @@ void main() {
       test('cadastrar leva a home para o mês onde o gasto caiu', () async {
         month.select(MonthUtils.next(MonthUtils.next(MonthUtils.current())));
         controller = build();
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.description: 'Mercado',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.amountCents: 2500,
+          'description': 'Mercado',
+          'tagId': moradiaTagId,
+          'amountCents': 2500,
         });
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         expect(month.month.value, MonthUtils.current());
       });
@@ -839,9 +792,9 @@ void main() {
         month.select(MonthUtils.next(MonthUtils.next(MonthUtils.current())));
         final antes = month.month.value;
         controller = build();
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
-        await controller.submit();
+        await controller.onSubmit(expense: aluguel);
 
         expect(month.month.value, antes);
       });
@@ -849,16 +802,16 @@ void main() {
 
     group('dia da compra (GFX-12)', () {
       test('quem não mexe no campo cadastra com o dia de hoje', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.description: 'Aluguel',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.amountCents: 120000,
-          ExpenseController.startMonth: '2026-01',
+          'description': 'Aluguel',
+          'tagId': moradiaTagId,
+          'amountCents': 120000,
+          'startMonth': '2026-01',
         });
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         // O app sempre manda o dia. O backend ainda aceita ausente — quem não
         // manda recebe o instante do cadastro —, mas esse caminho deixou de ser
@@ -879,17 +832,17 @@ void main() {
       });
 
       test('a data escolhida vai junto no cadastro', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.description: 'Mercado',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.amountCents: 25000,
-          ExpenseController.startMonth: '2026-01',
-          ExpenseController.spentAt: '2026-01-08',
+          'description': 'Mercado',
+          'tagId': moradiaTagId,
+          'amountCents': 25000,
+          'startMonth': '2026-01',
+          'spentAt': '2026-01-08',
         });
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(
           () => repository.createFixed(
@@ -907,19 +860,19 @@ void main() {
       });
 
       test('vale igual no parcelado', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
-        controller.selectType(ExpenseType.installment);
+        controller.setType = ExpenseType.installment;
         controller.form.patchValue({
-          ExpenseController.description: 'Geladeira',
-          ExpenseController.tagId: moradiaTagId,
-          ExpenseController.totalCents: 300000,
-          ExpenseController.installmentsCount: 10,
-          ExpenseController.firstMonth: '2026-01',
-          ExpenseController.spentAt: '2026-01-08',
+          'description': 'Geladeira',
+          'tagId': moradiaTagId,
+          'totalCents': 300000,
+          'installmentsCount': 10,
+          'firstMonth': '2026-01',
+          'spentAt': '2026-01-08',
         });
 
-        await controller.submit();
+        await controller.onSubmit(expense: null);
 
         verify(
           () => repository.createInstallment(
@@ -968,10 +921,10 @@ void main() {
       }
 
       Future<void> comprarHoje() async {
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
+        controller.setPaymentMethod = PaymentMethod.creditCard;
         controller.form.patchValue({
-          ExpenseController.creditCardId: nubankId,
-          ExpenseController.spentAt: isoDeHoje(),
+          'creditCardId': nubankId,
+          'spentAt': isoDeHoje(),
         });
         await Future<void>.delayed(Duration.zero);
       }
@@ -980,14 +933,11 @@ void main() {
       // a primeira parcela caiu na fatura de setembro — que fechou no dia 1.
       test('a compra vai para a fatura que ainda está aberta', () async {
         comCartaoQueFecha(1);
-        await controller.startForm();
+        await controller.resetForm();
 
         await comprarHoje();
 
-        expect(
-          controller.control<String>(ExpenseController.startMonth).value,
-          faturaDeHoje(1),
-        );
+        expect(controller.form.control('startMonth').value, faturaDeHoje(1));
       });
 
       // O bug de 12/09/2026, como aconteceu: Inter fecha 31 e vence 5. A compra
@@ -998,13 +948,13 @@ void main() {
         'cartão que vence antes de fechar joga a compra no mês do pagamento',
         () async {
           comCartaoQueFecha(31, vence: 5);
-          await controller.startForm();
+          await controller.resetForm();
 
           await comprarHoje();
 
           final hoje = DateTime.now();
           expect(
-            controller.control<String>(ExpenseController.startMonth).value,
+            controller.form.control('startMonth').value,
             MonthUtils.next(MonthUtils.of(hoje.year, hoje.month)),
           );
         },
@@ -1014,46 +964,38 @@ void main() {
         'fechamento no fim do mês não empurra pela data da compra',
         () async {
           comCartaoQueFecha(28);
-          await controller.startForm();
+          await controller.resetForm();
 
           await comprarHoje();
 
-          expect(
-            controller.control<String>(ExpenseController.startMonth).value,
-            faturaDeHoje(28),
-          );
+          expect(controller.form.control('startMonth').value, faturaDeHoje(28));
         },
       );
 
       test('no parcelado quem se move é a primeira parcela', () async {
         comCartaoQueFecha(1);
-        await controller.startForm();
+        await controller.resetForm();
 
-        controller.selectType(ExpenseType.installment);
+        controller.setType = ExpenseType.installment;
         await comprarHoje();
 
-        expect(
-          controller.control<String>(ExpenseController.firstMonth).value,
-          faturaDeHoje(1),
-        );
+        expect(controller.form.control('firstMonth').value, faturaDeHoje(1));
       });
 
       // Lançar hoje uma compra de meses atrás não pode mexer numa fatura que já
       // foi paga: o mínimo é a que ainda está aberta.
       test('compra antiga não cai em fatura fechada', () async {
         comCartaoQueFecha(10);
-        await controller.startForm();
+        await controller.resetForm();
 
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
+        controller.setPaymentMethod = PaymentMethod.creditCard;
         controller.form.patchValue({
-          ExpenseController.creditCardId: nubankId,
-          ExpenseController.spentAt: '2026-01-12',
+          'creditCardId': nubankId,
+          'spentAt': '2026-01-12',
         });
         await Future<void>.delayed(Duration.zero);
 
-        final competencia = controller
-            .control<String>(ExpenseController.startMonth)
-            .value!;
+        final competencia = controller.form.control('startMonth').value!;
 
         expect(competencia, isNot('2026-02'));
         expect(
@@ -1066,32 +1008,35 @@ void main() {
       // No débito não há fechamento, então não há o que calcular — a competência
       // continua sendo escolha de quem preenche.
       test('no débito o dia não mexe na competência', () async {
-        await controller.startForm();
+        await controller.resetForm();
 
         controller.form.patchValue({
-          ExpenseController.startMonth: '2026-01',
-          ExpenseController.spentAt: '2026-01-28',
+          'startMonth': '2026-01',
+          'spentAt': '2026-01-28',
         });
         await Future<void>.delayed(Duration.zero);
 
-        expect(
-          controller.control<String>(ExpenseController.startMonth).value,
-          '2026-01',
-        );
+        expect(controller.form.control('startMonth').value, '2026-01');
       });
 
       // Só o fixo é recorrente: o switch fica escondido no parcelado, e o valor
       // que sobrou nele não pode decidir a regra da fatura.
-      test('isRecurring segue o switch, e só no fixo', () async {
-        await controller.startForm();
+      test('o recorrente que sobrou no switch não vale no parcelado', () async {
+        comCartaoQueFecha(28);
+        await controller.resetForm();
 
-        expect(controller.isRecurring, isFalse);
+        controller.setIsRecurring = true;
+        controller.setType = ExpenseType.installment;
+        controller.setPaymentMethod = PaymentMethod.creditCard;
+        controller.form.patchValue({
+          'creditCardId': nubankId,
+          'spentAt': '2026-01-05',
+        });
+        await Future<void>.delayed(Duration.zero);
 
-        controller.form.patchValue({ExpenseController.recurring: true});
-        expect(controller.isRecurring, isTrue);
-
-        controller.selectType(ExpenseType.installment);
-        expect(controller.isRecurring, isFalse);
+        // Fevereiro seria a conta do recorrente; o parcelado cai na fatura
+        // aberta, como qualquer compra pontual.
+        expect(controller.form.control('firstMonth').value, isNot('2026-02'));
       });
 
       // Cadastrar hoje o aluguel que começou em janeiro é registro retroativo de
@@ -1099,13 +1044,13 @@ void main() {
       // justamente o histórico que a pessoa está tentando registrar.
       test('recorrente não é empurrado para a fatura aberta', () async {
         comCartaoQueFecha(28);
-        await controller.startForm();
+        await controller.resetForm();
 
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
+        controller.setPaymentMethod = PaymentMethod.creditCard;
+        controller.setIsRecurring = true;
         controller.form.patchValue({
-          ExpenseController.creditCardId: nubankId,
-          ExpenseController.recurring: true,
-          ExpenseController.spentAt: '2026-01-05',
+          'creditCardId': nubankId,
+          'spentAt': '2026-01-05',
         });
         await Future<void>.delayed(Duration.zero);
 
@@ -1113,20 +1058,14 @@ void main() {
         // em 28/01, e essa fatura vence no dia 17 de **fevereiro**. Não é o
         // empurrão da fatura aberta — é a segunda conta da CAR-03, que vale
         // igual no recorrente.
-        expect(
-          controller.control<String>(ExpenseController.startMonth).value,
-          '2026-02',
-        );
+        expect(controller.form.control('startMonth').value, '2026-02');
 
         // A mesma data numa compra pontual cai na fatura aberta, que é o
         // contraste: a trava existe, só não vale para recorrente.
-        controller.form.patchValue({ExpenseController.recurring: false});
+        controller.setIsRecurring = false;
         await Future<void>.delayed(Duration.zero);
 
-        expect(
-          controller.control<String>(ExpenseController.startMonth).value,
-          isNot('2026-02'),
-        );
+        expect(controller.form.control('startMonth').value, isNot('2026-02'));
       });
     });
 
@@ -1134,20 +1073,13 @@ void main() {
       // A edição se abre do detalhe, e salvar fecha o formulário e o detalhe:
       // quem mostra o resultado é a lista, como nas operações de dinheiro.
       test('abre preenchido com o gasto', () async {
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
         expect(controller.formState.value, isA<Loaded<void>>());
-        expect(controller.isEditing, isTrue);
+        expect(controller.form.control('description').value, 'Aluguel');
+        expect(controller.form.control('tagId').value, moradiaTagId);
         expect(
-          controller.control<String>(ExpenseController.description).value,
-          'Aluguel',
-        );
-        expect(
-          controller.control<String>(ExpenseController.tagId).value,
-          moradiaTagId,
-        );
-        expect(
-          controller.control<String>(ExpenseController.notes).value,
+          controller.form.control('notes').value,
           'reajuste anual em julho',
         );
       });
@@ -1156,13 +1088,11 @@ void main() {
       // `PATCH` de descrição, forma, observação e cartão é substituição. Valor e
       // competência nem estão na tela.
       test('editar a descrição manda os dados cadastrais inteiros', () async {
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
-        controller.form.patchValue({
-          ExpenseController.description: 'Aluguel novo',
-        });
+        controller.form.patchValue({'description': 'Aluguel novo'});
 
-        await controller.submit();
+        await controller.onSubmit(expense: aluguel);
 
         verify(() => nav.pop()).called(2);
         expect(lastExpenseUpdateBody(repository), {
@@ -1176,13 +1106,11 @@ void main() {
       // A tag é a exceção: reenviar uma arquivada é recusado com 422, então ela
       // só entra no corpo quando trocou.
       test('trocar a tag manda o tagId junto', () async {
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
-        controller
-            .control<String>(ExpenseController.tagId)
-            .updateValue(outraTagId);
+        controller.form.control('tagId').updateValue(outraTagId);
 
-        await controller.submit();
+        await controller.onSubmit(expense: aluguel);
 
         expect(
           lastExpenseUpdateBody(repository),
@@ -1191,33 +1119,31 @@ void main() {
       });
 
       test('salvar sem mexer não manda a tag', () async {
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
-        await controller.submit();
+        await controller.onSubmit(expense: aluguel);
 
         expect(lastExpenseUpdateBody(repository), isNot(contains('tagId')));
         verify(() => nav.pop()).called(2);
       });
 
       test('apagar a observação na tela manda null', () async {
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
-        controller.control<String>(ExpenseController.notes).updateValue('');
+        controller.form.control('notes').updateValue('');
 
-        await controller.submit();
+        await controller.onSubmit(expense: aluguel);
 
         expect(lastExpenseUpdateBody(repository), containsPair('notes', null));
       });
 
       test('trocar para cartão manda forma e cartão juntos', () async {
-        await controller.startForm(expense: aluguel);
+        await controller.loadExpense(aluguel);
 
-        controller.selectPaymentMethod(PaymentMethod.creditCard);
-        controller
-            .control<String>(ExpenseController.creditCardId)
-            .updateValue('cartao-9');
+        controller.setPaymentMethod = PaymentMethod.creditCard;
+        controller.form.control('creditCardId').updateValue('cartao-9');
 
-        await controller.submit();
+        await controller.onSubmit(expense: aluguel);
 
         expect(
           lastExpenseUpdateBody(repository),
@@ -1229,11 +1155,12 @@ void main() {
       });
 
       test('trocar para débito limpa o cartão no corpo', () async {
-        await controller.startForm(expense: ExpenseModel.fromJson(youtubeJson));
+        final youtube = ExpenseModel.fromJson(youtubeJson);
+        await controller.loadExpense(youtube);
 
-        controller.selectPaymentMethod(PaymentMethod.debit);
+        controller.setPaymentMethod = PaymentMethod.debit;
 
-        await controller.submit();
+        await controller.onSubmit(expense: youtube);
 
         expect(
           lastExpenseUpdateBody(repository),

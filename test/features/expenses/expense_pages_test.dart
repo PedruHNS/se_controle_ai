@@ -527,33 +527,20 @@ void main() {
       expect(find.text('Nubank ••••4321'), findsWidgets);
     });
 
-    testWidgets('submit vazio não chama o backend', (tester) async {
+    // Como no formulário de cartão: o Salvar só habilita com o formulário
+    // válido, então o vazio nem tem como chegar ao backend.
+    testWidgets('formulário vazio deixa o Salvar desabilitado', (tester) async {
       await pumpForm(tester);
 
-      await tapSalvar(tester);
-
-      // Rolar até o botão deixou a descrição para trás; a mensagem está lá em
-      // cima, onde o campo está.
+      final button = find.widgetWithText(FilledButton, 'Salvar');
       await tester.scrollUntilVisible(
-        find.text('Informe a descrição.'),
-        -200,
+        button,
+        200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Informe a descrição.'), findsOneWidget);
-      verifyNever(
-        () => repository.createFixed(
-          description: any(named: 'description'),
-          paymentMethod: any(named: 'paymentMethod'),
-          amountCents: any(named: 'amountCents'),
-          startMonth: any(named: 'startMonth'),
-          tagId: any(named: 'tagId'),
-          notes: any(named: 'notes'),
-          creditCardId: any(named: 'creditCardId'),
-          recurring: any(named: 'recurring'),
-        ),
-      );
+      expect(tester.widget<FilledButton>(button).onPressed, isNull);
     });
 
     // A competência sai do dia, então o gasto pode cair fora do mês que a

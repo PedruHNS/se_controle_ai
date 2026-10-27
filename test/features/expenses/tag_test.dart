@@ -90,7 +90,7 @@ void main() {
     });
 
     test('carrega as tags ao abrir', () async {
-      await controller.startForm();
+      await controller.resetForm();
 
       expect(controller.tags.value.map((t) => t.name), [
         'Moradia',
@@ -99,47 +99,32 @@ void main() {
       ]);
     });
 
-    // TAG-06: sem tag o formulário não salva, e o backend nem é chamado.
-    test('sem tag escolhida, não chama o backend', () async {
-      await controller.startForm();
+    // TAG-06: sem tag o formulário não é válido, e o Salvar fica desabilitado.
+    test('sem tag escolhida, o formulário não é válido', () async {
+      await controller.resetForm();
 
       controller.form.patchValue({
-        ExpenseController.description: 'Aluguel',
-        ExpenseController.amountCents: 120000,
+        'description': 'Aluguel',
+        'amountCents': 120000,
       });
 
-      await controller.submit();
-
-      verifyNever(
-        () => repository.createFixed(
-          description: any(named: 'description'),
-          paymentMethod: any(named: 'paymentMethod'),
-          amountCents: any(named: 'amountCents'),
-          startMonth: any(named: 'startMonth'),
-          tagId: any(named: 'tagId'),
-          notes: any(named: 'notes'),
-          creditCardId: any(named: 'creditCardId'),
-          recurring: any(named: 'recurring'),
-        ),
-      );
+      expect(controller.form.control('tagId').invalid, isTrue);
+      expect(controller.form.valid, isFalse);
     });
 
     // O seletor traz só as ativas, mas um gasto antigo pode apontar para uma
     // arquivada. Sem ela na lista, o dropdown teria valor sem item
     // correspondente — que no Flutter é assertion, não campo vazio.
     test('editando gasto com tag arquivada, ela entra na lista', () async {
-      await controller.startForm(expense: comTagArquivada);
+      await controller.loadExpense(comTagArquivada);
 
       expect(controller.formState.value, isA<Loaded<void>>());
       expect(controller.tags.value.map((t) => t.id), contains(arquivadaTagId));
-      expect(
-        controller.control<String>(ExpenseController.tagId).value,
-        arquivadaTagId,
-      );
+      expect(controller.form.control('tagId').value, arquivadaTagId);
     });
 
     test('tag arquivada não aparece no cadastro novo', () async {
-      await controller.startForm();
+      await controller.resetForm();
 
       expect(
         controller.tags.value.map((t) => t.id),
@@ -153,7 +138,7 @@ void main() {
         result: const Error(NetworkFailure(message: 'Sem conexão.')),
       );
 
-      await controller.startForm();
+      await controller.resetForm();
 
       final state = controller.formState.value;
       expect(state, isA<Failed<void>>());
@@ -164,15 +149,12 @@ void main() {
     // recebe a tag pronta. Sem um segundo `GET /tags` para exibir o que o
     // servidor acabou de responder.
     test('a tag criada entra no seletor e já fica selecionada', () async {
-      await controller.startForm();
+      await controller.resetForm();
       clearInteractions(tags);
 
       controller.selectCreatedTag(TagModel.fromJson(tagCriadaJson));
 
-      expect(
-        controller.control<String>(ExpenseController.tagId).value,
-        criadaTagId,
-      );
+      expect(controller.form.control('tagId').value, criadaTagId);
       expect(controller.tags.value.map((t) => t.id), contains(criadaTagId));
       verifyNever(() => tags.list());
       verifyNever(
@@ -186,7 +168,7 @@ void main() {
     // A lista local tem que ficar ordenada por nome, como a que o servidor
     // devolve.
     test('a tag nova entra na posição certa', () async {
-      await controller.startForm();
+      await controller.resetForm();
 
       controller.selectCreatedTag(
         TagModel.fromJson({...tagCriadaJson, 'name': 'Farmácia'}),
@@ -204,7 +186,7 @@ void main() {
     // já estava no seletor — a do gasto em edição —, troca a linha em vez de
     // repetir.
     test('a ressuscitada não aparece duas vezes', () async {
-      await controller.startForm(expense: comTagArquivada);
+      await controller.loadExpense(comTagArquivada);
 
       controller.selectCreatedTag(
         const TagModel(

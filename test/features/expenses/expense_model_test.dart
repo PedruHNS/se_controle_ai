@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:se_controle_ai/data/models/expense_model.dart';
 
 import '../../fixtures/expense_fixture.dart';
+
 import 'package:se_controle_ai/data/enums/payment_method.dart';
 import 'package:se_controle_ai/data/enums/expense_type.dart';
 
@@ -118,9 +119,9 @@ void main() {
 
   group('InstallmentModel', () {
     test('lê a parcela e mostra os quatro campos no toString', () {
-      final installment = ExpenseModel.fromJson(
-        geladeiraJson,
-      ).installments.first;
+      final installment = ExpenseModel.fromJson(geladeiraJson)
+          .installments
+          .first;
 
       expect(installment.number, 1);
       expect(installment.total, 10);

@@ -1,32 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:se_controle_ai/core/shared/widgets/month_selector_widget.dart';
+import 'package:se_controle_ai/core/theme/app_theme.dart';
+import 'package:se_controle_ai/data/services/navigation_service.dart';
 import 'package:signals/signals_flutter.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/di/injector.dart';
-import '../../../data/services/selected_month_service.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/shared/view_state.dart';
-import '../../../core/shared/widgets/empty_state_widget.dart';
 import '../../../core/shared/widgets/failure_card_widget.dart';
-import '../../../core/shared/widgets/state_transition.dart';
 import '../../../core/utils/expense_utils.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../../core/utils/month_utils.dart';
+import '../../../data/enums/payment_method.dart';
 import '../../../data/models/expense_model.dart';
-import '../controller/expense_list_controller.dart';
+import '../../../data/services/selected_month_service.dart';
+import '../controller/expense_controller.dart';
+import '../widgets/expense_list_empty_widget.dart';
 import '../widgets/expense_tile.dart';
-import 'package:se_controle_ai/data/enums/payment_method.dart';
 
-/// Lista de gastos — a porta de entrada do CRUD.
-///
-/// A mesma tela serve a lista inteira e o recorte por forma de pagamento: quem
-/// vem da seção "Dinheiro e crédito" da home chega sem filtro, quem vem da
-/// seção "Dinheiro" chega com `DEBIT`. O filtro é lido da rota pelo router e
-/// entregue aqui — o controller não conhece `GoRouterState`.
 class ExpenseListPage extends StatefulWidget {
   const ExpenseListPage({this.paymentMethod, super.key});
 
-  /// Nulo = tudo que sai no mês, débito e cartão.
   final PaymentMethod? paymentMethod;
 
   @override
@@ -34,34 +29,23 @@ class ExpenseListPage extends StatefulWidget {
 }
 
 class _ExpenseListPageState extends State<ExpenseListPage> {
-  final _controller = getIt<ExpenseListController>();
+  final _controller = getIt<ExpenseController>();
+  final _nav = getIt<NavigationService>();
 
-  /// O mês que a home selecionou. Manda em tudo nesta tela: no valor de cada
-  /// linha, no total do rodapé e — desde o `?activeFrom` (GFX-11) — em quem
-  /// aparece, já que o que acabou antes dele não é mais assunto aqui. Quem
-  /// refaz a busca na troca de mês é o controller, com um `effect`.
   final _selectedMonth = getIt<SelectedMonthService>();
 
-  /// O controller é singleton e sobrevive à saída da tela, então o filtro tem
-  /// de ser reafirmado a cada montagem — senão voltar da seção "Dinheiro" para
-  /// a lista completa mostraria o recorte anterior. `applyFilter` só rebusca
-  /// quando o filtro muda de fato.
   @override
   void initState() {
     super.initState();
-    _controller.applyFilter(widget.paymentMethod);
+    _controller.start(widget.paymentMethod);
   }
 
-  /// Recarrega ao voltar do formulário ou do detalhe: as duas telas podem ter
-  /// criado, reajustado ou apagado, e a lista não fica sabendo sozinha.
-  Future<void> _openAndReload(Future<Object?> navigation) async {
-    await navigation;
-    if (!mounted) return;
-    await _controller.refresh();
+  @override
+  void dispose() {
+    getIt.resetLazySingleton<ExpenseController>();
+    super.dispose();
   }
 
-  /// O título diz qual recorte está na tela: sem ele, a lista filtrada é
-  /// indistinguível da completa que faltou carregar.
   String get _title => switch (widget.paymentMethod) {
     null => 'Gastos',
     PaymentMethod.debit => 'Gastos no dinheiro',
@@ -73,75 +57,68 @@ class _ExpenseListPageState extends State<ExpenseListPage> {
     return Scaffold(
       appBar: AppBar(title: Text(_title), centerTitle: true),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            _openAndReload(context.pushNamed(AppRoutes.expenseForm)),
+        onPressed: () => _nav.pushNamed(AppRoutes.expenseForm),
         icon: const Icon(Icons.add),
         label: const Text('Novo gasto'),
       ),
-      body: SignalBuilder(
-        builder: (context) {
-          final state = _controller.state.value;
-          // Lido aqui dentro, e não no `build`, para o total se refazer sozinho
-          // se o mês trocar com esta tela montada.
-          final month = _selectedMonth.month.value;
-
-          return StateTransition(
-            stateKey: state.runtimeType,
-            child: switch (state) {
-              Loading() => const Center(child: CircularProgressIndicator()),
-              Failed(failure: final failure) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FailureCardWidget(
-                    failure: failure,
-                    onRetry: _controller.load,
+      body: RefreshIndicator.adaptive(
+        onRefresh: () => _controller.refresh(),
+        child: CustomScrollView(
+          slivers: [
+            SignalBuilder(
+              builder: (context) {
+                final state = _controller.state.value;
+                return switch (state) {
+                  Loading() => _ExpenseList.skeleton(),
+                  Loaded(:final data) => _ExpenseList(
+                    expenses: data,
+                    month: _selectedMonth.month.value,
+                    onOpen: (expense) =>
+                        _nav.pushNamed(AppRoutes.expenseDetail, extra: expense),
                   ),
-                ),
-              ),
-              Loaded(data: final expenses) => _ExpenseList(
-                expenses: expenses,
-                month: month,
-                onRefresh: _controller.refresh,
-                onOpen: (expense) => _openAndReload(
-                  context.pushNamed(
-                    AppRoutes.expenseDetail,
-                    pathParameters: {RouteParams.id: expense.id},
+                  Failed(:final failure) => SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: const .all(16),
+                        child: FailureCardWidget(
+                          failure: failure,
+                          onRetry: _controller.refresh,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            },
-          );
-        },
+                };
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _ExpenseList extends StatelessWidget {
+  final List<ExpenseModel> expenses;
+  final String month;
+  final bool loading;
+
+  final void Function(ExpenseModel expense)? onOpen;
+
   const _ExpenseList({
     required this.expenses,
     required this.month,
-    required this.onRefresh,
     required this.onOpen,
-  });
+  }) : loading = false;
 
-  final List<ExpenseModel> expenses;
+  const _ExpenseList.skeleton()
+    : expenses = const [],
+      onOpen = null,
+      month = '',
+      loading = true;
 
-  /// A competência selecionada na home.
-  final String month;
-
-  final Future<void> Function() onRefresh;
-  final void Function(ExpenseModel expense) onOpen;
-
-  /// Quanto sai na competência exibida — o mesmo número que a home mostra
-  /// para este mês.
-  ///
-  /// Sai do `ExpenseUtils.amountCentsIn` e não do `amountCents` porque este
-  /// último vem nulo na listagem sem `?month`. Somar o campo direto daria zero.
   int get _monthTotalCents => expenses.fold(0, _addAmountIn);
 
-  /// A parte que se repete: só os gastos sem fim marcado. A diferença para o
-  /// total do mês é o que sai uma vez só — o presente, a consulta avulsa.
   int get _recurringTotalCents => expenses
       .where((expense) => expense.endMonth == null)
       .fold(0, _addAmountIn);
@@ -152,77 +129,119 @@ class _ExpenseList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final paddingBottom = MediaQuery.paddingOf(context).bottom;
+    final monthTotal = _monthTotalCents;
+    final recurring = _recurringTotalCents;
+    final secondary = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
-    if (expenses.isEmpty) {
-      // "neste mês" e não "cadastrado": com o `?activeFrom`, a lista vazia pode
-      // ser tanto quem nunca cadastrou nada quanto quem só tem gasto que já
-      // acabou. Prometer "nenhum gasto cadastrado" para o segundo seria mentira.
-      return EmptyStateWidget(
-        icon: Icons.payments_outlined,
-        title: 'Nenhum gasto em ${MonthUtils.label(month)}',
-        message:
-            'Comece pelo que se repete todo mês — aluguel, streaming, escola.',
-        onRefresh: onRefresh,
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        // Espaço no fim para o FAB não cobrir o último item.
-        padding: const EdgeInsets.only(bottom: 88),
-        itemCount: expenses.length + 1,
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          if (index == expenses.length) {
-            final monthTotal = _monthTotalCents;
-            final recurring = _recurringTotalCents;
-
-            return Column(
-              children: [
-                ListTile(
-                  title: Text(
-                    'Sai em ${MonthUtils.label(month)}',
-                    style: theme.textTheme.titleSmall,
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverPadding(
+          padding: .all(24),
+          sliver: SliverToBoxAdapter(
+            child: Skeletonizer(
+              enabled: loading,
+              child: Column(
+                spacing: 4,
+                children: [
+                  Row(
+                    mainAxisAlignment: .spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Sai em ${MonthUtils.label(month)}',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                      Text(
+                        MoneyUtils.format(monthTotal),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ],
                   ),
-                  trailing: Text(
-                    MoneyUtils.format(monthTotal),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.error,
+                  Visibility(
+                    visible: recurring != monthTotal,
+                    child: Row(
+                      mainAxisAlignment: .spaceBetween,
+                      children: [
+                        Text('Recorrente por mês', style: secondary),
+                        Text(MoneyUtils.format(recurring), style: secondary),
+                      ],
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        DecoratedSliver(
+          decoration: BoxDecoration(
+            color: theme.appColors.card,
+            boxShadow: [
+              BoxShadow(
+                color: theme.appColors.cardShadow,
+                spreadRadius: 0,
+                blurRadius: 40,
+                offset: const Offset(0, 1),
+              ),
+            ],
+            borderRadius: .vertical(top: .circular(24)),
+          ),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              SliverPadding(padding: .symmetric(vertical: 10)),
+              PinnedHeaderSliver(
+                child: Material(
+                  color: theme.appColors.card,
+                  child: MonthSelectorWidget(),
                 ),
-                // A segunda linha só aparece quando há avulso no mês — sem
-                // diferença entre os dois números, ela seria repetição.
-                if (recurring != monthTotal)
-                  ListTile(
-                    dense: true,
-                    title: Text(
-                      'Recorrente por mês',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Text(
-                      MoneyUtils.format(recurring),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+              ),
+              SliverPadding(
+                padding: .only(bottom: 80 + paddingBottom),
+                sliver: SliverVisibility(
+                  visible: !loading,
+                  replacementSliver: SliverList.separated(
+                    itemCount: 3,
+                    itemBuilder: (_, _) =>
+                        const Skeletonizer(child: ExpenseTile.skeleton()),
+                    separatorBuilder: (_, _) => const Divider(),
                   ),
-              ],
-            );
-          }
-
-          final expense = expenses[index];
-          return ExpenseTile(
-            expense: expense,
-            monthSelected: month,
-            onTap: () => onOpen(expense),
-          );
-        },
-      ),
+                  sliver: expenses.isEmpty
+                      ? SliverPadding(
+                          padding: const .symmetric(horizontal: 24),
+                          sliver: SliverFillRemaining(
+                            fillOverscroll: true,
+                            hasScrollBody: false,
+                            child: ExpenseListEmptyWidget(month: month),
+                          ),
+                        )
+                      : SliverList.separated(
+                          itemCount: expenses.length,
+                          separatorBuilder: (context, index) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final expense = expenses[index];
+                            return ExpenseTile(
+                              expense: expense,
+                              monthSelected: month,
+                              onTap: () => onOpen?.call(expense),
+                            );
+                          },
+                        ),
+                ),
+              ),
+              SliverFillRemaining(
+                fillOverscroll: true,
+                hasScrollBody: false,
+                child: SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

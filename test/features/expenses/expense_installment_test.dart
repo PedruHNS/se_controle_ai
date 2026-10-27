@@ -90,24 +90,24 @@ void main() {
     });
 
     test('nasce como fixo', () async {
-      await controller.startForm();
+      await controller.resetForm();
 
-      expect(controller.selectedType, ExpenseType.fixed);
+      expect(controller.getType.value, ExpenseType.fixed);
     });
 
     test('parcelado manda total, quantidade e primeira competência', () async {
-      await controller.startForm();
-      controller.selectType(ExpenseType.installment);
+      await controller.resetForm();
+      controller.setType = ExpenseType.installment;
 
       controller.form.patchValue({
-        ExpenseController.tagId: moradiaTagId,
-        ExpenseController.description: 'Geladeira',
-        ExpenseController.totalCents: 300000,
-        ExpenseController.installmentsCount: 10,
-        ExpenseController.firstMonth: '2026-01',
+        'tagId': moradiaTagId,
+        'description': 'Geladeira',
+        'totalCents': 300000,
+        'installmentsCount': 10,
+        'firstMonth': '2026-01',
       });
 
-      await controller.submit();
+      await controller.onSubmit(expense: null);
 
       verify(() => nav.pop()).called(1);
       verify(
@@ -129,37 +129,38 @@ void main() {
     // o grupo inteiro, escolher parcelado travaria o salvamento por causa de um
     // "valor por mês" que nem está na tela.
     test('os campos do tipo não escolhido não travam o salvamento', () async {
-      await controller.startForm();
-      controller.selectType(ExpenseType.installment);
+      await controller.resetForm();
+      controller.setType = ExpenseType.installment;
 
       controller.form.patchValue({
-        ExpenseController.tagId: moradiaTagId,
-        ExpenseController.description: 'Geladeira',
-        ExpenseController.totalCents: 300000,
+        'tagId': moradiaTagId,
+        'description': 'Geladeira',
+        'totalCents': 300000,
       });
 
       expect(
-        controller.control<int>(ExpenseController.amountCents).invalid,
+        controller.form.control('amountCents').disabled,
         isTrue,
         reason: 'o campo do gasto fixo continua vazio, e tudo bem',
       );
-      await controller.submit();
+      expect(controller.form.valid, isTrue);
+      await controller.onSubmit(expense: null);
 
       verify(() => nav.pop()).called(1);
     });
 
     test('voltar para fixo manda o cadastro de fixo', () async {
-      await controller.startForm();
-      controller.selectType(ExpenseType.installment);
-      controller.selectType(ExpenseType.fixed);
+      await controller.resetForm();
+      controller.setType = ExpenseType.installment;
+      controller.setType = ExpenseType.fixed;
 
       controller.form.patchValue({
-        ExpenseController.tagId: moradiaTagId,
-        ExpenseController.description: 'Aluguel',
-        ExpenseController.amountCents: 120000,
+        'tagId': moradiaTagId,
+        'description': 'Aluguel',
+        'amountCents': 120000,
       });
 
-      await controller.submit();
+      await controller.onSubmit(expense: null);
 
       verify(
         () => repository.createFixed(
@@ -189,33 +190,19 @@ void main() {
       );
     });
 
-    test('menos de duas parcelas é recusado antes de sair', () async {
-      await controller.startForm();
-      controller.selectType(ExpenseType.installment);
+    test('menos de duas parcelas deixa o formulário inválido', () async {
+      await controller.resetForm();
+      controller.setType = ExpenseType.installment;
 
       controller.form.patchValue({
-        ExpenseController.tagId: moradiaTagId,
-        ExpenseController.description: 'Geladeira',
-        ExpenseController.totalCents: 300000,
-        ExpenseController.installmentsCount: 1,
+        'tagId': moradiaTagId,
+        'description': 'Geladeira',
+        'totalCents': 300000,
+        'installmentsCount': 1,
       });
 
-      await controller.submit();
-
-      verifyNever(() => nav.pop());
-      verifyNever(
-        () => repository.createInstallment(
-          description: any(named: 'description'),
-          paymentMethod: any(named: 'paymentMethod'),
-          totalCents: any(named: 'totalCents'),
-          installmentsCount: any(named: 'installmentsCount'),
-          firstMonth: any(named: 'firstMonth'),
-          tagId: any(named: 'tagId'),
-          notes: any(named: 'notes'),
-          creditCardId: any(named: 'creditCardId'),
-          spentAt: any(named: 'spentAt'),
-        ),
-      );
+      expect(controller.form.control('installmentsCount').invalid, isTrue);
+      expect(controller.form.valid, isFalse);
     });
   });
 
